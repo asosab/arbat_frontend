@@ -20,6 +20,27 @@ author:
   name: "ARBAT"
   email: "arbat.archery@gmail.com"
 
+# Logo para jekyll-seo-tag — se inyecta en el JSON-LD de Organization/WebSite
+# que genera {% seo %} automáticamente. Ruta relativa al root; Jekyll resuelve
+# url + baseurl solo (y deja de agregar baseurl cuando se pase a arbat.com.bo).
+logo: /assets/images/logo.png
+
+# Twitter Cards — controla cómo se ve el link al compartirlo en Twitter/X.
+# "summary_large_image" usa el `logo` (o el og:image de cada página) como
+# imagen grande. ARBAT no tiene cuenta de Twitter/X todavía: si se crea una,
+# agregar `username: "@handle"` acá (sin el @ en el YAML, jekyll-seo-tag lo
+# antepone solo) para que la card quede atribuida a la cuenta oficial.
+twitter:
+  card: summary_large_image
+
+# Social — alimenta el "sameAs" del JSON-LD de Organization que genera
+# {% seo %} (más redes que el schema LocalBusiness manual de
+# _includes/schema/local-business.html, que solo cubre Instagram por ahora).
+social:
+  name: "ARBAT"
+  links:
+    - "https://www.instagram.com/arbat.archery"
+
 # ---------------------------------------------------------------------------
 # Datos NAP y de marca — fuente única de verdad, reutilizable en layouts como
 # {{ site.arbat.direccion }}, {{ site.arbat.lema }}, etc.

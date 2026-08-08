@@ -2,12 +2,12 @@
 {
   "@context": "https://schema.org",
   "@type": "LocalBusiness",
-  "@id": "{{ site.url }}/#localbusiness",
+  "@id": "{{ '/' | absolute_url }}#localbusiness",
   "name": "{{ site.arbat.nombre }}",
   "slogan": "{{ site.arbat.lema }}",
-  "url": "{{ site.url }}/",
+  "url": "{{ '/' | absolute_url }}",
   "email": "{{ site.arbat.email }}",
-  "image": "{{ site.url }}/assets/images/logo.svg",
+  "image": "{{ '/assets/images/logo.png' | absolute_url }}",
   "sameAs": ["{{ site.arbat.instagram }}"],
   "address": {
     "@type": "PostalAddress",
