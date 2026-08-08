@@ -465,6 +465,34 @@ body.landing main { padding-bottom: 0; }
   cursor: pointer;
 }
 
+.calendar-embed {
+  max-width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--borde);
+  border-radius: 12px;
+  background: var(--piedra);
+  margin: 24px 0;
+}
+
+.calendar-embed iframe {
+  display: block;
+  max-width: 100%;
+  border-radius: 12px;
+}
+
+.calendar-embed-suscribir {
+  font-size: 14px;
+  color: var(--grafito);
+  margin: -8px 0 24px;
+}
+
+.calendar-embed-suscribir a {
+  color: var(--tinta);
+  text-decoration: underline;
+}
+
+.evento-calendario { margin-top: 56px; }
+
 body.landing { background: var(--papel); }
 
 .landing-main .hero .sub { margin-bottom: 32px; }
@@ -508,4 +536,6 @@ body.landing { background: var(--papel); }
   main { padding-bottom: 64px; }
   body.has-hero main,
   body.landing main { padding-bottom: 0; }
+
+  .calendar-embed iframe { height: 480px; }
 }

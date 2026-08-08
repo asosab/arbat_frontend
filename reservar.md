@@ -40,5 +40,9 @@ Completá el formulario y te enviamos tu solicitud por WhatsApp.
 })();
 </script>
 
+<p>¿Preferís elegir vos mismo un horario disponible?</p>
+
+{% include calendar-citas-embed.html %}
+
 <p>¿Preferís escribirnos directo?</p>
 {% include whatsapp-cta.html texto="Escribir por WhatsApp" mensaje="Hola ARBAT, quiero reservar una clase de tiro con arco." %}

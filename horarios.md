@@ -13,6 +13,12 @@ description: "Horarios de ARBAT: lunes, miércoles y viernes a las 16:00 y 18:00
 
 ## Agenda previa
 
-Las sesiones se realizan **con agenda previa**; no se aceptan visitas sin reservar. Para reservar, [agendá tu entrenamiento](https://calendar.app.google/RP52yPEfV1MfCF587) o escribinos por WhatsApp.
+Las sesiones se realizan **con agenda previa**; no se aceptan visitas sin reservar. Para reservar, [agendá tu entrenamiento]({{ site.arbat.google_calendar_citas_url }}) o escribinos por WhatsApp.
 
 {% include whatsapp-cta.html texto="Reservar por WhatsApp" mensaje="Hola ARBAT, quiero agendar una sesión de tiro con arco." %}
+
+## Calendario
+
+Mirá los horarios ya agendados en tiempo real:
+
+{% include calendar-eventos-embed.html %}

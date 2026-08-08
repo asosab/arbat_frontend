@@ -61,9 +61,9 @@ arbat:
     - dias: "Sábados"
       turnos: ["09:00–12:00", "14:30–17:00"]
   # Completar cuando estén creados en Google Calendar (ver plan, sección 3)
-  google_calendar_citas_url: ""
-  google_calendar_eventos_embed_url: ""
-  google_calendar_eventos_ics_url: ""
+  google_calendar_citas_url: "https://calendar.app.google/RP52yPEfV1MfCF587"
+  google_calendar_eventos_embed_url: "https://calendar.google.com/calendar/embed?src=arbat.archery%40gmail.com&ctz=America%2FLa_Paz"
+  google_calendar_eventos_ics_url: "https://calendar.google.com/calendar/ical/arbat.archery%40gmail.com/public/basic.ics"
 
 # ---------------------------------------------------------------------------
 # Plugins — todos soportados nativamente por GitHub Pages (sin build custom)
