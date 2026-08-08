@@ -1,0 +1,12 @@
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "@id": "{{ site.url }}{{ page.url }}#article",
+  "headline": "{{ page.title }}",
+  "url": "{{ site.url }}{{ page.url }}",
+  "description": "{{ page.description | default: site.description }}",
+  "datePublished": "{{ page.date | date_to_xmlschema }}",
+  "mainEntityOfPage": "{{ site.url }}{{ page.url }}"
+}
+</script>

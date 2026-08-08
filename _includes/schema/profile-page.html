@@ -1,0 +1,17 @@
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "ProfilePage",
+  "@id": "{{ site.url }}{{ page.url }}#profile",
+  "name": "{{ page.nombre }}",
+  "url": "{{ site.url }}{{ page.url }}",
+  "image": "{{ site.url }}{{ page.foto }}",
+  "mainEntity": {
+    "@type": "Person",
+    "name": "{{ page.nombre }}",
+    "url": "{{ site.url }}{{ page.url }}",
+    "image": "{{ site.url }}{{ page.foto }}",
+    "sameAs": ["https://www.instagram.com/{{ page.instagram }}"]
+  }
+}
+</script>

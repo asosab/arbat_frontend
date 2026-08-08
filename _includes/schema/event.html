@@ -1,0 +1,21 @@
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Event",
+  "@id": "{{ site.url }}{{ page.url }}#event",
+  "name": "{{ page.title }}",
+  "url": "{{ site.url }}{{ page.url }}",
+  {% if page.fecha %}"startDate": "{{ page.fecha }}",{% endif %}
+  "description": "{{ page.description | default: site.description }}",
+  "location": {
+    "@type": "Place",
+    "name": "{{ site.arbat.nombre }}",
+    "address": {
+      "@type": "PostalAddress",
+      "streetAddress": "Av. Roca y Coronado #1800",
+      "addressLocality": "Santa Cruz de la Sierra",
+      "addressCountry": "BO"
+    }
+  }
+}
+</script>

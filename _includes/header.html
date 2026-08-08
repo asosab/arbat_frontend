@@ -1,0 +1,18 @@
+<header class="site-header">
+  <div class="header-contacto">
+    {% for telefono in site.arbat.telefono_whatsapp %}
+    <a href="https://wa.me/{{ telefono | remove: '+' | remove: ' ' }}" target="_blank" rel="noopener">{{ telefono }}</a>
+    {% endfor %}
+  </div>
+  <div class="header-fila">
+    <a class="site-logo" href="{{ '/' | relative_url }}">{{ site.arbat.nombre }}</a>
+    <nav class="site-nav" aria-label="Navegación principal">
+      <a href="{{ '/clases/principiantes/' | relative_url }}">Clases</a>
+      <a href="{{ '/precios/' | relative_url }}">Precios</a>
+      <a href="{{ '/horarios/' | relative_url }}">Horarios</a>
+      <a href="{{ '/instructores/raul-suarez/' | relative_url }}">Instructores</a>
+      <a href="{{ '/ubicacion/' | relative_url }}">Ubicación</a>
+      <a href="{{ '/reservar/' | relative_url }}">Reservar</a>
+    </nav>
+  </div>
+</header>

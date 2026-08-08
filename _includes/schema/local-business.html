@@ -1,0 +1,33 @@
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "LocalBusiness",
+  "@id": "{{ site.url }}/#localbusiness",
+  "name": "{{ site.arbat.nombre }}",
+  "slogan": "{{ site.arbat.lema }}",
+  "url": "{{ site.url }}/",
+  "email": "{{ site.arbat.email }}",
+  "image": "{{ site.url }}/assets/images/logo.svg",
+  "sameAs": ["{{ site.arbat.instagram }}"],
+  "address": {
+    "@type": "PostalAddress",
+    "streetAddress": "Av. Roca y Coronado #1800",
+    "addressLocality": "Santa Cruz de la Sierra",
+    "addressCountry": "BO"
+  },
+  "openingHoursSpecification": [
+    {
+      "@type": "OpeningHoursSpecification",
+      "dayOfWeek": ["Monday", "Wednesday", "Friday"],
+      "opens": "16:00",
+      "closes": "20:00"
+    },
+    {
+      "@type": "OpeningHoursSpecification",
+      "dayOfWeek": "Saturday",
+      "opens": "09:00",
+      "closes": "17:00"
+    }
+  ]
+}
+</script>

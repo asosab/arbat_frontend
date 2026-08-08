@@ -1,0 +1,4 @@
+{% assign wa_numero = include.numero | default: site.arbat.telefono_whatsapp | first | remove: '+' | remove: ' ' %}
+{% assign wa_mensaje = include.mensaje | default: 'Hola ARBAT, quiero información sobre las clases de tiro con arco.' | url_encode %}
+{% assign wa_texto = include.texto | default: 'Escribir por WhatsApp' %}
+<a class="cta-whatsapp" href="https://wa.me/{{ wa_numero }}?text={{ wa_mensaje }}" target="_blank" rel="noopener">{{ wa_texto }}</a>

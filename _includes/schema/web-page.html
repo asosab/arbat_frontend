@@ -1,0 +1,16 @@
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebPage",
+  "@id": "{{ site.url }}{{ page.url }}#webpage",
+  "url": "{{ site.url }}{{ page.url }}",
+  "name": "{% if page.title %}{{ page.title }}{% else %}{{ site.title }}{% endif %}",
+  "description": "{{ page.description | default: site.description }}",
+  "isPartOf": {
+    "@type": "WebSite",
+    "@id": "{{ site.url }}/#website",
+    "url": "{{ site.url }}/",
+    "name": "{{ site.title }}"
+  }
+}
+</script>

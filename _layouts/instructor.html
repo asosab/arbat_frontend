@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="{{ site.lang | default: 'es-BO' }}">
+<head>
+{% include head.html %}
+</head>
+<body>
+{% include header.html %}
+<main>
+{% include breadcrumbs.html %}
+<article class="instructor">
+  <img src="{{ page.foto | relative_url }}" alt="Foto de {{ page.nombre }}" loading="lazy">
+  <h1>{{ page.nombre }}</h1>
+  {% if page.instagram %}
+  <p class="instructor-instagram"><a href="https://www.instagram.com/{{ page.instagram }}" target="_blank" rel="noopener">Instagram: @{{ page.instagram }}</a></p>
+  {% endif %}
+  {{ content }}
+  {% assign wa_numero = page.whatsapp | remove: '+' | remove: ' ' %}
+  {% assign wa_mensaje = 'Hola ' | append: page.nombre | append: ', quiero información sobre las clases de tiro con arco en ARBAT.' | url_encode %}
+  <p class="instructor-cta">
+    <a class="cta-whatsapp" href="https://wa.me/{{ wa_numero }}?text={{ wa_mensaje }}" target="_blank" rel="noopener">Escribir a {{ page.nombre }} por WhatsApp</a>
+  </p>
+</article>
+</main>
+{% include footer.html %}
+{% include schema/profile-page.html %}
+</body>
+</html>

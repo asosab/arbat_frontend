@@ -1,0 +1,15 @@
+<footer class="site-footer">
+  <div class="footer-nap">
+    <p class="footer-nombre">{{ site.arbat.nombre }} — {{ site.arbat.lema }}</p>
+    <p>{{ site.arbat.direccion }}</p>
+    <p>Email: <a href="mailto:{{ site.arbat.email }}">{{ site.arbat.email }}</a></p>
+    <p>
+      WhatsApp:
+      {% for telefono in site.arbat.telefono_whatsapp %}
+      <a href="https://wa.me/{{ telefono | remove: '+' | remove: ' ' }}" target="_blank" rel="noopener">{{ telefono }}</a>{% if forloop.last == false %} · {% endif %}
+      {% endfor %}
+    </p>
+    <p><a href="{{ site.arbat.instagram }}" target="_blank" rel="noopener">Instagram: @arbat.archery</a></p>
+  </div>
+  <p class="footer-copy">© {{ 'now' | date: '%Y' }} {{ site.arbat.nombre }}. Todos los derechos reservados.</p>
+</footer>

@@ -1,0 +1,139 @@
+# ARBAT — Escuela de Tiro con Arco
+# Configuración Jekyll / GitHub Pages
+
+title: "ARBAT — Escuela de Tiro con Arco"
+description: >-
+  Escuela de tiro con arco en Santa Cruz de la Sierra, Bolivia.
+  Entrenamiento olímpico, recreativo, deportivo y competitivo para todos los niveles.
+url: "https://arbat.com.bo"   # reemplazar por el dominio real una vez configurado
+baseurl: ""
+lang: es-BO
+locale: es_BO
+timezone: America/La_Paz
+
+# Autor / entidad para jekyll-seo-tag
+author:
+  name: "ARBAT"
+  email: "arbat.archery@gmail.com"
+
+# ---------------------------------------------------------------------------
+# Datos NAP y de marca — fuente única de verdad, reutilizable en layouts como
+# {{ site.arbat.direccion }}, {{ site.arbat.lema }}, etc.
+# ---------------------------------------------------------------------------
+arbat:
+  nombre: "ARBAT"
+  lema: "Sentio ergo attingo"
+  direccion: "Av. Roca y Coronado #1800, entre 4to y 5to anillo, Santa Cruz de la Sierra, Bolivia"
+  telefono_whatsapp:
+    - "+591 70885758"
+    - "+591 76660577"
+  email: "arbat.archery@gmail.com"
+  instagram: "https://www.instagram.com/arbat.archery"
+  horarios:
+    - dias: "Lunes, miércoles y viernes"
+      turnos: ["16:00", "18:00"]
+      duracion: "2 horas"
+    - dias: "Sábados"
+      turnos: ["09:00–12:00", "14:30–17:00"]
+  # Completar cuando estén creados en Google Calendar (ver plan, sección 3)
+  google_calendar_citas_url: ""
+  google_calendar_eventos_embed_url: ""
+  google_calendar_eventos_ics_url: ""
+
+# ---------------------------------------------------------------------------
+# Plugins — todos soportados nativamente por GitHub Pages (sin build custom)
+# ---------------------------------------------------------------------------
+plugins:
+  - jekyll-sitemap
+  - jekyll-seo-tag
+  - jekyll-feed
+
+# ---------------------------------------------------------------------------
+# Colecciones y permalinks (sección 2 del plan)
+# ---------------------------------------------------------------------------
+collections:
+  instructores:
+    output: true
+    permalink: /instructores/:path/
+  clases:
+    output: true
+    permalink: /clases/:path/
+  eventos:
+    output: true
+    permalink: /eventos/:path/
+
+# ---------------------------------------------------------------------------
+# Defaults de front matter por tipo de contenido
+# schema_type queda disponible en el layout para renderizar el JSON-LD correcto
+# ---------------------------------------------------------------------------
+defaults:
+  - scope:
+      path: ""
+      type: "posts"
+    values:
+      layout: "post"
+      schema_type: "Article"
+      seo:
+        type: "Article"
+
+  - scope:
+      path: ""
+      type: "instructores"
+    values:
+      layout: "instructor"
+      schema_type: "ProfilePage"
+      seo:
+        type: "ProfilePage"
+
+  - scope:
+      path: ""
+      type: "clases"
+    values:
+      layout: "clase"
+      schema_type: "Service"
+      seo:
+        type: "Service"
+
+  - scope:
+      path: ""
+      type: "eventos"
+    values:
+      layout: "evento"
+      schema_type: "Event"
+      seo:
+        type: "Event"
+      # tier: "A" — solo eventos Tier A viven como colección (amistosas/regionales/nacionales)
+
+  - scope:
+      path: ""
+    values:
+      layout: "default"
+      schema_type: "WebPage"
+
+# ---------------------------------------------------------------------------
+# Markdown y build
+# ---------------------------------------------------------------------------
+markdown: kramdown
+kramdown:
+  input: GFM
+  syntax_highlighter: rouge
+
+sass:
+  style: compressed
+
+permalink: pretty
+future: false
+show_drafts: false
+
+# ---------------------------------------------------------------------------
+# Excluir del build
+# ---------------------------------------------------------------------------
+exclude:
+  - README.md
+  - Gemfile
+  - Gemfile.lock
+  - node_modules/
+  - vendor/
+  - scripts/
+  - "*.gemspec"
+  - assets/images/README.md

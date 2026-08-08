@@ -1,0 +1,43 @@
+{% unless page.breadcrumb_hidden %}
+<nav class="breadcrumbs" aria-label="Miga de pan">
+  <a href="{{ '/' | relative_url }}">Inicio</a>
+  {% if page.collection %}
+  <span class="breadcrumbs-sep">/</span>
+  {% if page.collection == 'clases' %}<a href="{{ '/clases/principiantes/' | relative_url }}">Clases</a>{% elsif page.collection == 'instructores' %}<span>Instructores</span>{% elsif page.collection == 'eventos' %}<span>Eventos</span>{% endif %}
+  {% endif %}
+  <span class="breadcrumbs-sep">/</span>
+  <span aria-current="page">{{ page.title | default: page.nombre }}</span>
+</nav>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Inicio",
+      "item": "{{ site.url }}/"
+    }{% if page.collection %},
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "{{ page.collection }}",
+      "item": "{{ site.url }}/{{ page.collection }}/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 3,
+      "name": "{{ page.title | default: page.nombre }}",
+      "item": "{{ site.url }}{{ page.url }}"
+    }{% else %},
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "{{ page.title | default: page.nombre }}",
+      "item": "{{ site.url }}{{ page.url }}"
+    }{% endif %}
+  ]
+}
+</script>
+{% endunless %}

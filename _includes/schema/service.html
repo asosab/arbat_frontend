@@ -1,0 +1,26 @@
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Service",
+  "@id": "{{ site.url }}{{ page.url }}#service",
+  "name": "{{ page.title }}",
+  "url": "{{ site.url }}{{ page.url }}",
+  "provider": {
+    "@type": "LocalBusiness",
+    "@id": "{{ site.url }}/#localbusiness",
+    "name": "{{ site.arbat.nombre }}",
+    "url": "{{ site.url }}/",
+    "address": {
+      "@type": "PostalAddress",
+      "streetAddress": "Av. Roca y Coronado #1800",
+      "addressLocality": "Santa Cruz de la Sierra",
+      "addressCountry": "BO"
+    }
+  },
+  "areaServed": "Santa Cruz de la Sierra, Bolivia",
+  "availableChannel": {
+    "@type": "ServiceChannel",
+    "serviceUrl": "{{ site.url }}{{ page.url }}"
+  }
+}
+</script>

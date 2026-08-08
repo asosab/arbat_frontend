@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="{{ site.lang | default: 'es-BO' }}">
+<head>
+{% include head.html %}
+</head>
+<body>
+{% include header.html %}
+<main>
+{% unless page.breadcrumb_hidden %}
+  {% include breadcrumbs.html %}
+{% endunless %}
+{{ content }}
+</main>
+{% include footer.html %}
+</body>
+</html>
