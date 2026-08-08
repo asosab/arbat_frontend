@@ -5,8 +5,12 @@ title: "ARBAT — Escuela de Tiro con Arco"
 description: >-
   Escuela de tiro con arco en Santa Cruz de la Sierra, Bolivia.
   Entrenamiento olímpico, recreativo, deportivo y competitivo para todos los niveles.
-url: "https://arbat.com.bo"   # reemplazar por el dominio real una vez configurado
-baseurl: ""
+url: "https://asosab.github.io"   # TEMPORAL: sitio de prueba en GitHub Pages.
+                                    # Cuando exista arbat.com.bo, volver a:
+                                    #   url: "https://arbat.com.bo"
+                                    #   baseurl: ""
+baseurl: "/arbat_frontend"         # nombre del repo — GitHub Pages sirve el sitio
+                                    # en esa subruta cuando no hay dominio propio
 lang: es-BO
 locale: es_BO
 timezone: America/La_Paz
