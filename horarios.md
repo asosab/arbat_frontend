@@ -4,6 +4,8 @@ description: "Horarios de ARBAT: lunes, miércoles y viernes a las 16:00 y 18:00
 ---
 # {{ page.title }}
 
+Estos son los bloques fijos. Elegí el que te acomode y agendá — no hace falta escribirnos antes para confirmar que hay lugar.
+
 {% for bloque in site.arbat.horarios %}
 ## {{ bloque.dias }}
 
@@ -13,12 +15,12 @@ description: "Horarios de ARBAT: lunes, miércoles y viernes a las 16:00 y 18:00
 
 ## Agenda previa
 
-Las sesiones se realizan **con agenda previa**; no se aceptan visitas sin reservar. Para reservar, [agendá tu entrenamiento]({{ site.arbat.google_calendar_citas_url }}) o escribinos por WhatsApp.
+No trabajamos con walk-in: si llegás sin agendar, no hay garantía de cupo ni de equipo disponible. Agendá desde el calendario o escribinos por WhatsApp y te confirmamos el horario.
 
 {% include whatsapp-cta.html texto="Reservar por WhatsApp" mensaje="Hola ARBAT, quiero agendar una sesión de tiro con arco." %}
 
 ## Calendario
 
-Mirá los horarios ya agendados en tiempo real:
+Mirá qué horarios ya están ocupados antes de elegir el tuyo:
 
 {% include calendar-eventos-embed.html %}

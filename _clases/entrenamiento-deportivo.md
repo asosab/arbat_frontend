@@ -4,7 +4,7 @@ description: "Entrenamiento deportivo de tiro con arco en Santa Cruz de la Sierr
 ---
 ## Para quién
 
-Arqueros que buscan un entrenamiento deportivo y preparación competitiva.
+Sos arquero y querés competir en serio, no arrancar de cero. Acá afinamos técnica, constancia y cabeza fría para eso.
 
 <!-- TODO: confirmar con ARBAT los requisitos de nivel/experiencia para entrar a este grupo. -->
 
@@ -14,7 +14,7 @@ Arqueros que buscan un entrenamiento deportivo y preparación competitiva.
 
 ## Cómo funciona
 
-Las sesiones se realizan **con agenda previa**, no se aceptan visitas sin reservar.
+Como en toda ARBAT, no hay walk-in: agendás antes y te esperamos a esa hora, con la cancha lista.
 
 ## Duración
 
@@ -27,7 +27,7 @@ Ver [Precios](/precios/).
 
 ## Equipamiento
 
-ARBAT entrega todo el equipamiento necesario: arcos clásicos de madera, barebow, recurvos, equipo para diestros y zurdos, protectores, flechas y pechera.
+Te damos todo lo necesario: arcos clásicos de madera, barebow, recurvos, equipo para diestros y zurdos, protectores, flechas y pechera.
 
 ## Instructor sugerido
 
@@ -39,5 +39,5 @@ Av. Roca y Coronado #1800, entre 4to y 5to anillo, Santa Cruz de la Sierra. Ver 
 
 ## Preguntas frecuentes
 
-- **¿Necesito arco propio?** No, ARBAT presta el equipo.
+- **¿Necesito arco propio?** No, te prestamos el equipo.
 - **¿Necesito experiencia previa?** <!-- TODO: confirmar con ARBAT. -->

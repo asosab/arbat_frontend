@@ -4,13 +4,13 @@ description: "Reservá tu primera clase de tiro con arco en ARBAT. Dejanos tu d�
 ---
 # {{ page.title }}
 
-Para confirmar tu visita necesitamos tres datos:
+Para confirmarte un lugar necesitamos tres datos:
 
-- El **día** en que desean asistir.
+- El **día** en que querés venir.
 - El **nombre** de cada persona.
 - La **edad** de cada persona.
 
-Completá el formulario y te enviamos tu solicitud por WhatsApp.
+Completá el formulario y te mandamos la solicitud lista por WhatsApp.
 
 <form class="formulario-reserva" id="formulario-reserva">
   <label for="reserva-dia">Día en que desean asistir

@@ -5,7 +5,7 @@ breadcrumb_hidden: true
 hero: true
 hero_eyebrow: "Escuela de tiro con arco — Santa Cruz de la Sierra"
 hero_lema: "Sentio ergo attingo."
-hero_sub: "ARBAT es una escuela de tiro con arco en Santa Cruz de la Sierra. El entrenamiento se adapta al nivel, los objetivos y las necesidades de cada estudiante, con equipo incluido para quienes no tienen arco propio."
+hero_sub: "Te enseñamos a tirar con arco, sea cual sea tu punto de partida. Si no tenés equipo, te prestamos uno — arco, flechas, protecciones — y arrancamos donde estés vos."
 hero_cta_texto: "Probar una clase (Bs. 70)"
 hero_cta_mensaje: "Hola ARBAT, quiero probar una primera clase de tiro con arco."
 ---
@@ -56,7 +56,7 @@ hero_cta_mensaje: "Hola ARBAT, quiero probar una primera clase de tiro con arco.
       <li><strong>{{ bloque.dias }}:</strong> {{ bloque.turnos | join: ' y ' }}{% if bloque.duracion %} ({{ bloque.duracion }}){% endif %}</li>
       {% endfor %}
     </ul>
-    <p>Las sesiones se realizan con <strong>agenda previa</strong>. Ver <a href="{{ '/horarios/' | relative_url }}">horarios</a>.</p>
+    <p>Trabajamos con <strong>agenda previa</strong> siempre. Mirá los <a href="{{ '/horarios/' | relative_url }}">horarios</a> y elegí el tuyo.</p>
   </div>
 </div>
 
@@ -70,7 +70,7 @@ hero_cta_mensaje: "Hola ARBAT, quiero probar una primera clase de tiro con arco.
       <li>Mensualidad 1x/semana: <strong>Bs. 180</strong></li>
       <li>Solo sábados: <strong>Bs. 200</strong></li>
     </ul>
-    <p>Ver <a href="{{ '/precios/' | relative_url }}">precios</a>.</p>
+    <p>Mirá cuánto cuesta cada modalidad en <a href="{{ '/precios/' | relative_url }}">precios</a>.</p>
   </div>
 </div>
 
@@ -78,9 +78,9 @@ hero_cta_mensaje: "Hola ARBAT, quiero probar una primera clase de tiro con arco.
   <div class="wrap">
     <p class="section-label">Preguntas frecuentes</p>
     <ul class="list-diana">
-      <li><strong>¿Necesito arco propio?</strong> No, ARBAT presta el equipo.</li>
-      <li><strong>¿Soy zurdo, hay problema?</strong> No, hay equipo para diestros y zurdos.</li>
-      <li><strong>¿Tengo que agendar?</strong> Sí, las sesiones son con agenda previa.</li>
+      <li><strong>¿Necesito arco propio?</strong> No, te prestamos el equipo.</li>
+      <li><strong>¿Soy zurdo, hay problema?</strong> No, tenemos equipo para diestros y zurdos.</li>
+      <li><strong>¿Tengo que agendar?</strong> Sí, siempre con agenda previa.</li>
     </ul>
     <p>Ver todas las <a href="{{ '/preguntas-frecuentes/' | relative_url }}">preguntas frecuentes</a>.</p>
   </div>

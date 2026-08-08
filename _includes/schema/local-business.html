@@ -13,8 +13,16 @@
     "@type": "PostalAddress",
     "streetAddress": "Av. Roca y Coronado #1800",
     "addressLocality": "Santa Cruz de la Sierra",
+    "addressRegion": "Santa Cruz",
     "addressCountry": "BO"
   },
+  "geo": {
+    "@type": "GeoCoordinates",
+    "latitude": {{ site.arbat.latitud }},
+    "longitude": {{ site.arbat.longitud }}
+  },
+  "hasMap": "{{ site.arbat.google_maps_url }}",
+  "telephone": "{{ site.arbat.telefono_whatsapp | first }}",
   "openingHoursSpecification": [
     {
       "@type": "OpeningHoursSpecification",

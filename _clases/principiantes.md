@@ -4,6 +4,8 @@ description: "Clases de tiro con arco para principiantes en Santa Cruz de la Sie
 ---
 ## Para quién
 
+Para quien nunca agarró un arco. No hace falta experiencia previa ni condición física especial — así empezamos todos.
+
 <!-- TODO: confirmar con ARBAT a qué perfiles está pensada esta clase (edad, objetivo). -->
 
 ## Qué aprenderás
@@ -12,7 +14,7 @@ description: "Clases de tiro con arco para principiantes en Santa Cruz de la Sie
 
 ## Cómo funciona
 
-Las sesiones se realizan **con agenda previa**, no se aceptan visitas sin reservar.
+Como en toda ARBAT, no hay walk-in: agendás antes y te esperamos a esa hora, con la cancha lista.
 
 ## Duración
 
@@ -25,7 +27,7 @@ Ver [Precios](/precios/).
 
 ## Equipamiento
 
-ARBAT entrega todo el equipamiento necesario: arcos clásicos de madera, barebow, recurvos, equipo para diestros y zurdos, protectores, flechas y pechera.
+Te damos todo lo necesario: arcos clásicos de madera, barebow, recurvos, equipo para diestros y zurdos, protectores, flechas y pechera.
 
 ## Instructor sugerido
 
@@ -37,5 +39,5 @@ Av. Roca y Coronado #1800, entre 4to y 5to anillo, Santa Cruz de la Sierra. Ver 
 
 ## Preguntas frecuentes
 
-- **¿Necesito arco propio?** No, ARBAT presta el equipo.
-- **¿Soy zurdo, hay problema?** No, hay equipo para diestros y zurdos.
+- **¿Necesito arco propio?** No, te prestamos el equipo.
+- **¿Soy zurdo, hay problema?** No, tenemos equipo para diestros y zurdos.

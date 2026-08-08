@@ -6,7 +6,7 @@ description: "Cómo se entrena en ARBAT: progresión técnica, seguridad y equip
 
 ## Progresión técnica
 
-El entrenamiento busca desarrollar progresivamente la técnica, el control, la seguridad y las capacidades necesarias para la práctica del tiro con arco.
+Vas a subir en técnica, control, seguridad y capacidad de a poco — no te tiramos a fondo el primer día. Cada sesión suma sobre la anterior.
 
 ## Seguridad
 
@@ -14,7 +14,7 @@ El entrenamiento busca desarrollar progresivamente la técnica, el control, la s
 
 ## Equipo adaptado
 
-ARBAT adapta el equipamiento a cada estudiante. Hay equipo para diestros y zurdos: arcos clásicos de madera, barebow, recurvos, protectores, flechas y pechera.
+Adaptamos el equipo a vos, no al revés. Tenemos arcos clásicos de madera, barebow y recurvos, protectores, flechas y pechera — para diestros y para zurdos.
 
 ## Tipos de entrenamiento
 
@@ -23,6 +23,6 @@ ARBAT adapta el equipamiento a cada estudiante. Hay equipo para diestros y zurdo
 - **Entrenamiento deportivo.**
 - **Preparación competitiva.**
 
-El proceso de formación se adapta al nivel, los objetivos y las necesidades de cada estudiante.
+El proceso se arma según tu nivel, tus objetivos y tus tiempos.
 
 {% include whatsapp-cta.html texto="Consultar por una clase" mensaje="Hola ARBAT, quiero información sobre la metodología de entrenamiento." %}

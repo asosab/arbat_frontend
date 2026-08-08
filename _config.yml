@@ -49,6 +49,9 @@ arbat:
   nombre: "ARBAT"
   lema: "Sentio ergo attingo"
   direccion: "Av. Roca y Coronado #1800, entre 4to y 5to anillo, Santa Cruz de la Sierra, Bolivia"
+  latitud: -17.786213690725038
+  longitud: -63.22014574535284
+  google_maps_url: "https://maps.app.goo.gl/yrxjsFbNvWqtT6Bp9"
   telefono_whatsapp:
     - "+591 70885758"
     - "+591 76660577"

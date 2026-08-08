@@ -4,7 +4,7 @@ description: "Clases individuales de tiro con arco en Santa Cruz de la Sierra, a
 ---
 ## Para quién
 
-Estudiantes que quieren un proceso de formación adaptado a su nivel, objetivos y necesidades.
+Para quien quiere entrenar solo, a su ritmo, sin el grupo grande alrededor — el proceso se arma alrededor tuyo, no al revés.
 
 ## Qué aprenderás
 
@@ -12,7 +12,7 @@ Estudiantes que quieren un proceso de formación adaptado a su nivel, objetivos 
 
 ## Cómo funciona
 
-Las sesiones se realizan **con agenda previa**, no se aceptan visitas sin reservar.
+Como en toda ARBAT, no hay walk-in: agendás antes y te esperamos a esa hora, con la cancha lista.
 
 ## Duración
 
@@ -25,7 +25,7 @@ Ver [Precios](/precios/).
 
 ## Equipamiento
 
-ARBAT entrega todo el equipamiento necesario: arcos clásicos de madera, barebow, recurvos, equipo para diestros y zurdos, protectores, flechas y pechera.
+Te damos todo lo necesario: arcos clásicos de madera, barebow, recurvos, equipo para diestros y zurdos, protectores, flechas y pechera.
 
 ## Instructor sugerido
 
@@ -33,9 +33,9 @@ ARBAT entrega todo el equipamiento necesario: arcos clásicos de madera, barebow
 
 ## Ubicación
 
-Av. Roca y Coronado #1800, entre 4to y 5to anillo, Santa Cruz de la Sierra. Ver [ubicacion](/ubicacion/).
+Av. Roca y Coronado #1800, entre 4to y 5to anillo, Santa Cruz de la Sierra. Ver [ubicación](/ubicacion/).
 
 ## Preguntas frecuentes
 
-- **¿Necesito arco propio?** No, ARBAT presta el equipo.
+- **¿Necesito arco propio?** No, te prestamos el equipo.
 - **¿Es para mí si soy principiante?** <!-- TODO: confirmar con ARBAT. -->

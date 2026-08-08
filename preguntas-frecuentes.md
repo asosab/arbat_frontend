@@ -6,11 +6,11 @@ description: "Respuestas a las preguntas más frecuentes sobre las clases de tir
 
 ## ¿Necesito arco propio?
 
-No. ARBAT presta todo el equipamiento necesario: arcos clásicos de madera, barebow, recurvos, equipo para diestros y zurdos, protectores, flechas y pechera.
+No. Te prestamos todo el equipamiento necesario: arcos clásicos de madera, barebow, recurvos, equipo para diestros y zurdos, protectores, flechas y pechera.
 
 ## ¿Soy zurdo, hay problema?
 
-No. ARBAT tiene equipo para diestros y zurdos.
+No. Tenemos equipo para diestros y zurdos.
 
 ## ¿Qué edad?
 
@@ -28,7 +28,7 @@ Ver [precios](/precios/).
 
 ## ¿Tengo que agendar?
 
-Sí. Las sesiones se realizan **con agenda previa**, no se aceptan visitas sin reservar. Ver [horarios](/horarios/).
+Sí. Trabajamos siempre **con agenda previa**; sin reserva no hay cupo garantizado. Ver [horarios](/horarios/).
 
 ## ¿Qué ropa llevo?
 
