@@ -5,7 +5,15 @@
 </head>
 <body class="landing">
 <main class="landing-main">
-  {{ content }}
+  <section class="hero">
+    <div class="ring-bg" aria-hidden="true"></div>
+    <div class="wrap">
+      {% if page.hero_eyebrow %}<p class="section-label section-label--dot">{{ page.hero_eyebrow }}</p>{% endif %}
+      <h1>{{ page.title }}{% if page.hero_lema %} <span class="lema">{{ page.hero_lema }}</span>{% endif %}</h1>
+      {% if page.hero_sub %}<p class="sub">{{ page.hero_sub }}</p>{% endif %}
+      {{ content }}
+    </div>
+  </section>
 </main>
 </body>
 </html>

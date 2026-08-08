@@ -8,7 +8,15 @@
 <main>
 {% include breadcrumbs.html %}
 <article class="instructor">
-  <img src="{{ page.foto | relative_url }}" alt="Foto de {{ page.nombre }}" loading="lazy">
+  <div class="instructor-media">
+    {% assign foto_existe = false %}
+    {% for f in site.static_files %}{% if f.path == page.foto %}{% assign foto_existe = true %}{% endif %}{% endfor %}
+    {% if foto_existe %}
+    <img src="{{ page.foto | relative_url }}" alt="Foto de {{ page.nombre }}" loading="lazy">
+    {% else %}
+    <div class="placeholder" aria-hidden="true">{{ page.nombre | slice: 0, 1 }}</div>
+    {% endif %}
+  </div>
   <h1>{{ page.nombre }}</h1>
   {% if page.instagram %}
   <p class="instructor-instagram"><a href="https://www.instagram.com/{{ page.instagram }}" target="_blank" rel="noopener">Instagram: @{{ page.instagram }}</a></p>
@@ -17,7 +25,7 @@
   {% assign wa_numero = page.whatsapp | remove: '+' | remove: ' ' %}
   {% assign wa_mensaje = 'Hola ' | append: page.nombre | append: ', quiero información sobre las clases de tiro con arco en ARBAT.' | url_encode %}
   <p class="instructor-cta">
-    <a class="cta-whatsapp" href="https://wa.me/{{ wa_numero }}?text={{ wa_mensaje }}" target="_blank" rel="noopener">Escribir a {{ page.nombre }} por WhatsApp</a>
+    <a class="btn-primary" href="https://wa.me/{{ wa_numero }}?text={{ wa_mensaje }}" target="_blank" rel="noopener"><span class="ring-icon" aria-hidden="true"></span>Escribir a {{ page.nombre }} por WhatsApp</a>
   </p>
 </article>
 </main>

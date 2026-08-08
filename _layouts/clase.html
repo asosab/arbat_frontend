@@ -9,11 +9,12 @@
 {% include breadcrumbs.html %}
 <article class="clase">
   <h1>{{ page.title }}</h1>
+  {% if page.description %}<p class="sub">{{ page.description }}</p>{% endif %}
   {{ content }}
   {% assign wa_numero = site.arbat.telefono_whatsapp | first | remove: '+' | remove: ' ' %}
   {% assign wa_mensaje = 'Hola ARBAT, quiero reservar una clase: ' | append: page.title | url_encode %}
   <p class="clase-cta">
-    <a class="cta-whatsapp" href="https://wa.me/{{ wa_numero }}?text={{ wa_mensaje }}" target="_blank" rel="noopener">Reservar</a>
+    <a class="btn-primary" href="https://wa.me/{{ wa_numero }}?text={{ wa_mensaje }}" target="_blank" rel="noopener"><span class="ring-icon" aria-hidden="true"></span>Reservar</a>
   </p>
 </article>
 </main>

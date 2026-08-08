@@ -2,54 +2,95 @@
 title: "Escuela de tiro con arco en Santa Cruz de la Sierra"
 description: "Escuela de tiro con arco en Santa Cruz de la Sierra. Entrenamiento olímpico, recreativo, deportivo y competitivo con equipo incluido y agenda previa."
 breadcrumb_hidden: true
+hero: true
+hero_eyebrow: "Escuela de tiro con arco — Santa Cruz de la Sierra"
+hero_lema: "Sentio ergo attingo."
+hero_sub: "ARBAT es una escuela de tiro con arco en Santa Cruz de la Sierra. El entrenamiento se adapta al nivel, los objetivos y las necesidades de cada estudiante, con equipo incluido para quienes no tienen arco propio."
+hero_cta_texto: "Probar una clase (Bs. 70)"
+hero_cta_mensaje: "Hola ARBAT, quiero probar una primera clase de tiro con arco."
 ---
-# {{ page.title }}
 
-{{ site.arbat.nombre }} es una escuela de tiro con arco en Santa Cruz de la Sierra. El entrenamiento se adapta al nivel, los objetivos y las necesidades de cada estudiante, con equipo incluido para quienes no tienen arco propio.
+<div class="ring-divider" aria-hidden="true"></div>
 
-{% include whatsapp-cta.html texto="Probar una clase (Bs. 70)" mensaje="Hola ARBAT, quiero probar una primera clase de tiro con arco." %}
+<div class="tile">
+  <div class="wrap">
+    <p class="section-label">Clases</p>
+    <div class="grid">
+      {% for clase in site.clases %}
+      <article class="card">
+        <div class="card__media" aria-hidden="true"></div>
+        <div class="card__body">
+          <h3 class="card__title"><a href="{{ clase.url | relative_url }}">{{ clase.title }}</a></h3>
+          <p class="card__text">{{ clase.description }}</p>
+          <a class="btn-secondary" href="{{ clase.url | relative_url }}">Ver la clase</a>
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+  </div>
+</div>
 
-## Clases
+<div class="tile">
+  <div class="wrap">
+    <p class="section-label">Instructores</p>
+    <div class="grid grid--3">
+      {% for instructor in site.instructores %}
+      <article class="card">
+        <div class="card__media card__media--placeholder" aria-hidden="true">{{ instructor.nombre | slice: 0, 1 }}</div>
+        <div class="card__body">
+          <h3 class="card__title"><a href="{{ instructor.url | relative_url }}">{{ instructor.nombre }}</a></h3>
+          {% if instructor.instagram %}<p class="card__text">Instagram: @{{ instructor.instagram }}</p>{% endif %}
+          <a class="btn-secondary" href="{{ instructor.url | relative_url }}">Ver perfil</a>
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+  </div>
+</div>
 
-- [Clases de tiro con arco para principiantes](/clases/principiantes/)
-- [Clases de tiro con arco para niños](/clases/ninos/)
-- [Entrenamiento deportivo de tiro con arco](/clases/entrenamiento-deportivo/)
-- [Clases individuales de tiro con arco](/clases/clases-individuales/)
+<div class="tile">
+  <div class="wrap">
+    <p class="section-label">Horarios</p>
+    <ul class="list-diana">
+      {% for bloque in site.arbat.horarios %}
+      <li><strong>{{ bloque.dias }}:</strong> {{ bloque.turnos | join: ' y ' }}{% if bloque.duracion %} ({{ bloque.duracion }}){% endif %}</li>
+      {% endfor %}
+    </ul>
+    <p>Las sesiones se realizan con <strong>agenda previa</strong>. Ver <a href="{{ '/horarios/' | relative_url }}">horarios</a>.</p>
+  </div>
+</div>
 
-## Instructores
+<div class="tile">
+  <div class="wrap">
+    <p class="section-label">Precios</p>
+    <ul class="list-diana">
+      <li>Primera clase / clase suelta: <strong>Bs. 70</strong></li>
+      <li>Mensualidad 3x/semana: <strong>Bs. 500</strong></li>
+      <li>Mensualidad 2x/semana: <strong>Bs. 350</strong></li>
+      <li>Mensualidad 1x/semana: <strong>Bs. 180</strong></li>
+      <li>Solo sábados: <strong>Bs. 200</strong></li>
+    </ul>
+    <p>Ver <a href="{{ '/precios/' | relative_url }}">precios</a>.</p>
+  </div>
+</div>
 
-{% for instructor in site.instructores %}
-- [{{ instructor.nombre }}](/instructores/{{ instructor.slug }}/)
-{% endfor %}
+<div class="tile">
+  <div class="wrap">
+    <p class="section-label">Preguntas frecuentes</p>
+    <ul class="list-diana">
+      <li><strong>¿Necesito arco propio?</strong> No, ARBAT presta el equipo.</li>
+      <li><strong>¿Soy zurdo, hay problema?</strong> No, hay equipo para diestros y zurdos.</li>
+      <li><strong>¿Tengo que agendar?</strong> Sí, las sesiones son con agenda previa.</li>
+    </ul>
+    <p>Ver todas las <a href="{{ '/preguntas-frecuentes/' | relative_url }}">preguntas frecuentes</a>.</p>
+  </div>
+</div>
 
-## Horarios
-
-{% for bloque in site.arbat.horarios %}
-- **{{ bloque.dias }}:** {{ bloque.turnos | join: ' y ' }}{% if bloque.duracion %} ({{ bloque.duracion }}){% endif %}
-{% endfor %}
-
-Las sesiones se realizan con **agenda previa**. Ver [horarios](/horarios/).
-
-## Precios
-
-- Primera clase / clase suelta: **Bs. 70**
-- Mensualidad 3x/semana: **Bs. 500**
-- Mensualidad 2x/semana: **Bs. 350**
-- Mensualidad 1x/semana: **Bs. 180**
-- Solo sábados: **Bs. 200**
-
-Ver [precios](/precios/).
-
-## Preguntas frecuentes
-
-- **¿Necesito arco propio?** No, ARBAT presta el equipo.
-- **¿Soy zurdo, hay problema?** No, hay equipo para diestros y zurdos.
-- **¿Tengo que agendar?** Sí, las sesiones son con agenda previa.
-
-Ver todas las [preguntas frecuentes](/preguntas-frecuentes/).
-
-## Ubicación
-
-Av. Roca y Coronado #1800, entre 4to y 5to anillo, Santa Cruz de la Sierra. Ver [ubicación](/ubicacion/).
+<div class="tile">
+  <div class="wrap">
+    <p class="section-label">Ubicación</p>
+    <p>{{ site.arbat.direccion }}. Ver <a href="{{ '/ubicacion/' | relative_url }}">ubicación</a>.</p>
+  </div>
+</div>
 
 {% include schema/local-business.html %}

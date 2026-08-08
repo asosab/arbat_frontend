@@ -1,11 +1,13 @@
 <header class="site-header">
   <div class="header-contacto">
     {% for telefono in site.arbat.telefono_whatsapp %}
-    <a href="https://wa.me/{{ telefono | remove: '+' | remove: ' ' }}" target="_blank" rel="noopener">{{ telefono }}</a>
+    <a href="https://wa.me/{{ telefono | remove: '+' | remove: ' ' }}" target="_blank" rel="noopener">{{ telefono }}</a>{% unless forloop.last %} · {% endunless %}
     {% endfor %}
   </div>
-  <div class="header-fila">
-    <a class="site-logo" href="{{ '/' | relative_url }}">{{ site.arbat.nombre }}</a>
+  <div class="header-fila wrap">
+    <a class="site-logo" href="{{ '/' | relative_url }}">
+      <img src="{{ '/assets/images/logo-arbat.png' | relative_url }}" alt="{{ site.arbat.nombre }}">
+    </a>
     <nav class="site-nav" aria-label="Navegación principal">
       <a href="{{ '/clases/principiantes/' | relative_url }}">Clases</a>
       <a href="{{ '/precios/' | relative_url }}">Precios</a>
@@ -14,5 +16,8 @@
       <a href="{{ '/ubicacion/' | relative_url }}">Ubicación</a>
       <a href="{{ '/reservar/' | relative_url }}">Reservar</a>
     </nav>
+    {% assign wa_numero = site.arbat.telefono_whatsapp | first | remove: '+' | remove: ' ' %}
+    {% assign wa_mensaje = 'Hola ARBAT, quiero información sobre las clases de tiro con arco.' | url_encode %}
+    <a class="nav-cta" href="https://wa.me/{{ wa_numero }}?text={{ wa_mensaje }}" target="_blank" rel="noopener">WhatsApp</a>
   </div>
 </header>

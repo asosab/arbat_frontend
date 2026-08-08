@@ -3,13 +3,32 @@
 <head>
 {% include head.html %}
 </head>
-<body>
+<body class="{% if page.hero %}has-hero{% endif %}">
 {% include header.html %}
 <main>
-{% unless page.breadcrumb_hidden %}
-  {% include breadcrumbs.html %}
-{% endunless %}
+{% if page.hero %}
+<section class="hero">
+  <div class="ring-bg" aria-hidden="true"></div>
+  <div class="wrap">
+    {% if page.hero_eyebrow %}<p class="section-label section-label--dot">{{ page.hero_eyebrow }}</p>{% endif %}
+    <h1>{{ page.title }}{% if page.hero_lema %} <span class="lema">{{ page.hero_lema }}</span>{% endif %}</h1>
+    {% if page.hero_sub %}<p class="sub">{{ page.hero_sub }}</p>{% endif %}
+    {% if page.hero_cta_texto %}
+    <div class="ctas">
+      {% include whatsapp-cta.html texto=page.hero_cta_texto mensaje=page.hero_cta_mensaje %}
+    </div>
+    {% endif %}
+  </div>
+</section>
 {{ content }}
+{% else %}
+<div class="wrap wrap--page">
+  {% unless page.breadcrumb_hidden %}
+  {% include breadcrumbs.html %}
+  {% endunless %}
+  {{ content }}
+</div>
+{% endif %}
 </main>
 {% include footer.html %}
 </body>
