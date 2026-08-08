@@ -1,5 +1,8 @@
 ---
 ---
+// ARBAT — sistema de diseño v1
+// Fuente: arbat-direccion-visual-v1.html · opencode/tmp/visual.md
+// sass.style: compressed ya está configurado en _config.yml — no tocar eso.
 
 :root {
   --tinta: #14120F;
@@ -10,58 +13,77 @@
   --borde: #E2DFD6;
 }
 
-* { box-sizing: border-box; }
+// ---------------------------------------------------------------------------
+// Reset + base
+// ---------------------------------------------------------------------------
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 html { -webkit-text-size-adjust: 100%; }
 
 body {
-  margin: 0;
   background: var(--papel);
   color: var(--tinta);
   font-family: 'Work Sans', sans-serif;
-  font-size: 17px;
-  line-height: 1.65;
+  font-size: 16px;
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
 }
 
-img { max-width: 100%; height: auto; }
+img { max-width: 100%; display: block; }
+a { color: inherit; }
 
-a { color: var(--tinta); }
-
+// ---------------------------------------------------------------------------
+// Contenedor y ritmo de secciones
+// ---------------------------------------------------------------------------
 .wrap {
   max-width: 1160px;
   margin: 0 auto;
   padding: 0 40px;
 }
 
-.wrap--page { padding-top: 48px; }
+.tile {
+  border-top: 1px solid var(--borde);
+  padding: 70px 0 100px;
+}
 
+@media (max-width: 720px) {
+  .wrap { padding: 0 22px; }
+  .tile { padding: 48px 0 56px; }
+}
+
+// ---------------------------------------------------------------------------
+// Tipografía
+// ---------------------------------------------------------------------------
 h1, h2, h3 {
   font-family: 'Quicksand', sans-serif;
   font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 h1 {
   font-size: 56px;
   line-height: 1.12;
-  letter-spacing: -0.01em;
-  margin: 0 0 28px;
+  margin-bottom: 24px;
 }
 
 h2 {
   font-size: 34px;
   line-height: 1.2;
-  margin: 0 0 24px;
-  padding-top: 56px;
-  border-top: 1px solid var(--borde);
+  margin-bottom: 20px;
 }
 
 h3 {
   font-size: 22px;
-  margin: 0 0 16px;
+  line-height: 1.3;
+  margin-bottom: 12px;
 }
 
-p { margin: 0 0 1em; }
+@media (max-width: 720px) {
+  h1 { font-size: 38px; }
+  h2 { font-size: 26px; }
+}
+
+p { color: var(--grafito); margin-bottom: 16px; max-width: 640px; }
 
 .lema {
   font-family: 'Quicksand', sans-serif;
@@ -69,166 +91,20 @@ p { margin: 0 0 1em; }
   color: var(--diana);
 }
 
-main { padding: 0 0 100px; }
-
-body.has-hero main,
-body.landing main { padding-bottom: 0; }
-
-.site-header { border-bottom: 1px solid var(--borde); }
-
-.header-contacto {
-  background: var(--tinta);
-  color: var(--papel);
-  font-size: 14px;
-  font-weight: 500;
-  padding: 10px 0;
-  text-align: center;
-}
-
-.header-contacto a {
-  color: var(--papel);
-  text-decoration: none;
-}
-
-.header-contacto a:hover { text-decoration: underline; }
-
-.header-fila {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 24px;
-  padding: 28px 0;
-}
-
-.site-logo {
-  flex-shrink: 0;
-  line-height: 0;
-}
-
-.site-logo img {
-  height: 30px;
-  width: auto;
-  display: block;
-}
-
-.site-nav {
-  display: flex;
-  align-items: center;
-  gap: 36px;
-}
-
-.site-nav a {
-  color: var(--tinta);
-  text-decoration: none;
-  font-size: 14px;
-  font-weight: 500;
-  letter-spacing: 0.01em;
-}
-
-.site-nav a:hover { text-decoration: underline; }
-
-@mixin pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 12px;
-  background: var(--tinta);
-  color: var(--papel);
-  border-radius: 999px;
-  text-decoration: none;
-  font-size: 15px;
-  font-weight: 600;
-  transition: transform 0.35s ease;
-}
-
-.btn-primary, .nav-cta, .cta-whatsapp { @include pill; padding: 15px 26px; }
-.nav-cta { padding: 10px 20px; }
-
-.btn-primary:hover,
-.nav-cta:hover,
-.cta-whatsapp:hover { text-decoration: none; }
-
-.btn-primary .ring-icon {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  border: 2px solid var(--diana);
-  position: relative;
-  flex-shrink: 0;
-}
-
-.btn-primary .ring-icon::after {
-  content: '';
-  position: absolute;
-  inset: 3px;
-  border-radius: 50%;
-  background: var(--diana);
-}
-
-.btn-primary:hover .ring-icon {
-  transform: scale(1.35);
-  transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-
-.btn-secondary {
-  color: var(--tinta);
-  text-decoration: none;
-  font-size: 15px;
-  font-weight: 500;
-  border-bottom: 1px solid var(--tinta);
-  padding-bottom: 2px;
-}
-
-.btn-secondary:hover { text-decoration: none; }
-
-.hero {
-  position: relative;
-  padding: 120px 0 100px;
-  overflow: hidden;
-}
-
-.hero .wrap { position: relative; z-index: 1; }
-
-.ring-bg {
-  position: absolute;
-  right: -180px;
-  top: -140px;
-  width: 640px;
-  height: 640px;
-  border-radius: 50%;
-  border: 1px solid rgba(255, 80, 0, 0.16);
-  pointer-events: none;
-}
-
-.ring-bg::after {
-  content: '';
-  position: absolute;
-  inset: 70px;
-  border-radius: 50%;
-  border: 1px solid rgba(255, 80, 0, 0.10);
-}
-
-.hero h1 { max-width: 680px; }
-
-.hero .sub {
+.sub {
   font-size: 18px;
   line-height: 1.65;
   color: var(--grafito);
   max-width: 520px;
-  margin-bottom: 44px;
+  margin-bottom: 40px;
 }
 
-.ctas {
-  display: flex;
-  align-items: center;
-  gap: 28px;
-  flex-wrap: wrap;
+.meta {
+  font-size: 12px;
+  color: var(--grafito);
 }
 
-.tile {
-  padding: 70px 0 100px;
-  border-top: 1px solid var(--borde);
-}
-
+// Etiqueta de sección (unifica eyebrow / tile-label del mockup)
 .section-label {
   display: flex;
   align-items: center;
@@ -241,8 +117,7 @@ body.landing main { padding-bottom: 0; }
   margin-bottom: 28px;
 }
 
-.section-label--dot::before {
-  content: '';
+.section-label .dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
@@ -250,292 +125,313 @@ body.landing main { padding-bottom: 0; }
   flex-shrink: 0;
 }
 
+// ---------------------------------------------------------------------------
+// Botones
+// ---------------------------------------------------------------------------
+.btn-primary, .nav-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--tinta);
+  color: var(--papel);
+  text-decoration: none;
+  padding: 15px 26px;
+  border-radius: 999px;
+  font-family: 'Work Sans', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  transition: transform .35s ease;
+  white-space: nowrap;
+}
+
+.nav-cta { padding: 10px 20px; gap: 8px; font-size: 14px; }
+
+.ring-icon {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid var(--diana);
+  position: relative;
+  flex-shrink: 0;
+}
+
+.ring-icon::after {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: var(--diana);
+}
+
+.btn-primary:hover .ring-icon,
+.nav-cta:hover .ring-icon {
+  transform: scale(1.35);
+  transition: transform .5s cubic-bezier(.2, .8, .2, 1);
+}
+
+.btn-secondary {
+  display: inline-block;
+  color: var(--tinta);
+  text-decoration: none;
+  font-size: 15px;
+  font-weight: 500;
+  border-bottom: 1px solid var(--tinta);
+  padding-bottom: 2px;
+}
+
+// ---------------------------------------------------------------------------
+// Elemento de firma — el anillo (usar con moderación, ver visual.md §2.5)
+// ---------------------------------------------------------------------------
+.ring-decor {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 80, 0, .16);
+  pointer-events: none;
+}
+
+.ring-decor--hero {
+  width: 640px;
+  height: 640px;
+  right: -180px;
+  top: -140px;
+}
+
+.ring-decor--hero::after {
+  content: '';
+  position: absolute;
+  inset: 70px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 80, 0, .10);
+}
+
+// Divisor entre el hero y la primera sección de contenido
+// (usado tal cual en index.md: <div class="ring-divider" aria-hidden="true">)
+// Provisional: no vi _layouts/default.html, así que no sé si este div vive
+// dentro de un contenedor con overflow propio. Ajustar si el resultado
+// visual no es el esperado una vez que se vea en el navegador.
 .ring-divider {
   width: 64px;
   height: 64px;
+  margin: 0 auto;
   border-radius: 50%;
-  border: 1.5px solid rgba(255, 80, 0, 0.4);
-  margin: 60px auto 0;
+  border: 1px solid rgba(255, 80, 0, .4);
 }
 
-.list-diana {
-  list-style: none;
-  margin: 0 0 24px;
-  padding: 0;
+.ring-bullet {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--diana);
+  margin-right: 10px;
+  flex-shrink: 0;
 }
 
-.list-diana li {
+// ---------------------------------------------------------------------------
+// Header / nav
+// header.html debe usar estas clases (o renombrar aquí si preferís otras)
+// ---------------------------------------------------------------------------
+.site-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 20px 0;
+  border-bottom: 1px solid var(--borde);
+}
+
+.site-header .logo img { height: 30px; }
+
+.site-nav {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+
+.site-nav a {
+  color: var(--tinta);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+// WhatsApp + teléfono: viven FUERA de .site-nav para poder mantenerlos
+// visibles en mobile aunque se oculten los links de texto (ver visual.md §3.1)
+.site-header__contact {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+}
+
+.site-header__phone {
+  font-size: 13px;
+  color: var(--grafito);
+  white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+  .site-nav { display: none; }
+  .site-header__contact { margin-left: auto; }
+}
+
+// ---------------------------------------------------------------------------
+// Footer
+// ---------------------------------------------------------------------------
+.site-footer {
+  border-top: 1px solid var(--borde);
+  background: var(--piedra);
+  padding: 48px 0;
+  margin-top: 40px;
+}
+
+.site-footer .wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.site-footer p, .site-footer a {
+  font-size: 13px;
+  color: var(--grafito);
+}
+
+.site-footer a { text-decoration: none; }
+.site-footer a:hover { text-decoration: underline; }
+
+// ---------------------------------------------------------------------------
+// Breadcrumbs
+// ---------------------------------------------------------------------------
+.breadcrumbs {
+  font-size: 13px;
+  color: var(--grafito);
+  margin-bottom: 24px;
+}
+
+.breadcrumbs a { color: var(--grafito); text-decoration: none; }
+.breadcrumbs a:hover { text-decoration: underline; }
+.breadcrumbs .sep { margin: 0 6px; color: var(--borde); }
+
+// ---------------------------------------------------------------------------
+// Hero (home, landing, y cualquier página con hero propio)
+// ---------------------------------------------------------------------------
+.hero {
   position: relative;
-  padding-left: 44px;
-  margin-bottom: 14px;
+  padding: 100px 0 80px;
+  overflow: hidden;
 }
 
-.list-diana li::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0.2em;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  border: 1.5px solid var(--diana);
-  box-sizing: border-box;
+@media (max-width: 720px) {
+  .hero { padding: 56px 0 48px; }
 }
 
+// ---------------------------------------------------------------------------
+// Cards (clases / instructores)
+// ---------------------------------------------------------------------------
 .grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 24px;
 }
 
-.grid--3 { grid-template-columns: repeat(3, 1fr); }
+.grid--3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+@media (max-width: 720px) {
+  .grid--3 { grid-template-columns: 1fr; }
+}
 
 .card {
   border: 1px solid var(--borde);
   border-radius: 12px;
   overflow: hidden;
   background: var(--papel);
+  display: flex;
+  flex-direction: column;
+  text-decoration: none;
+  color: inherit;
 }
 
 .card__media {
-  background: var(--piedra);
   aspect-ratio: 4 / 3;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.card__media--placeholder {
-  font-family: 'Quicksand', sans-serif;
-  font-weight: 600;
-  font-size: 56px;
-  color: var(--grafito);
-}
-
-.card__body { padding: 14px 16px 18px; }
-
-.card__title {
-  font-size: 20px;
-  margin: 0 0 8px;
-  line-height: 1.3;
-}
-
-.card__title a {
-  color: var(--tinta);
-  text-decoration: none;
-}
-
-.card__title a:hover { text-decoration: underline; }
-
-.card__text {
-  font-size: 15px;
-  line-height: 1.65;
-  color: var(--grafito);
-  margin: 0 0 14px;
-}
-
-.breadcrumbs {
-  font-size: 13px;
-  color: var(--grafito);
-  margin-bottom: 32px;
-}
-
-.breadcrumbs a {
-  color: var(--grafito);
-  text-decoration: none;
-}
-
-.breadcrumbs a:hover { text-decoration: underline; }
-
-.breadcrumbs-sep {
-  color: var(--borde);
-  margin: 0 8px;
-}
-
-.instructor { max-width: 720px; }
-
-.instructor-media {
   background: var(--piedra);
-  aspect-ratio: 4 / 3;
-  border-radius: 12px;
   overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 32px;
 }
 
-.instructor-media img {
+.card__media img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.instructor-media .placeholder {
-  font-family: 'Quicksand', sans-serif;
-  font-weight: 600;
-  font-size: 96px;
-  color: var(--grafito);
-}
-
-.instructor-instagram {
-  font-size: 15px;
-  color: var(--grafito);
-}
-
-.instructor-instagram a { color: var(--tinta); }
-
-.instructor-cta,
-.clase-cta { margin: 32px 0 0; }
-
-.clase { max-width: 720px; }
-
-.clase .sub {
-  font-size: 18px;
-  line-height: 1.65;
-  color: var(--grafito);
-  max-width: 560px;
-  margin-bottom: 0;
-}
-
-.site-footer {
-  background: var(--piedra);
-  color: var(--grafito);
-  font-size: 15px;
-  line-height: 1.65;
-  padding: 60px 0 48px;
-}
-
-.footer-nombre {
-  font-family: 'Quicksand', sans-serif;
-  font-weight: 600;
-  font-size: 18px;
-  color: var(--tinta);
-  margin: 0 0 8px;
-}
-
-.footer-nap p { margin: 0 0 6px; }
-.footer-nap a { color: var(--tinta); }
-
-.footer-copy {
-  font-size: 12px;
-  color: var(--grafito);
-  margin: 32px 0 0;
-}
-
-.formulario-reserva {
-  max-width: 34rem;
-  margin: 32px 0;
-}
-
-.formulario-reserva label {
-  display: block;
-  font-size: 14px;
-  font-weight: 600;
-  margin-bottom: 20px;
-}
-
-.formulario-reserva input {
-  display: block;
-  width: 100%;
-  margin-top: 6px;
-  padding: 12px 14px;
-  font-size: 16px;
-  font-family: 'Work Sans', sans-serif;
-  color: var(--tinta);
-  border: 1px solid var(--borde);
-  border-radius: 8px;
-  background: var(--papel);
-}
-
-.formulario-reserva input:focus {
-  outline: 2px solid var(--diana);
-  outline-offset: 1px;
-}
-
-.formulario-reserva button {
+// Placeholder de instructor sin foto en la card (home): letra grande sobre
+// fondo tinta. Si más adelante se agrega <img> real ahí, esta clase deja de usarse.
+.card__media--placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: var(--tinta);
   color: var(--papel);
-  border: 0;
-  padding: 15px 26px;
-  border-radius: 999px;
-  font-size: 15px;
+  font-family: 'Quicksand', sans-serif;
   font-weight: 600;
-  font-family: 'Work Sans', sans-serif;
-  cursor: pointer;
+  font-size: 40px;
 }
 
-.calendar-embed {
-  max-width: 100%;
-  overflow-x: auto;
-  border: 1px solid var(--borde);
-  border-radius: 12px;
-  background: var(--piedra);
-  margin: 24px 0;
+.card__body {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
 }
 
-.calendar-embed iframe {
-  display: block;
-  max-width: 100%;
-  border-radius: 12px;
+.card__title {
+  font-family: 'Quicksand', sans-serif;
+  font-weight: 600;
+  font-size: 20px;
 }
 
-.calendar-embed-suscribir {
+.card__text {
   font-size: 14px;
   color: var(--grafito);
-  margin: -8px 0 24px;
+  line-height: 1.6;
 }
 
-.calendar-embed-suscribir a {
-  color: var(--tinta);
-  text-decoration: underline;
+// Listas con bullet-anillo (horarios, precios, FAQ corta en home)
+.list-diana {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
 }
 
-.evento-calendario { margin-top: 56px; }
+.list-diana li {
+  position: relative;
+  padding-left: 26px;
+  color: var(--grafito);
+}
 
-body.landing { background: var(--papel); }
+.list-diana li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 7px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--diana);
+}
 
-.landing-main .hero .sub { margin-bottom: 32px; }
-.landing-main .list-diana { margin-bottom: 44px; }
-
-@media (max-width: 720px) {
-  .wrap { padding: 0 22px; }
-  .wrap--page { padding-top: 32px; }
-
-  h1 { font-size: 38px; }
-  h2 { font-size: 28px; padding-top: 40px; }
-
-  .header-fila { padding: 20px 0; gap: 16px; }
-  .site-nav { display: none; }
-  .site-logo img { height: 24px; }
-  .nav-cta { padding: 8px 16px; font-size: 14px; }
-  .header-contacto { font-size: 13px; }
-
-  .hero { padding: 72px 0 64px; }
-  .hero .sub { font-size: 16px; margin-bottom: 32px; }
-  .ctas { gap: 20px; }
-
-  .tile { padding: 48px 0 64px; }
-
-  .grid,
-  .grid--3 { grid-template-columns: 1fr; }
-
-  .ring-bg {
-    right: -120px;
-    top: -100px;
-    width: 400px;
-    height: 400px;
-  }
-  .ring-bg::after { inset: 45px; }
-
-  .list-diana li { padding-left: 40px; }
-  .list-diana li::before { width: 30px; height: 30px; }
-
-  .site-footer { padding: 48px 0 40px; }
-
-  main { padding-bottom: 64px; }
-  body.has-hero main,
-  body.landing main { padding-bottom: 0; }
-
-  .calendar-embed iframe { height: 480px; }
+// Foto de instructor (detalle, no card) — usar en _layouts/instructor.html
+.instructor-photo {
+  width: 100%;
+  max-width: 320px;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  border-radius: 16px;
+  background: var(--piedra);
 }
