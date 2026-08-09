@@ -1,7 +1,7 @@
 ---
 title: "Sebastián Bedregal"
 nombre: "Sebastián Bedregal"
-rol: "Co-fundador e Instructor – Escuela de Tiro con Arco arbat"
+rol: "Co-fundador e Instructor, Escuela de Tiro con Arco arbat"
 whatsapp: "+591 76660577"
 instagram: "sebastian.ursarchery"
 foto: "/assets/images/Sebastian_Bedregal/sb_perfil.png"
