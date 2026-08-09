@@ -1,0 +1,139 @@
+diff --git a/_includes/footer.html b/_includes/footer.html
+index 4400370..4e935b4 100644
+--- a/_includes/footer.html
++++ b/_includes/footer.html
+@@ -1,7 +1,7 @@
+ <footer class="site-footer">
+   <div class="wrap footer-grid">
+     <div class="footer-col footer-col--nap">
+-      <p class="footer-nombre">{{ site.arbat.nombre }} — {{ site.arbat.lema }}</p>
++      <p class="footer-nombre">{{ site.arbat.nombre }}, {{ site.arbat.lema }}</p>
+       <p>{{ site.arbat.direccion }}</p>
+       <p>Email: <a href="mailto:{{ site.arbat.email }}">{{ site.arbat.email }}</a></p>
+       <p>
+diff --git a/_includes/header.html b/_includes/header.html
+index f06368b..89e10e7 100644
+--- a/_includes/header.html
++++ b/_includes/header.html
+@@ -2,6 +2,7 @@
+   <div class="header-fila wrap">
+     <a class="site-logo" href="{{ '/' | relative_url }}">
+       <img src="{{ '/assets/images/logo.png' | relative_url }}" alt="{{ site.arbat.nombre }}">
++      <span class="site-logo-texto">{{ site.arbat.nombre }}</span>
+     </a>
+     <nav class="site-nav" id="site-nav" aria-label="Navegación principal">
+       <a href="{{ '/clases/principiantes/' | relative_url }}">Clases</a>
+diff --git a/_layouts/default.html b/_layouts/default.html
+index e1de41b..40d2df6 100644
+--- a/_layouts/default.html
++++ b/_layouts/default.html
+@@ -18,6 +18,13 @@
+     {% if page.hero_cta_texto %}
+     <div class="ctas">
+       {% include whatsapp-cta.html texto=page.hero_cta_texto mensaje=page.hero_cta_mensaje %}
++      {% if page.hero_cta_secundario_texto %}
++      {% if page.hero_cta_secundario_url contains '#' %}
++      <a class="btn-secondary" href="{{ page.hero_cta_secundario_url }}">{{ page.hero_cta_secundario_texto }}</a>
++      {% else %}
++      <a class="btn-secondary" href="{{ page.hero_cta_secundario_url | relative_url }}">{{ page.hero_cta_secundario_texto }}</a>
++      {% endif %}
++      {% endif %}
+     </div>
+     {% endif %}
+   </div>
+diff --git a/assets/css/style.scss b/assets/css/style.scss
+index 7e5fd8a..c191cb9 100644
+--- a/assets/css/style.scss
++++ b/assets/css/style.scss
+@@ -56,6 +56,12 @@ a { color: inherit; }
+   padding: 70px 0 100px;
+ }
+ 
++// Tile de cierre (CTA final del home): mismo componente, fondo piedra para
++// que se note que es el último paso antes de reservar.
++.tile--cta {
++  background: var(--piedra);
++}
++
+ // Contenedor de contenido para páginas SIN hero (default.html las envuelve
+ // en .wrap.wrap--page). Sin esto el contenido queda pegado al header.
+ .wrap--page {
+@@ -316,12 +322,25 @@ button.btn-primary {
+   padding: 14px 0 20px;
+ }
+ 
++.site-header .site-logo {
++  display: flex;
++  align-items: center;
++  gap: 10px;
++}
++
+ .site-header .site-logo img {
+   height: 30px;
+   width: auto;
+   display: block;
+ }
+ 
++.site-logo-texto {
++  font-family: 'Quicksand', sans-serif;
++  font-weight: 700;
++  font-size: 20px;
++  color: var(--tinta);
++}
++
+ .site-nav {
+   display: flex;
+   align-items: center;
+diff --git a/index.md b/index.md
+index b3a5175..dcd318c 100644
+--- a/index.md
++++ b/index.md
+@@ -3,16 +3,30 @@ title: "Escuela de tiro con arco en Santa Cruz de la Sierra"
+ description: "Escuela de tiro con arco en Santa Cruz de la Sierra. Entrenamiento olímpico, recreativo, deportivo y competitivo con equipo incluido y agenda previa."
+ breadcrumb_hidden: true
+ hero: true
+-hero_eyebrow: "Escuela de tiro con arco — Santa Cruz de la Sierra"
++hero_eyebrow: "arbat, escuela de tiro con arco"
+ hero_lema: "Sentio ergo attingo."
+-hero_sub: "Te enseñamos a tirar con arco, sea cual sea tu punto de partida. Si no tenés equipo, te prestamos uno — arco, flechas, protecciones — y arrancamos donde estés vos."
++hero_sub: "Aprendé tiro con arco en arbat, sea cual sea tu punto de partida. Te prestamos el equipo (arco, flechas y protecciones) y arrancás en tu primera clase."
+ hero_cta_texto: "Probar una clase (Bs. 70)"
+ hero_cta_mensaje: "Hola arbat, quiero probar una primera clase de tiro con arco."
++hero_cta_secundario_texto: "Ver las clases"
++hero_cta_secundario_url: "#clases"
+ ---
+ 
+ <div class="ring-divider" aria-hidden="true"></div>
+ 
+ <div class="tile">
++  <div class="wrap">
++    <p class="section-label">Por qué arbat</p>
++    <ul class="list-diana">
++      <li><strong>Progresión real de distancia:</strong> 4 campos de tiro, de 5 a 25 metros, para avanzar paso a paso en el mismo lugar.</li>
++      <li><strong>Equipo incluido:</strong> arcos clásicos, barebow y recurvos, listos para diestros y zurdos.</li>
++      <li><strong>Agenda previa siempre:</strong> cada sesión tiene el espacio y el instructor que necesita, sin apuro de otros grupos.</li>
++      <li><strong>Para todos los niveles:</strong> entrenamiento olímpico, recreativo, deportivo y preparación competitiva.</li>
++    </ul>
++  </div>
++</div>
++
++<div class="tile" id="clases">
+   <div class="wrap">
+     <p class="section-label">Clases</p>
+     <div class="grid">
+@@ -99,4 +113,15 @@ hero_cta_mensaje: "Hola arbat, quiero probar una primera clase de tiro con arco.
+   </div>
+ </div>
+ 
++<div class="tile tile--cta">
++  <div class="wrap">
++    <p class="section-label">Reservá tu clase</p>
++    <p>Coordinamos el día y el horario por WhatsApp, con el equipo listo para vos.</p>
++    <div class="ctas">
++      {% include whatsapp-cta.html texto="Reservar por WhatsApp" mensaje="Hola arbat, quiero reservar mi primera clase de tiro con arco." %}
++      <a class="btn-secondary" href="{{ '/reservar/' | relative_url }}">Llenar el formulario de reserva</a>
++    </div>
++  </div>
++</div>
++
+ {% include schema/local-business.html %}

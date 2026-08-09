@@ -3,16 +3,30 @@ title: "Escuela de tiro con arco en Santa Cruz de la Sierra"
 description: "Escuela de tiro con arco en Santa Cruz de la Sierra. Entrenamiento olímpico, recreativo, deportivo y competitivo con equipo incluido y agenda previa."
 breadcrumb_hidden: true
 hero: true
-hero_eyebrow: "Escuela de tiro con arco — Santa Cruz de la Sierra"
+hero_eyebrow: "arbat, escuela de tiro con arco"
 hero_lema: "Sentio ergo attingo."
-hero_sub: "Te enseñamos a tirar con arco, sea cual sea tu punto de partida. Si no tenés equipo, te prestamos uno — arco, flechas, protecciones — y arrancamos donde estés vos."
+hero_sub: "Aprendé tiro con arco en arbat, sea cual sea tu punto de partida. Te prestamos el equipo (arco, flechas y protecciones) y arrancás en tu primera clase."
 hero_cta_texto: "Probar una clase (Bs. 70)"
 hero_cta_mensaje: "Hola arbat, quiero probar una primera clase de tiro con arco."
+hero_cta_secundario_texto: "Ver las clases"
+hero_cta_secundario_url: "#clases"
 ---
 
 <div class="ring-divider" aria-hidden="true"></div>
 
 <div class="tile">
+  <div class="wrap">
+    <p class="section-label">Por qué arbat</p>
+    <ul class="list-diana">
+      <li><strong>Progresión real de distancia:</strong> 4 campos de tiro, de 5 a 25 metros, para avanzar paso a paso en el mismo lugar.</li>
+      <li><strong>Equipo incluido:</strong> arcos clásicos, barebow y recurvos, listos para diestros y zurdos.</li>
+      <li><strong>Agenda previa siempre:</strong> cada sesión tiene el espacio y el instructor que necesita, sin apuro de otros grupos.</li>
+      <li><strong>Para todos los niveles:</strong> entrenamiento olímpico, recreativo, deportivo y preparación competitiva.</li>
+    </ul>
+  </div>
+</div>
+
+<div class="tile" id="clases">
   <div class="wrap">
     <p class="section-label">Clases</p>
     <div class="grid">
@@ -96,6 +110,17 @@ hero_cta_mensaje: "Hola arbat, quiero probar una primera clase de tiro con arco.
   <div class="wrap">
     <p class="section-label">Ubicación</p>
     <p>{{ site.arbat.direccion }}. Ver <a href="{{ '/ubicacion/' | relative_url }}">ubicación</a>.</p>
+  </div>
+</div>
+
+<div class="tile tile--cta">
+  <div class="wrap">
+    <p class="section-label">Reservá tu clase</p>
+    <p>Coordinamos el día y el horario por WhatsApp, con el equipo listo para vos.</p>
+    <div class="ctas">
+      {% include whatsapp-cta.html texto="Reservar por WhatsApp" mensaje="Hola arbat, quiero reservar mi primera clase de tiro con arco." %}
+      <a class="btn-secondary" href="{{ '/reservar/' | relative_url }}">Llenar el formulario de reserva</a>
+    </div>
   </div>
 </div>
 

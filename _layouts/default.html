@@ -18,6 +18,13 @@
     {% if page.hero_cta_texto %}
     <div class="ctas">
       {% include whatsapp-cta.html texto=page.hero_cta_texto mensaje=page.hero_cta_mensaje %}
+      {% if page.hero_cta_secundario_texto %}
+      {% if page.hero_cta_secundario_url contains '#' %}
+      <a class="btn-secondary" href="{{ page.hero_cta_secundario_url }}">{{ page.hero_cta_secundario_texto }}</a>
+      {% else %}
+      <a class="btn-secondary" href="{{ page.hero_cta_secundario_url | relative_url }}">{{ page.hero_cta_secundario_texto }}</a>
+      {% endif %}
+      {% endif %}
     </div>
     {% endif %}
   </div>

@@ -56,6 +56,12 @@ a { color: inherit; }
   padding: 70px 0 100px;
 }
 
+// Tile de cierre (CTA final del home): mismo componente, fondo piedra para
+// que se note que es el último paso antes de reservar.
+.tile--cta {
+  background: var(--piedra);
+}
+
 // Contenedor de contenido para páginas SIN hero (default.html las envuelve
 // en .wrap.wrap--page). Sin esto el contenido queda pegado al header.
 .wrap--page {
@@ -316,10 +322,23 @@ button.btn-primary {
   padding: 14px 0 20px;
 }
 
+.site-header .site-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .site-header .site-logo img {
   height: 30px;
   width: auto;
   display: block;
+}
+
+.site-logo-texto {
+  font-family: 'Quicksand', sans-serif;
+  font-weight: 700;
+  font-size: 20px;
+  color: var(--tinta);
 }
 
 .site-nav {
