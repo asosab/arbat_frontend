@@ -14,7 +14,7 @@
       <a href="{{ '/horarios/' | relative_url }}">Horarios</a>
       <a href="{{ '/instructores/raul-suarez/' | relative_url }}">Instructores</a>
       <a href="{{ '/ubicacion/' | relative_url }}">Ubicación</a>
-      <a href="{{ '/reservar/' | relative_url }}">Reservar</a>
+      <a class="nav-cta-reservar" href="{{ '/reservar/' | relative_url }}">Reservar</a>
     </nav>
     {% assign wa_numero = site.arbat.telefono_whatsapp | first | remove: '+' | remove: ' ' %}
     {% assign wa_mensaje = 'Hola arbat, quiero información sobre las clases de tiro con arco.' | url_encode %}
