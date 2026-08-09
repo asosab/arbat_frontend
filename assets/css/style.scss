@@ -668,6 +668,13 @@ button.btn-primary {
   flex-direction: column;
   text-decoration: none;
   color: inherit;
+  transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease;
+}
+
+.card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 24px rgba(20, 18, 15, .08);
+  border-color: var(--diana);
 }
 
 .card__media {
@@ -796,4 +803,65 @@ button.btn-primary {
   object-fit: cover;
   border-radius: 16px;
   background: var(--piedra);
+}
+
+// ---------------------------------------------------------------------------
+// Cabecera del perfil (_layouts/instructor.html): foto + nombre/rol/CTA en
+// fila en desktop, para que el WhatsApp quede visible sin scrollear. Apila
+// en mobile con el mismo breakpoint que el resto del sitio.
+// ---------------------------------------------------------------------------
+.instructor-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 40px;
+  margin-bottom: 56px;
+}
+
+.instructor-header .instructor-media {
+  flex: 0 0 320px;
+  max-width: 320px;
+  margin-bottom: 0;
+}
+
+.instructor-header-info {
+  flex: 1;
+  min-width: 260px;
+}
+
+@media (max-width: 720px) {
+  .instructor-header {
+    flex-direction: column;
+    gap: 24px;
+    margin-bottom: 40px;
+  }
+
+  .instructor-header .instructor-media {
+    flex: none;
+    max-width: 100%;
+  }
+}
+
+// Separa la biografía de la sección "Otros instructores" que sigue.
+.instructor-bio {
+  margin-bottom: 56px;
+}
+
+// ---------------------------------------------------------------------------
+// "Otros instructores" al pie del perfil (_layouts/instructor.html).
+// Reutiliza .grid + .card ya usados en el home; borde superior tipo .tile
+// para separarla visualmente de la biografía.
+// ---------------------------------------------------------------------------
+.instructor-otros {
+  border-top: 1px solid var(--borde);
+  padding-top: 48px;
+}
+
+.instructor-otros .grid {
+  margin-bottom: 28px;
+}
+
+@media (max-width: 720px) {
+  .instructor-otros {
+    padding-top: 32px;
+  }
 }

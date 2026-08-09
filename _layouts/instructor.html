@@ -2,27 +2,63 @@
 layout: default
 ---
 <article class="instructor">
-  <div class="instructor-media">
-    {% assign foto_existe = false %}
-    {% for f in site.static_files %}{% if f.path == page.foto %}{% assign foto_existe = true %}{% endif %}{% endfor %}
-    {% if foto_existe %}
-    <img src="{{ page.foto | relative_url }}" alt="Foto de {{ page.nombre }}" loading="lazy">
-    {% else %}
-    <div class="placeholder" aria-hidden="true">{{ page.nombre | slice: 0, 1 }}</div>
-    {% endif %}
+  <div class="instructor-header">
+    <div class="instructor-media">
+      {% assign foto_existe = false %}
+      {% for f in site.static_files %}{% if f.path == page.foto %}{% assign foto_existe = true %}{% endif %}{% endfor %}
+      {% if foto_existe %}
+      <img src="{{ page.foto | relative_url }}" alt="Foto de {{ page.nombre }}" loading="lazy">
+      {% else %}
+      <div class="placeholder" aria-hidden="true">{{ page.nombre | slice: 0, 1 }}</div>
+      {% endif %}
+    </div>
+    <div class="instructor-header-info">
+      <h1>{{ page.nombre }}</h1>
+      {% if page.rol %}
+      <p class="instructor-rol">{{ page.rol }}</p>
+      {% endif %}
+      {% if page.instagram %}
+      <p class="instructor-instagram"><a href="https://www.instagram.com/{{ page.instagram }}" target="_blank" rel="noopener">Instagram: @{{ page.instagram }}</a></p>
+      {% endif %}
+      {% assign wa_numero = page.whatsapp | remove: '+' | remove: ' ' %}
+      {% assign wa_mensaje = 'Hola ' | append: page.nombre | append: ', quiero información sobre las clases de tiro con arco en arbat.' | url_encode %}
+      <p class="instructor-cta">
+        <a class="btn-primary" href="https://wa.me/{{ wa_numero }}?text={{ wa_mensaje }}" target="_blank" rel="noopener"><span class="ring-icon" aria-hidden="true"></span>Escribir a {{ page.nombre }} por WhatsApp</a>
+      </p>
+    </div>
   </div>
-  <h1>{{ page.nombre }}</h1>
-  {% if page.rol %}
-  <p class="instructor-rol">{{ page.rol }}</p>
+
+  <div class="instructor-bio">
+    {{ content }}
+  </div>
+
+  {% assign otros_instructores = site.instructores | where_exp: "i", "i.url != page.url" %}
+  {% if otros_instructores.size > 0 %}
+  <section class="instructor-otros">
+    <p class="section-label"><span class="dot"></span>Conocé al resto del equipo</p>
+    <div class="grid">
+      {% for i in otros_instructores %}
+      {% assign otra_foto_existe = false %}
+      {% for f in site.static_files %}{% if f.path == i.foto %}{% assign otra_foto_existe = true %}{% endif %}{% endfor %}
+      <a class="card" href="{{ i.url | relative_url }}">
+        <div class="card__media{% unless otra_foto_existe %} card__media--placeholder{% endunless %}">
+          {% if otra_foto_existe %}
+          <img src="{{ i.foto | relative_url }}" alt="Foto de {{ i.nombre }}" loading="lazy">
+          {% else %}
+          {{ i.nombre | slice: 0, 1 }}
+          {% endif %}
+        </div>
+        <div class="card__body">
+          <p class="card__title">{{ i.nombre }}</p>
+          {% if i.rol %}<p class="card__text">{{ i.rol }}</p>{% endif %}
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+    <p class="instructor-otros-ver">
+      <a class="btn-secondary" href="{{ '/#instructores' | relative_url }}">Ver todos los instructores</a>
+    </p>
+  </section>
   {% endif %}
-  {% if page.instagram %}
-  <p class="instructor-instagram"><a href="https://www.instagram.com/{{ page.instagram }}" target="_blank" rel="noopener">Instagram: @{{ page.instagram }}</a></p>
-  {% endif %}
-  {{ content }}
-  {% assign wa_numero = page.whatsapp | remove: '+' | remove: ' ' %}
-  {% assign wa_mensaje = 'Hola ' | append: page.nombre | append: ', quiero información sobre las clases de tiro con arco en arbat.' | url_encode %}
-  <p class="instructor-cta">
-    <a class="btn-primary" href="https://wa.me/{{ wa_numero }}?text={{ wa_mensaje }}" target="_blank" rel="noopener"><span class="ring-icon" aria-hidden="true"></span>Escribir a {{ page.nombre }} por WhatsApp</a>
-  </p>
 </article>
 {% include schema/profile-page.html %}
