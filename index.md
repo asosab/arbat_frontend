@@ -37,7 +37,9 @@ hero_cta_mensaje: "Hola ARBAT, quiero probar una primera clase de tiro con arco.
       {% for instructor in site.instructores %}
       <article class="card">
         {% if instructor.foto %}
-        <img class="card__media" src="{{ instructor.foto | relative_url }}" alt="Foto de {{ instructor.nombre }}" loading="lazy">
+        <div class="card__media">
+          <img src="{{ instructor.foto | relative_url }}" alt="Foto de {{ instructor.nombre }}" loading="lazy">
+        </div>
         {% else %}
         <div class="card__media card__media--placeholder" aria-hidden="true">{{ instructor.nombre | slice: 0, 1 }}</div>
         {% endif %}

@@ -241,7 +241,11 @@ p { color: var(--grafito); margin-bottom: 16px; max-width: 640px; }
   border-bottom: 1px solid var(--borde);
 }
 
-.site-header .logo img { height: 30px; }
+.site-header .site-logo img {
+  height: 30px;
+  width: auto;
+  display: block;
+}
 
 .site-nav {
   display: flex;
@@ -386,6 +390,41 @@ p { color: var(--grafito); margin-bottom: 16px; max-width: 640px; }
   flex-direction: column;
   gap: 8px;
   flex: 1;
+}
+
+// ---------------------------------------------------------------------------
+// Foto del instructor en su página de perfil (_layouts/instructor.html)
+// Mismo criterio que .card__media: marco rectangular fijo, foto recortada
+// con object-fit: cover (mantiene el ancho, recorta el alto sobrante, sin
+// deformar). Antes no tenía ningún estilo y se mostraba a tamaño nativo.
+// ---------------------------------------------------------------------------
+.instructor-media {
+  aspect-ratio: 4 / 3;
+  max-width: 480px;
+  overflow: hidden;
+  border-radius: 12px;
+  background: var(--piedra);
+  margin-bottom: 24px;
+}
+
+.instructor-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.instructor-media .placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--tinta);
+  color: var(--papel);
+  font-family: 'Quicksand', sans-serif;
+  font-weight: 600;
+  font-size: 40px;
 }
 
 .card__title {
