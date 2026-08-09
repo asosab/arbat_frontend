@@ -6,6 +6,7 @@
 <body>
 {% include header.html %}
 <main>
+<div class="wrap wrap--page">
 {% include breadcrumbs.html %}
 <article class="instructor">
   <div class="instructor-media">
@@ -28,6 +29,7 @@
     <a class="btn-primary" href="https://wa.me/{{ wa_numero }}?text={{ wa_mensaje }}" target="_blank" rel="noopener"><span class="ring-icon" aria-hidden="true"></span>Escribir a {{ page.nombre }} por WhatsApp</a>
   </p>
 </article>
+</div>
 </main>
 {% include footer.html %}
 {% include schema/profile-page.html %}

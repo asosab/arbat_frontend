@@ -6,6 +6,7 @@
 <body>
 {% include header.html %}
 <main>
+<div class="wrap wrap--page">
 {% include breadcrumbs.html %}
 <article class="clase">
   <h1>{{ page.title }}</h1>
@@ -17,6 +18,7 @@
     <a class="btn-primary" href="https://wa.me/{{ wa_numero }}?text={{ wa_mensaje }}" target="_blank" rel="noopener"><span class="ring-icon" aria-hidden="true"></span>Reservar</a>
   </p>
 </article>
+</div>
 </main>
 {% include footer.html %}
 {% include schema/service.html %}

@@ -146,6 +146,14 @@ p { color: var(--grafito); margin-bottom: 16px; max-width: 640px; }
 
 .nav-cta { padding: 10px 20px; gap: 8px; font-size: 14px; }
 
+// Cuando .btn-primary se usa en un <button> (ej. formulario de reserva) en
+// vez de un <a>, hay que anular el estilo nativo del navegador para que
+// se vea idéntico al resto de los CTAs.
+button.btn-primary {
+  border: none;
+  cursor: pointer;
+}
+
 .ring-icon {
   width: 16px;
   height: 16px;
@@ -232,13 +240,32 @@ p { color: var(--grafito); margin-bottom: 16px; max-width: 640px; }
 // header.html debe usar estas clases (o renombrar aquí si preferís otras)
 // ---------------------------------------------------------------------------
 .site-header {
+  border-bottom: 1px solid var(--borde);
+}
+
+// Barra superior de teléfonos (arriba del todo, fuera de .wrap: se le da
+// el mismo padding lateral que .wrap a mano porque no comparte esa clase).
+.header-contacto {
+  padding: 10px 40px 0;
+  text-align: right;
+  font-size: 12px;
+}
+
+.header-contacto a {
+  color: var(--grafito);
+  text-decoration: none;
+}
+
+.header-contacto a:hover { text-decoration: underline; }
+
+// Fila principal: logo + nav + CTA de WhatsApp + toggle mobile
+.header-fila {
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 16px;
-  padding: 20px 0;
-  border-bottom: 1px solid var(--borde);
+  padding: 14px 0 20px;
 }
 
 .site-header .site-logo img {
@@ -261,24 +288,59 @@ p { color: var(--grafito); margin-bottom: 16px; max-width: 640px; }
   white-space: nowrap;
 }
 
-// WhatsApp + teléfono: viven FUERA de .site-nav para poder mantenerlos
-// visibles en mobile aunque se oculten los links de texto (ver visual.md §3.1)
-.site-header__contact {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-left: auto;
+// Botón hamburguesa — oculto en desktop, .nav-cta (WhatsApp) siempre visible
+.nav-toggle {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  flex-shrink: 0;
 }
 
-.site-header__phone {
-  font-size: 13px;
-  color: var(--grafito);
-  white-space: nowrap;
+.nav-toggle span {
+  display: block;
+  width: 100%;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--tinta);
+  transition: transform .25s ease, opacity .2s ease;
 }
+
+.nav-toggle[aria-expanded="true"] span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+.nav-toggle[aria-expanded="true"] span:nth-child(2) { opacity: 0; }
+.nav-toggle[aria-expanded="true"] span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
 
 @media (max-width: 720px) {
-  .site-nav { display: none; }
-  .site-header__contact { margin-left: auto; }
+  .header-contacto { padding: 8px 22px 0; text-align: center; }
+
+  .nav-toggle { display: flex; order: 3; }
+
+  // El link de WhatsApp queda visible siempre en mobile (ver nota arriba);
+  // el toggle se ubica después. La nav pasa a ser un desplegable a todo
+  // el ancho, debajo de la fila logo/CTA/toggle.
+  .site-nav {
+    display: none;
+    order: 4;
+    flex-basis: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    margin-top: 12px;
+    border-top: 1px solid var(--borde);
+  }
+
+  .site-nav.is-open { display: flex; }
+
+  .site-nav a {
+    padding: 14px 4px;
+    border-bottom: 1px solid var(--borde);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -304,6 +366,57 @@ p { color: var(--grafito); margin-bottom: 16px; max-width: 640px; }
 
 .site-footer a { text-decoration: none; }
 .site-footer a:hover { text-decoration: underline; }
+
+.footer-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  padding-top: 8px;
+  margin-top: 8px;
+  border-top: 1px solid var(--borde);
+}
+
+// ---------------------------------------------------------------------------
+// Formulario de reserva (/reservar/)
+// ---------------------------------------------------------------------------
+.formulario-reserva {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 480px;
+  margin: 32px 0 40px;
+}
+
+.formulario-reserva label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-family: 'Quicksand', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--tinta);
+}
+
+.formulario-reserva input {
+  font-family: 'Work Sans', sans-serif;
+  font-size: 15px;
+  font-weight: 400;
+  color: var(--tinta);
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  padding: 12px 14px;
+  background: var(--papel);
+}
+
+.formulario-reserva input:focus {
+  outline: 2px solid var(--diana);
+  outline-offset: 1px;
+}
+
+.formulario-reserva button {
+  align-self: flex-start;
+  margin-top: 4px;
+}
 
 // ---------------------------------------------------------------------------
 // Breadcrumbs

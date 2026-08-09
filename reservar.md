@@ -22,7 +22,7 @@ Completá el formulario y te mandamos la solicitud lista por WhatsApp.
   <label for="reserva-edades">Edad de cada persona
     <input type="text" id="reserva-edades" name="edades" placeholder="Ej.: 25, 7" required>
   </label>
-  <button type="submit">Enviar por WhatsApp</button>
+  <button type="submit" class="btn-primary"><span class="ring-icon" aria-hidden="true"></span>Enviar por WhatsApp</button>
 </form>
 
 <script>
