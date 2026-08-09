@@ -738,6 +738,18 @@ button.btn-primary {
   font-size: 40px;
 }
 
+// Cargo/rol del instructor debajo del <h1> (_layouts/instructor.html,
+// page.rol). Antes vivía como una línea en negrita suelta al inicio del
+// markdown; ahora es un campo de front matter con estilo propio, consistente
+// entre todos los instructores.
+.instructor-rol {
+  font-family: 'Quicksand', sans-serif;
+  font-weight: 500;
+  font-size: 16px;
+  color: var(--diana);
+  margin-bottom: 20px;
+}
+
 .card__title {
   font-family: 'Quicksand', sans-serif;
   font-weight: 600;

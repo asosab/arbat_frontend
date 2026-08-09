@@ -2,6 +2,11 @@
 layout: default
 ---
 <article class="instructor">
+  <nav class="breadcrumbs" aria-label="Ruta de navegación">
+    <a href="{{ '/' | relative_url }}">Inicio</a><span class="sep">/</span>
+    <a href="{{ '/#instructores' | relative_url }}">Instructores</a><span class="sep">/</span>
+    <span aria-current="page">{{ page.nombre }}</span>
+  </nav>
   <div class="instructor-media">
     {% assign foto_existe = false %}
     {% for f in site.static_files %}{% if f.path == page.foto %}{% assign foto_existe = true %}{% endif %}{% endfor %}
@@ -12,6 +17,9 @@ layout: default
     {% endif %}
   </div>
   <h1>{{ page.nombre }}</h1>
+  {% if page.rol %}
+  <p class="instructor-rol">{{ page.rol }}</p>
+  {% endif %}
   {% if page.instagram %}
   <p class="instructor-instagram"><a href="https://www.instagram.com/{{ page.instagram }}" target="_blank" rel="noopener">Instagram: @{{ page.instagram }}</a></p>
   {% endif %}
