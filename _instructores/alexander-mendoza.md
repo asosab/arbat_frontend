@@ -1,6 +1,7 @@
 ---
 title: "Alexander Mendoza Lehmann"
 nombre: "Alexander Mendoza Lehmann"
+rol: "Instructor – Escuela de Tiro con Arco arbat"
 whatsapp: "+591 62032259"
 instagram: "just.some.archer"
 foto: "/assets/images/Alexander_Mendoza/am_perfil.png"

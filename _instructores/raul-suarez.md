@@ -1,6 +1,7 @@
 ---
 title: "Raúl Suárez"
 nombre: "Raúl Suárez"
+rol: "Co-fundador e Instructor – Escuela de Tiro con Arco arbat"
 whatsapp: "+591 70885758"
 instagram: "raulysusflechas"
 foto: "/assets/images/Raul_Suarez/rs_perfil.png"
