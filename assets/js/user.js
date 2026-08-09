@@ -180,6 +180,11 @@
 
     if (!btnLogin || !logged) return; // no hay header de usuario en esta página
 
+    // Primer nombre a partir del nombre completo devuelto por Facebook.
+    function primerNombre(nombreCompleto) {
+      return (nombreCompleto || '').trim().split(/\s+/)[0] || '';
+    }
+
     function render(user) {
       if (user) {
         btnLogin.hidden = true;
@@ -188,7 +193,9 @@
           avatar.src = user.foto || '';
           avatar.alt = user.nombre || '';
         }
-        if (nombre) nombre.textContent = user.nombre || '';
+        if (nombre) {
+          nombre.textContent = user.nombre ? '¡Hola ' + primerNombre(user.nombre) + '!' : '';
+        }
       } else {
         btnLogin.hidden = false;
         logged.hidden = true;
