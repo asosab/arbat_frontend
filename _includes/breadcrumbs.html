@@ -1,9 +1,20 @@
 {% unless page.breadcrumb_hidden %}
+{% assign breadcrumb_collection_label = '' %}
+{% assign breadcrumb_collection_url = '' %}
+{% if page.collection == 'clases' %}
+  {% assign breadcrumb_collection_label = 'Clases' %}
+  {% assign breadcrumb_collection_url = '/clases/principiantes/' %}
+{% elsif page.collection == 'instructores' %}
+  {% assign breadcrumb_collection_label = 'Instructores' %}
+  {% assign breadcrumb_collection_url = '/#instructores' %}
+{% elsif page.collection == 'eventos' %}
+  {% assign breadcrumb_collection_label = 'Eventos' %}
+{% endif %}
 <nav class="breadcrumbs" aria-label="Miga de pan">
   <a href="{{ '/' | relative_url }}">Inicio</a>
-  {% if page.collection %}
+  {% if breadcrumb_collection_label != '' %}
   <span class="breadcrumbs-sep">/</span>
-  {% if page.collection == 'clases' %}<a href="{{ '/clases/principiantes/' | relative_url }}">Clases</a>{% elsif page.collection == 'instructores' %}<span>Instructores</span>{% elsif page.collection == 'eventos' %}<span>Eventos</span>{% endif %}
+  {% if breadcrumb_collection_url != '' %}<a href="{{ breadcrumb_collection_url | relative_url }}">{{ breadcrumb_collection_label }}</a>{% else %}<span>{{ breadcrumb_collection_label }}</span>{% endif %}
   {% endif %}
   <span class="breadcrumbs-sep">/</span>
   <span aria-current="page">{{ page.title | default: page.nombre }}</span>
@@ -18,12 +29,12 @@
       "position": 1,
       "name": "Inicio",
       "item": "{{ site.url }}/"
-    }{% if page.collection %},
+    }{% if breadcrumb_collection_label != '' %},
     {
       "@type": "ListItem",
       "position": 2,
-      "name": "{{ page.collection }}",
-      "item": "{{ site.url }}/{{ page.collection }}/"
+      "name": "{{ breadcrumb_collection_label }}",
+      "item": "{{ site.url }}{% if breadcrumb_collection_url != '' %}{{ breadcrumb_collection_url }}{% else %}/{{ page.collection }}/{% endif %}"
     },
     {
       "@type": "ListItem",
