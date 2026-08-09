@@ -541,8 +541,11 @@ button.btn-primary {
 
 .card--recomendado {
   position: relative;
-  overflow: visible;
   border: 2px solid var(--diana);
+}
+
+.card.card--recomendado {
+  overflow: visible;
 }
 
 // Compensa el borde de 2px (vs. 1px del resto) para que las cards
