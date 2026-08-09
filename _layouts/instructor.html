@@ -24,7 +24,7 @@
   {% endif %}
   {{ content }}
   {% assign wa_numero = page.whatsapp | remove: '+' | remove: ' ' %}
-  {% assign wa_mensaje = 'Hola ' | append: page.nombre | append: ', quiero información sobre las clases de tiro con arco en ARBAT.' | url_encode %}
+  {% assign wa_mensaje = 'Hola ' | append: page.nombre | append: ', quiero información sobre las clases de tiro con arco en arbat.' | url_encode %}
   <p class="instructor-cta">
     <a class="btn-primary" href="https://wa.me/{{ wa_numero }}?text={{ wa_mensaje }}" target="_blank" rel="noopener"><span class="ring-icon" aria-hidden="true"></span>Escribir a {{ page.nombre }} por WhatsApp</a>
   </p>

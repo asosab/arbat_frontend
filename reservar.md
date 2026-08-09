@@ -1,6 +1,6 @@
 ---
 title: "Reservar una clase"
-description: "Reservá tu primera clase de tiro con arco en ARBAT. Dejanos tu día, el nombre y la edad de cada persona y coordinamos por WhatsApp."
+description: "Reservá tu primera clase de tiro con arco en arbat. Dejanos tu día, el nombre y la edad de cada persona y coordinamos por WhatsApp."
 ---
 # {{ page.title }}
 
@@ -34,7 +34,7 @@ Completá el formulario y te mandamos la solicitud lista por WhatsApp.
     var dia = document.getElementById("reserva-dia").value;
     var nombres = document.getElementById("reserva-nombres").value;
     var edades = document.getElementById("reserva-edades").value;
-    var mensaje = "Hola ARBAT, quiero reservar una primera clase.%0ADía: " + encodeURIComponent(dia) + "%0ANombre(s): " + encodeURIComponent(nombres) + "%0AEdad(es): " + encodeURIComponent(edades);
+    var mensaje = "Hola arbat, quiero reservar una primera clase.%0ADía: " + encodeURIComponent(dia) + "%0ANombre(s): " + encodeURIComponent(nombres) + "%0AEdad(es): " + encodeURIComponent(edades);
     window.open("https://wa.me/" + numero + "?text=" + mensaje, "_blank");
   });
 })();
@@ -45,4 +45,4 @@ Completá el formulario y te mandamos la solicitud lista por WhatsApp.
 {% include calendar-citas-embed.html %}
 
 <p>¿Preferís escribirnos directo?</p>
-{% include whatsapp-cta.html texto="Escribir por WhatsApp" mensaje="Hola ARBAT, quiero reservar una clase de tiro con arco." %}
+{% include whatsapp-cta.html texto="Escribir por WhatsApp" mensaje="Hola arbat, quiero reservar una clase de tiro con arco." %}

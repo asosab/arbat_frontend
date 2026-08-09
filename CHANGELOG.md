@@ -8,7 +8,7 @@
 - 2026-08-08 — frontend: corregido `_includes/head.html` — había dos
   `<title>` en el `<head>` (uno manual y uno generado por `{% seo %}` con
   orden invertido). Apagado el título de `jekyll-seo-tag` (`{% seo title=false %}`)
-  y dejado un único `<title>` con el orden `ARBAT | {{ page.title }}`.
+  y dejado un único `<title>` con el orden `arbat | {{ page.title }}`.
 - 2026-08-08 — frontend: revisión de diseño visual del sitio publicado en
   GitHub Pages. Se descartó una dirección visual alternativa (paleta y
   tipografía nuevas) a favor de seguir creciendo desde el sistema ya
@@ -22,14 +22,14 @@
   `clases-individuales`). Se mantuvo el registro funcional/directo en
   páginas transaccionales (home, clases, precios, horarios, reservar) según
   la regla ya definida de reservar el formato "Reflexiones" solo para
-  redes/blog. Los `TODO`s de contenido pendiente de confirmar con ARBAT se
+  redes/blog. Los `TODO`s de contenido pendiente de confirmar con arbat se
   dejaron intactos, sin rellenar con información no confirmada.
 - 2026-08-08 — contenido: estructurados los 3 perfiles de instructores
   (`raul-suarez.md`, `sebastian-bedregal.md`, `alexander-mendoza.md`) con
   nombre, WhatsApp e Instagram funcionales, sin inventar trayectoria — cada
   uno queda con `TODO` explícito hasta que el instructor confirme qué
   publicar (ver plan, sección 10, punto 3).
-- 2026-08-08 — datos/SEO: agregadas coordenadas reales de ARBAT
+- 2026-08-08 — datos/SEO: agregadas coordenadas reales de arbat
   (`latitud`, `longitud`) y el link corto de Google Maps
   (`google_maps_url`) a `_config.yml`. Actualizado `ubicacion.md` con el
   link de Maps y el iframe apuntando a las coordenadas exactas (antes
@@ -46,5 +46,5 @@
   Commiteado y probado funcional en navegador.
 - 2026-08-08 — infraestructura: creado `opencode/infraestructura.md` con el estado actual del sistema (entorno WSL/v9fs, stack Ruby/Jekyll, estructura de directorios, scripts, config opencode y estado de procesos).
 - 2026-08-08 — infraestructura: incorporada la sección «Servicio local (Jekyll)» a `AGENTS.md` (uso de `service.sh`, resolución de errores de PATH y huérfanos); borrado `opencode/tmp/agents.md` (archivo de traspaso).
-- 2026-08-07 — frontend: andamiaje completo del sitio Jekyll de ARBAT en `arbat_frontend/` (layouts, includes, schema JSON-LD, colecciones `_instructores`/`_clases`, 9 páginas raíz, landing, form de reserva a WhatsApp, CSS mínimo). Build verificado sin errores ni warnings.
+- 2026-08-07 — frontend: andamiaje completo del sitio Jekyll de arbat en `arbat_frontend/` (layouts, includes, schema JSON-LD, colecciones `_instructores`/`_clases`, 9 páginas raíz, landing, form de reserva a WhatsApp, CSS mínimo). Build verificado sin errores ni warnings.
 - 2026-08-07 — inicio: creada la estructura de documentación `opencode/` (CHANGELOG.md, PLAN.md, PLAN/index.md).

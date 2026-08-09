@@ -1,6 +1,6 @@
 ---
 title: "Preguntas frecuentes"
-description: "Respuestas a las preguntas más frecuentes sobre las clases de tiro con arco de ARBAT en Santa Cruz de la Sierra."
+description: "Respuestas a las preguntas más frecuentes sobre las clases de tiro con arco de arbat en Santa Cruz de la Sierra."
 ---
 # {{ page.title }}
 
@@ -14,7 +14,7 @@ No. Tenemos equipo para diestros y zurdos.
 
 ## ¿Qué edad?
 
-<!-- TODO: confirmar con ARBAT la edad mínima/máxima para las clases. -->
+<!-- TODO: confirmar con arbat la edad mínima/máxima para las clases. -->
 
 ## ¿Cuánto cuesta?
 
@@ -32,4 +32,4 @@ Sí. Trabajamos siempre **con agenda previa**; sin reserva no hay cupo garantiza
 
 ## ¿Qué ropa llevo?
 
-<!-- TODO: confirmar con ARBAT qué ropa/calzado recomiendan para la sesión. -->
+<!-- TODO: confirmar con arbat qué ropa/calzado recomiendan para la sesión. -->

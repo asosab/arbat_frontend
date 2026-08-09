@@ -1,6 +1,6 @@
 ---
 title: "Metodología de entrenamiento"
-description: "Cómo se entrena en ARBAT: progresión técnica, seguridad y equipo adaptado a diestros y zurdos, con entrenamiento olímpico, recreativo, deportivo y competitivo."
+description: "Cómo se entrena en arbat: progresión técnica, seguridad y equipo adaptado a diestros y zurdos, con entrenamiento olímpico, recreativo, deportivo y competitivo."
 ---
 # {{ page.title }}
 
@@ -10,7 +10,7 @@ Vas a subir en técnica, control, seguridad y capacidad de a poco — no te tira
 
 ## Seguridad
 
-<!-- TODO: confirmar con ARBAT las medidas de seguridad específicas que se aplican en cada sesión. -->
+<!-- TODO: confirmar con arbat las medidas de seguridad específicas que se aplican en cada sesión. -->
 
 ## Equipo adaptado
 
@@ -25,4 +25,4 @@ Adaptamos el equipo a vos, no al revés. Tenemos arcos clásicos de madera, bare
 
 El proceso se arma según tu nivel, tus objetivos y tus tiempos.
 
-{% include whatsapp-cta.html texto="Consultar por una clase" mensaje="Hola ARBAT, quiero información sobre la metodología de entrenamiento." %}
+{% include whatsapp-cta.html texto="Consultar por una clase" mensaje="Hola arbat, quiero información sobre la metodología de entrenamiento." %}

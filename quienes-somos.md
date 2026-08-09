@@ -1,6 +1,6 @@
 ---
 title: "Quiénes somos"
-description: "ARBAT es una escuela de tiro con arco en Santa Cruz de la Sierra, Bolivia."
+description: "arbat es una escuela de tiro con arco en Santa Cruz de la Sierra, Bolivia."
 ---
 # {{ page.title }}
 

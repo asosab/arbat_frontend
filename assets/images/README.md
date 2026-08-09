@@ -8,6 +8,6 @@
 
 ## Pendientes (fotos reales)
 
-- `/assets/images/logo.svg` — logo de ARBAT (placeholder actualmente)
+- `/assets/images/logo.svg` — logo de arbat (placeholder actualmente)
 - `/assets/images/favicon.svg` — favicon (placeholder actualmente)
 - Fotos de instalaciones y clases para la home — por definir

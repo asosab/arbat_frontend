@@ -8,11 +8,11 @@ Para quien quiere entrenar solo, a su ritmo, sin el grupo grande alrededor — e
 
 ## Qué aprenderás
 
-<!-- TODO: confirmar con ARBAT los contenidos específicos de las clases individuales. -->
+<!-- TODO: confirmar con arbat los contenidos específicos de las clases individuales. -->
 
 ## Cómo funciona
 
-Como en toda ARBAT, no hay walk-in: agendás antes y te esperamos a esa hora, con la cancha lista.
+Como en toda arbat, no hay walk-in: agendás antes y te esperamos a esa hora, con la cancha lista.
 
 ## Duración
 
@@ -29,7 +29,7 @@ Te damos todo lo necesario: arcos clásicos de madera, barebow, recurvos, equipo
 
 ## Instructor sugerido
 
-<!-- TODO: confirmar con ARBAT el instructor sugerido para clases individuales. -->
+<!-- TODO: confirmar con arbat el instructor sugerido para clases individuales. -->
 
 ## Ubicación
 
@@ -38,4 +38,4 @@ Av. Roca y Coronado #1800, entre 4to y 5to anillo, Santa Cruz de la Sierra. Ver 
 ## Preguntas frecuentes
 
 - **¿Necesito arco propio?** No, te prestamos el equipo.
-- **¿Es para mí si soy principiante?** <!-- TODO: confirmar con ARBAT. -->
+- **¿Es para mí si soy principiante?** <!-- TODO: confirmar con arbat. -->

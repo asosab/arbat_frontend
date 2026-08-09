@@ -1,6 +1,6 @@
 ---
 title: "Precios de las clases de tiro con arco"
-description: "Tarifas de ARBAT: primera clase o clase suelta Bs. 70 y mensualidades de Bs. 180 a Bs. 500 en Santa Cruz de la Sierra."
+description: "Tarifas de arbat: primera clase o clase suelta Bs. 70 y mensualidades de Bs. 180 a Bs. 500 en Santa Cruz de la Sierra."
 ---
 # {{ page.title }}
 
@@ -17,4 +17,4 @@ description: "Tarifas de ARBAT: primera clase o clase suelta Bs. 70 y mensualida
 
 El precio no cambia según el instructor ni tu nivel — pagás por la frecuencia que elijas. Las sesiones son con agenda previa, mirá los [horarios](/horarios/).
 
-{% include whatsapp-cta.html texto="Consultar disponibilidad" mensaje="Hola ARBAT, quiero consultar precios y disponibilidad de clases." %}
+{% include whatsapp-cta.html texto="Consultar disponibilidad" mensaje="Hola arbat, quiero consultar precios y disponibilidad de clases." %}

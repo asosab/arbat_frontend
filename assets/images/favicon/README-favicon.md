@@ -1,4 +1,4 @@
-# Favicon ARBAT — paquete completo
+# Favicon arbat — paquete completo
 
 Generado a partir de `arbat-a-2026.png` (logo transparente, negro `#000000` +
 naranja `#FF4F00`).

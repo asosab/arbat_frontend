@@ -6,15 +6,15 @@ description: "Clases de tiro con arco para niños en Santa Cruz de la Sierra. Eq
 
 Para chicos que quieren aprender tiro con arco jugando, con equipo pensado para ellos.
 
-<!-- TODO: confirmar con ARBAT el rango de edad de las clases para niños. -->
+<!-- TODO: confirmar con arbat el rango de edad de las clases para niños. -->
 
 ## Qué aprenderás
 
-<!-- TODO: confirmar con ARBAT los contenidos específicos del nivel infantil (juego, seguridad, técnica básica). -->
+<!-- TODO: confirmar con arbat los contenidos específicos del nivel infantil (juego, seguridad, técnica básica). -->
 
 ## Cómo funciona
 
-Como en toda ARBAT, no hay walk-in: agendás antes y te esperamos a esa hora, con la cancha lista.
+Como en toda arbat, no hay walk-in: agendás antes y te esperamos a esa hora, con la cancha lista.
 
 ## Duración
 
@@ -31,7 +31,7 @@ Tenemos equipo adaptado también para niños: arcos clásicos de madera, barebow
 
 ## Instructor sugerido
 
-<!-- TODO: confirmar con ARBAT el instructor sugerido para niños. -->
+<!-- TODO: confirmar con arbat el instructor sugerido para niños. -->
 
 ## Ubicación
 
@@ -39,5 +39,5 @@ Av. Roca y Coronado #1800, entre 4to y 5to anillo, Santa Cruz de la Sierra. Ver 
 
 ## Preguntas frecuentes
 
-- **¿Qué edad?** <!-- TODO: confirmar con ARBAT la edad mínima. -->
+- **¿Qué edad?** <!-- TODO: confirmar con arbat la edad mínima. -->
 - **¿Necesita arco propio?** No, te prestamos el equipo.

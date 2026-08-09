@@ -1,7 +1,7 @@
-# ARBAT — Escuela de Tiro con Arco
+# arbat — Escuela de Tiro con Arco
 # Configuración Jekyll / GitHub Pages
 
-title: "ARBAT — Escuela de Tiro con Arco"
+title: "arbat — Escuela de Tiro con Arco"
 description: >-
   Escuela de tiro con arco en Santa Cruz de la Sierra, Bolivia.
   Entrenamiento olímpico, recreativo, deportivo y competitivo para todos los niveles.
@@ -17,7 +17,7 @@ timezone: America/La_Paz
 
 # Autor / entidad para jekyll-seo-tag
 author:
-  name: "ARBAT"
+  name: "arbat"
   email: "arbat.archery@gmail.com"
 
 # Logo para jekyll-seo-tag — se inyecta en el JSON-LD de Organization/WebSite
@@ -27,7 +27,7 @@ logo: /assets/images/logo.png
 
 # Twitter Cards — controla cómo se ve el link al compartirlo en Twitter/X.
 # "summary_large_image" usa el `logo` (o el og:image de cada página) como
-# imagen grande. ARBAT no tiene cuenta de Twitter/X todavía: si se crea una,
+# imagen grande. arbat no tiene cuenta de Twitter/X todavía: si se crea una,
 # agregar `username: "@handle"` acá (sin el @ en el YAML, jekyll-seo-tag lo
 # antepone solo) para que la card quede atribuida a la cuenta oficial.
 twitter:
@@ -37,7 +37,7 @@ twitter:
 # {% seo %} (más redes que el schema LocalBusiness manual de
 # _includes/schema/local-business.html, que solo cubre Instagram por ahora).
 social:
-  name: "ARBAT"
+  name: "arbat"
   links:
     - "https://www.instagram.com/arbat.archery"
 
@@ -46,7 +46,7 @@ social:
 # {{ site.arbat.direccion }}, {{ site.arbat.lema }}, etc.
 # ---------------------------------------------------------------------------
 arbat:
-  nombre: "ARBAT"
+  nombre: "arbat"
   lema: "Sentio ergo attingo"
   direccion: "Av. Roca y Coronado #1800, entre 4to y 5to anillo, Santa Cruz de la Sierra, Bolivia"
   latitud: -17.786213690725038

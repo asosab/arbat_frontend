@@ -7,7 +7,7 @@ hero_eyebrow: "Escuela de tiro con arco — Santa Cruz de la Sierra"
 hero_lema: "Sentio ergo attingo."
 hero_sub: "Te enseñamos a tirar con arco, sea cual sea tu punto de partida. Si no tenés equipo, te prestamos uno — arco, flechas, protecciones — y arrancamos donde estés vos."
 hero_cta_texto: "Probar una clase (Bs. 70)"
-hero_cta_mensaje: "Hola ARBAT, quiero probar una primera clase de tiro con arco."
+hero_cta_mensaje: "Hola arbat, quiero probar una primera clase de tiro con arco."
 ---
 
 <div class="ring-divider" aria-hidden="true"></div>

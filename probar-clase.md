@@ -1,12 +1,12 @@
 ---
 layout: landing
 title: "Probá tu primera clase por Bs. 70"
-description: "Probá tu primera clase de tiro con arco en ARBAT por Bs. 70. Equipo incluido, agenda previa, en Santa Cruz de la Sierra."
+description: "Probá tu primera clase de tiro con arco en arbat por Bs. 70. Equipo incluido, agenda previa, en Santa Cruz de la Sierra."
 breadcrumb_hidden: true
 hero: true
 hero_eyebrow: "Escuela de tiro con arco — Santa Cruz de la Sierra"
 hero_lema: "Sentio ergo attingo."
-hero_sub: "ARBAT — Escuela de tiro con arco en Santa Cruz de la Sierra."
+hero_sub: "arbat — Escuela de tiro con arco en Santa Cruz de la Sierra."
 ---
 
 <ul class="list-diana">
@@ -16,4 +16,4 @@ hero_sub: "ARBAT — Escuela de tiro con arco en Santa Cruz de la Sierra."
   <li>Sesiones con <strong>agenda previa</strong>.</li>
 </ul>
 
-{% include whatsapp-cta.html texto="Agendar mi primera clase por Bs. 70" mensaje="Hola ARBAT, quiero probar mi primera clase de tiro con arco por Bs. 70." %}
+{% include whatsapp-cta.html texto="Agendar mi primera clase por Bs. 70" mensaje="Hola arbat, quiero probar mi primera clase de tiro con arco por Bs. 70." %}
