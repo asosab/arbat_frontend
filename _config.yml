@@ -19,19 +19,22 @@ timezone: America/La_Paz
 author:
   name: "arbat"
   email: "arbat.archery@gmail.com"
+  twitter: "arbatArchery"   # sin @ — alimenta twitter:creator
 
 # Logo para jekyll-seo-tag — se inyecta en el JSON-LD de Organization/WebSite
-# que genera {% seo %} automáticamente. Ruta relativa al root; Jekyll resuelve
-# url + baseurl solo (y deja de agregar baseurl cuando se pase a arbat.com.bo).
+# que genera {% seo %} automáticamente. También se usa como og:image por
+# defecto (ver `defaults` más abajo) para páginas sin foto propia — el logo
+# NO alimenta og:image solo, hay que declararlo explícito ahí. Ruta relativa
+# al root; Jekyll resuelve url + baseurl solo (y deja de agregar baseurl
+# cuando se pase a arbat.com.bo).
 logo: /assets/images/logo.png
 
 # Twitter Cards — controla cómo se ve el link al compartirlo en Twitter/X.
-# "summary_large_image" usa el `logo` (o el og:image de cada página) como
-# imagen grande. arbat no tiene cuenta de Twitter/X todavía: si se crea una,
-# agregar `username: "@handle"` acá (sin el @ en el YAML, jekyll-seo-tag lo
-# antepone solo) para que la card quede atribuida a la cuenta oficial.
+# "summary_large_image" usa el `image` de cada página (o `logo` si la página
+# no define uno) como imagen grande.
 twitter:
   card: summary_large_image
+  username: "arbatArchery"   # sin @ — alimenta twitter:site
 
 # Social — alimenta el "sameAs" del JSON-LD de Organization que genera
 # {% seo %} (más redes que el schema LocalBusiness manual de
@@ -137,6 +140,7 @@ defaults:
     values:
       layout: "default"
       schema_type: "WebPage"
+      image: /assets/images/logo.png
 
 # ---------------------------------------------------------------------------
 # Markdown y build
@@ -169,6 +173,8 @@ exclude:
 # ---------------------------------------------------------------------------
 # Facebook Login (SDK JS) — usado por _includes/facebook-sdk.html y
 # assets/js/user.js. app_id no es secreto, puede vivir en el repo.
+# También alimenta el meta tag fb:app_id en head.html (ver ese archivo) —
+# mismo App ID, no hace falta crear una app separada para eso.
 # ---------------------------------------------------------------------------
 facebook:
   app_id: "1662744362522934"
