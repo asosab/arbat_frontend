@@ -326,6 +326,7 @@ button.btn-primary {
   display: flex;
   align-items: center;
   gap: 10px;
+  text-decoration: none;
 }
 
 .site-header .site-logo img {
@@ -336,7 +337,7 @@ button.btn-primary {
 
 .site-logo-texto {
   font-family: 'Quicksand', sans-serif;
-  font-weight: 700;
+  font-weight: 500;
   font-size: 20px;
   color: var(--tinta);
 }
