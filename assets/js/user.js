@@ -166,14 +166,15 @@
 
   /**
    * ---------------------------------------------------------------------
-   * Cableado del botón de login/logout en _includes/header.html.
+   * Cableado del botón de login y del estado (avatar/nombre) en
+   * _includes/header.html. El botón "Salir" ya no vive acá: ahora se
+   * genera dentro del menú desplegable del usuario (ver menuuser.js).
    * Busca los elementos por id; si una página no tiene header (por ejemplo
    * la landing /probar-clase/), simplemente no hace nada.
    * ---------------------------------------------------------------------
    */
   function wireHeaderUI() {
     var btnLogin = document.getElementById('btn-fb-login');
-    var btnLogout = document.getElementById('btn-logout');
     var logged = document.getElementById('nav-user-logged');
     var avatar = document.getElementById('nav-user-avatar');
     var nombre = document.getElementById('nav-user-nombre');
@@ -218,12 +219,6 @@
         btnLogin.disabled = false;
       });
     });
-
-    if (btnLogout) {
-      btnLogout.addEventListener('click', function () {
-        ArbatUser.logout();
-      });
-    }
   }
 
   document.addEventListener('DOMContentLoaded', wireHeaderUI);

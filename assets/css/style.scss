@@ -369,6 +369,9 @@ button.btn-primary {
   display: flex;
   align-items: center;
   gap: 10px;
+  // Ancla el menú desplegable (menuuser.js), que se posiciona absolute
+  // relativo a este contenedor.
+  position: relative;
 }
 
 .nav-user-avatar {
@@ -378,6 +381,18 @@ button.btn-primary {
   object-fit: cover;
   background: var(--piedra);
   flex-shrink: 0;
+}
+
+// El ícono es el disparador del menú — menuuser.js escucha el click acá y
+// alterna aria-expanded.
+.user-toolkit-trigger .nav-user-avatar {
+  cursor: pointer;
+  transition: opacity .2s ease;
+}
+
+.user-toolkit-trigger .nav-user-avatar:hover,
+.user-toolkit-trigger[aria-expanded="true"] .nav-user-avatar {
+  opacity: .8;
 }
 
 .nav-user-nombre {
@@ -390,21 +405,90 @@ button.btn-primary {
   text-overflow: ellipsis;
 }
 
-.nav-user-logout {
+@media (max-width: 720px) {
+  .nav-user-nombre { max-width: 88px; }
+}
+
+// ---------------------------------------------------------------------------
+// Menú desplegable del usuario (assets/js/menuuser.js)
+// Todo el HTML lo genera ese script y lo cuelga dentro de #nav-user-logged
+// (position: relative arriba). Mismo lenguaje visual que .card: borde
+// --borde, radio 12px, sombra al elevarse sobre el header.
+// ---------------------------------------------------------------------------
+.user-toolkit-menu {
+  position: absolute;
+  top: calc(100% + 12px);
+  right: 0;
+  min-width: 180px;
+  background: var(--papel);
+  border: 1px solid var(--borde);
+  border-radius: 12px;
+  box-shadow: 0 12px 24px rgba(20, 18, 15, .14);
+  overflow: hidden;
+  z-index: 40;
+}
+
+.user-toolkit-menu__lista {
+  list-style: none;
+}
+
+// Hoy no tiene items (ver TODO en menuuser.js); si queda vacía que no deje
+// un hueco arriba del botón "Salir".
+.user-toolkit-menu__lista:empty {
+  display: none;
+}
+
+.user-toolkit-menu__lista li + li {
+  border-top: 1px solid var(--borde);
+}
+
+.user-toolkit-menu__lista a,
+.user-toolkit-menu__lista button {
+  display: block;
+  width: 100%;
+  text-align: left;
   border: none;
   background: none;
   cursor: pointer;
   font-family: 'Work Sans', sans-serif;
-  font-size: 13px;
-  color: var(--grafito);
-  text-decoration: underline;
-  padding: 0;
+  font-size: 14px;
+  color: var(--tinta);
+  text-decoration: none;
+  padding: 12px 16px;
 }
 
-.nav-user-logout:hover { color: var(--tinta); }
+.user-toolkit-menu__lista a:hover,
+.user-toolkit-menu__lista button:hover {
+  background: var(--piedra);
+}
+
+.user-toolkit-menu__pie {
+  border-top: 1px solid var(--borde);
+}
+
+.user-toolkit-menu__salir {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-family: 'Work Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--diana);
+  padding: 12px 16px;
+}
+
+.user-toolkit-menu__salir:hover { background: var(--piedra); }
+
+.user-toolkit-menu__salir:disabled {
+  opacity: .6;
+  cursor: default;
+}
 
 @media (max-width: 720px) {
-  .nav-user-nombre { max-width: 88px; }
+  .user-toolkit-menu { min-width: 160px; }
 }
 
 // Botón hamburguesa — oculto en desktop, .nav-user (login/usuario) siempre visible
