@@ -18,6 +18,16 @@
 // ---------------------------------------------------------------------------
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+// El atributo `hidden` nativo debe ganarle a cualquier `display` fijado por
+// un componente (ej. .nav-cta y .nav-user-logged usan flex/inline-flex sin
+// condicionarlo). Sin esto, assets/js/user.js pone hidden=true/false pero
+// el elemento sigue viéndose igual — bug real: el botón "Ingresar con
+// Facebook" seguía mostrándose logueado, y viceversa el avatar roto seguía
+// visible al desloguearse.
+[hidden] {
+  display: none !important;
+}
+
 html { -webkit-text-size-adjust: 100%; }
 
 body {
