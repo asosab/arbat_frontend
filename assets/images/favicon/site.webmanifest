@@ -1,21 +1,24 @@
+---
+layout: null
+---
 {
   "name": "arbat Escuela de Tiro con Arco",
   "short_name": "arbat",
   "icons": [
     {
-      "src": "/assets/images/favicon/android-chrome-192x192.png",
+      "src": "{{ site.baseurl }}/assets/images/favicon/android-chrome-192x192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/assets/images/favicon/android-chrome-512x512.png",
+      "src": "{{ site.baseurl }}/assets/images/favicon/android-chrome-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/assets/images/favicon/maskable-icon-512x512.png",
+      "src": "{{ site.baseurl }}/assets/images/favicon/maskable-icon-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
@@ -24,5 +27,5 @@
   "theme_color": "#FF4F00",
   "background_color": "#ffffff",
   "display": "standalone",
-  "start_url": "/"
+  "start_url": "{{ site.baseurl }}/"
 }
