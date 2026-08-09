@@ -121,21 +121,15 @@
     },
 
     /**
-     * Cierra sesión: borra la sesión local y, si corresponde, también
-     * la sesión de Facebook.
+     * Cierra sesión SOLO en ARBAT: borra la sesión guardada localmente.
+     * A propósito NO llama a FB.logout() — eso cerraría la sesión de
+     * Facebook del usuario en todo el navegador (lo afectaría en cualquier
+     * otro sitio donde use "Iniciar con Facebook"), y no es lo que se
+     * espera de un botón "Salir" de esta página.
      */
     logout: function (callback) {
-      var self = this;
-      var finish = function () {
-        self.clear();
-        if (callback) callback();
-      };
-
-      if (typeof FB !== 'undefined' && self.isLoggedIn()) {
-        FB.logout(finish);
-      } else {
-        finish();
-      }
+      this.clear();
+      if (callback) callback();
     },
 
     /**
@@ -143,6 +137,15 @@
      * si el usuario cerró sesión en Facebook desde otra pestaña o revocó el
      * permiso a la app). Si Facebook dice que ya no está conectado, limpia
      * la sesión local aunque hubiera quedado guardada.
+     *
+     * OJO — ya NO se llama automáticamente al cargar la página (ver bug
+     * corregido: 2026-08). Los navegadores modernos bloquean las cookies de
+     * terceros que el SDK de Facebook necesita para verificar el estado de
+     * sesión, así que FB.getLoginStatus() suele devolver "unknown" o
+     * "not_authorized" incluso con un login recién hecho y válido. Llamar
+     * esto automáticamente causaba que el botón "Ingresar con Facebook"
+     * volviera a aparecer segundos después de haber iniciado sesión. Queda
+     * disponible para invocarla a mano si en algún momento hace falta.
      */
     sync: function () {
       if (typeof FB === 'undefined') return;
@@ -156,13 +159,6 @@
   };
 
   window.ArbatUser = ArbatUser;
-
-  // Al cargar cualquier página, sincronizar con el estado real de Facebook.
-  // El pequeño delay le da margen a fbAsyncInit (en facebook-sdk.html) para
-  // terminar de inicializar el SDK antes de consultarlo.
-  window.addEventListener('load', function () {
-    setTimeout(function () { ArbatUser.sync(); }, 300);
-  });
 
   /**
    * ---------------------------------------------------------------------
