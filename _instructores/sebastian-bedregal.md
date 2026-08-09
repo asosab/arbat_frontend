@@ -3,7 +3,7 @@ title: "Sebastián Bedregal"
 nombre: "Sebastián Bedregal"
 whatsapp: "+591 76660577"
 instagram: "sebastian.ursarchery"
-foto: "/assets/images/Sebastian_bedregal/sb_perfil.png"
+foto: "/assets/images/Sebastian_Bedregal/sb_perfil.png"
 ---
 
 # Sebastián Bedregal
