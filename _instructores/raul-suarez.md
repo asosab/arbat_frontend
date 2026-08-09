@@ -5,6 +5,8 @@ rol: "Co-fundador e Instructor – Escuela de Tiro con Arco arbat"
 whatsapp: "+591 70885758"
 instagram: "raulysusflechas"
 foto: "/assets/images/Raul_Suarez/rs_perfil.png"
+image: "/assets/images/Raul_Suarez/rs_perfil.png"
+description: "Entrená con Raúl Suárez en arbat, con agenda previa según el horario que coordinen."
 ---
 <!-- TODO: pendiente confirmar con el instructor qué contenido de su trayectoria puede publicarse (ver plan, sección 10, punto 3). Reemplazar el párrafo de abajo cuando esté confirmado. -->
 

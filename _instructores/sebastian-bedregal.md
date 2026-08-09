@@ -5,6 +5,8 @@ rol: "Co-fundador e Instructor – Escuela de Tiro con Arco arbat"
 whatsapp: "+591 76660577"
 instagram: "sebastian.ursarchery"
 foto: "/assets/images/Sebastian_Bedregal/sb_perfil.png"
+image: "/assets/images/Sebastian_Bedregal/sb_perfil.png"
+description: "Sebastián comenzó en el tiro con arco en 2020, motivado por la disciplina y el aprendizaje autodidacta durante la cuarentena. Un año después se incorporó al Club Jaguar, representando a su club y a su departamento en múltiples torneos oficiales."
 resumen: "Bicampeón nacional en la categoría 40 metros y entrenador certificado por World Archery (2024). Lideró a la Selección Nacional Sub-21 de Bolivia en los I Juegos Bolivarianos de la Juventud en Sucre, donde el equipo obtuvo medallas de plata y bronce en las modalidades recurvo, compuesto y equipo mixto. Especialista en metodología lineal para la enseñanza de tiro deportivo, desde la iniciación hasta el nivel de clubes."
 ---
 

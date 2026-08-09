@@ -5,6 +5,8 @@ rol: "Instructor – Escuela de Tiro con Arco arbat"
 whatsapp: "+591 62032259"
 instagram: "just.some.archer"
 foto: "/assets/images/Alexander_Mendoza/am_perfil.png"
+image: "/assets/images/Alexander_Mendoza/am_perfil.png"
+description: "Llevo 10 años en el deporte de tiro con arco, 9 de ellos representando a Bolivia en campeonatos internacionales — continentales, panamericanos y mundiales."
 ---
 
 Llevo 10 años en el deporte de tiro con arco, 9 de ellos representando a Bolivia en campeonatos internacionales — continentales, panamericanos y mundiales. Mi mejor clasificación a nivel panamericano fue el puesto 69 del ranking de salida, y logré dos medallas de plata en el Sudamericano Open de Guayaquil. También he sido campeón nacional varias veces, y campeón departamental de Santa Cruz en incontables ocasiones.
