@@ -3,7 +3,9 @@
 <head>
 {% include head.html %}
 </head>
+
 <body class="{% if page.hero %}has-hero{% endif %}">
+{% include facebook-sdk.html %}  
 {% include header.html %}
 <main>
 {% if page.hero %}
@@ -31,5 +33,6 @@
 {% endif %}
 </main>
 {% include footer.html %}
+<script src="{{ '/assets/js/user.js' | relative_url }}"></script>
 </body>
 </html>

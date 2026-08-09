@@ -165,3 +165,11 @@ exclude:
   - scripts/
   - "*.gemspec"
   - assets/images/README.md
+
+# ---------------------------------------------------------------------------
+# Facebook Login (SDK JS) — usado por _includes/facebook-sdk.html y
+# assets/js/user.js. app_id no es secreto, puede vivir en el repo.
+# ---------------------------------------------------------------------------
+facebook:
+  app_id: "1662744362522934"
+  api_version: "v26.0"

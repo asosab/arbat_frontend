@@ -1,9 +1,4 @@
 <header class="site-header">
-  <div class="header-contacto">
-    {% for telefono in site.arbat.telefono_whatsapp %}
-    <a href="https://wa.me/{{ telefono | remove: '+' | remove: ' ' }}" target="_blank" rel="noopener">{{ telefono }}</a>{% unless forloop.last %} · {% endunless %}
-    {% endfor %}
-  </div>
   <div class="header-fila wrap">
     <a class="site-logo" href="{{ '/' | relative_url }}">
       <img src="{{ '/assets/images/logo.png' | relative_url }}" alt="{{ site.arbat.nombre }}">
@@ -16,9 +11,18 @@
       <a href="{{ '/ubicacion/' | relative_url }}">Ubicación</a>
       <a class="nav-cta-reservar" href="{{ '/reservar/' | relative_url }}">Reservar</a>
     </nav>
-    {% assign wa_numero = site.arbat.telefono_whatsapp | first | remove: '+' | remove: ' ' %}
-    {% assign wa_mensaje = 'Hola arbat, quiero información sobre las clases de tiro con arco.' | url_encode %}
-    <a class="nav-cta" href="https://wa.me/{{ wa_numero }}?text={{ wa_mensaje }}" target="_blank" rel="noopener">WhatsApp</a>
+
+    <div class="nav-user" id="nav-user">
+      <button class="nav-cta nav-cta--login" id="btn-fb-login" type="button">
+        Ingresar con Facebook
+      </button>
+      <div class="nav-user-logged" id="nav-user-logged" hidden>
+        <img class="nav-user-avatar" id="nav-user-avatar" src="" alt="">
+        <span class="nav-user-nombre" id="nav-user-nombre"></span>
+        <button class="nav-user-logout" id="btn-logout" type="button">Salir</button>
+      </div>
+    </div>
+
     <button class="nav-toggle" id="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav" aria-label="Abrir menú">
       <span></span><span></span><span></span>
     </button>

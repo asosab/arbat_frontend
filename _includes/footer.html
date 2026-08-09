@@ -26,6 +26,10 @@
       </nav>
     </div>
 
-    <p class="footer-copy">© {{ 'now' | date: '%Y' }} {{ site.arbat.nombre }}. Todos los derechos reservados.</p>
+    <p class="footer-copy">
+      © {{ 'now' | date: '%Y' }} {{ site.arbat.nombre }}. Todos los derechos reservados. ·
+      <a href="{{ '/privacidad/' | relative_url }}">Política de Privacidad</a> ·
+      <a href="{{ '/eliminacion-datos/' | relative_url }}">Eliminación de Datos</a>
+    </p>
   </div>
 </footer>

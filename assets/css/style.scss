@@ -296,22 +296,7 @@ button.btn-primary {
   border-bottom: 1px solid var(--borde);
 }
 
-// Barra superior de teléfonos (arriba del todo, fuera de .wrap: se le da
-// el mismo padding lateral que .wrap a mano porque no comparte esa clase).
-.header-contacto {
-  padding: 10px 40px 0;
-  text-align: right;
-  font-size: 12px;
-}
-
-.header-contacto a {
-  color: var(--grafito);
-  text-decoration: none;
-}
-
-.header-contacto a:hover { text-decoration: underline; }
-
-// Fila principal: logo + nav + CTA de WhatsApp + toggle mobile
+// Fila principal: logo + nav + usuario (login/logout) + toggle mobile
 .header-fila {
   display: flex;
   align-items: center;
@@ -357,7 +342,72 @@ button.btn-primary {
   opacity: .88;
 }
 
-// Botón hamburguesa — oculto en desktop, .nav-cta (WhatsApp) siempre visible
+// ---------------------------------------------------------------------------
+// Usuario / login con Facebook (header.html #nav-user)
+// Dos estados que assets/js/user.js alterna con [hidden] según haya o no
+// sesión: botón de login (reusa el look de .nav-cta) vs. avatar+nombre+salir.
+// ---------------------------------------------------------------------------
+.nav-user {
+  display: flex;
+  align-items: center;
+}
+
+// btn-fb-login ya trae el pill oscuro de .nav-cta (ver header.html); acá
+// solo se resetea el estilo nativo del <button>.
+.nav-cta--login {
+  border: none;
+  cursor: pointer;
+  font-family: 'Work Sans', sans-serif;
+}
+
+.nav-cta--login:disabled {
+  opacity: .6;
+  cursor: default;
+}
+
+.nav-user-logged {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.nav-user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--piedra);
+  flex-shrink: 0;
+}
+
+.nav-user-nombre {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--tinta);
+  white-space: nowrap;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nav-user-logout {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-family: 'Work Sans', sans-serif;
+  font-size: 13px;
+  color: var(--grafito);
+  text-decoration: underline;
+  padding: 0;
+}
+
+.nav-user-logout:hover { color: var(--tinta); }
+
+@media (max-width: 720px) {
+  .nav-user-nombre { max-width: 88px; }
+}
+
+// Botón hamburguesa — oculto en desktop, .nav-user (login/usuario) siempre visible
 .nav-toggle {
   display: none;
   flex-direction: column;
@@ -386,13 +436,11 @@ button.btn-primary {
 .nav-toggle[aria-expanded="true"] span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
 
 @media (max-width: 720px) {
-  .header-contacto { padding: 8px 22px 0; text-align: center; }
-
   .nav-toggle { display: flex; order: 3; }
 
-  // El link de WhatsApp queda visible siempre en mobile (ver nota arriba);
-  // el toggle se ubica después. La nav pasa a ser un desplegable a todo
-  // el ancho, debajo de la fila logo/CTA/toggle.
+  // El bloque de usuario (login/avatar) queda visible siempre en mobile
+  // (ver nota arriba); el toggle se ubica después. La nav pasa a ser un
+  // desplegable a todo el ancho, debajo de la fila logo/usuario/toggle.
   .site-nav {
     display: none;
     order: 4;
