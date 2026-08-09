@@ -27,7 +27,7 @@ author:
 # NO alimenta og:image solo, hay que declararlo explícito ahí. Ruta relativa
 # al root; Jekyll resuelve url + baseurl solo (y deja de agregar baseurl
 # cuando se pase a arbat.com.bo).
-logo: /assets/images/logo.png
+logo: /assets/images/logotipo.png
 
 # Twitter Cards — controla cómo se ve el link al compartirlo en Twitter/X.
 # "summary_large_image" usa el `image` de cada página (o `logo` si la página
