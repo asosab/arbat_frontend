@@ -40,6 +40,10 @@ hero_cta_secundario_url: "#clases"
         <div class="card__media">
           <img src="{{ '/assets/images/grupales/competencia01.jpg' | relative_url }}" alt="Entrenamiento deportivo de tiro con arco en arbat" loading="lazy" style="width:100%;height:100%;object-fit:cover;object-position:center center;">
         </div>
+        {% elsif clase.url contains "principiantes" %}
+        <div class="card__media" style="aspect-ratio: 1080 / 486;">
+          <img src="{{ '/assets/images/grupales/grupo01.png' | relative_url }}" alt="Grupo de principiantes practicando tiro con arco en arbat" loading="lazy" style="width:100%;height:100%;object-fit:cover;object-position:center center;">
+        </div>
         {% else %}
         <div class="card__media" aria-hidden="true"></div>
         {% endif %}
