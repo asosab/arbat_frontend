@@ -6,6 +6,10 @@ description: "Entrenamiento deportivo de tiro con arco en Santa Cruz de la Sierr
 
 Sos arquero y querés competir en serio, no arrancar de cero. Acá afinamos técnica, constancia y cabeza fría para eso.
 
+<div class="clase-imagen">
+  <img src="{{ '/assets/images/grupales/competencia01.jpg' | relative_url }}" alt="Entrenamiento deportivo de tiro con arco en arbat" loading="lazy" style="width:100%;height:100%;object-fit:cover;object-position:center center;">
+</div>
+
 <!-- TODO: confirmar con arbat los requisitos de nivel/experiencia para entrar a este grupo. -->
 
 ## Qué aprenderás
