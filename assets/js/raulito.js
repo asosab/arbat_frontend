@@ -167,7 +167,7 @@
     // Carpetas de assets. Pueden sobreescribirse antes de cargar este script
     // definiendo window.RAULITO_ASSET_BASE / window.RAULITO_AUDIO_BASE
     // (útil para pruebas locales con rutas relativas).
-    assetBase: window.RAULITO_ASSET_BASE || '/assets/imagen/minijuego/',
+    assetBase: window.RAULITO_ASSET_BASE || '/assets/images/minijuego/',
     // Supuesto: no se especificó dónde vive el audio del sitio real: se
     // asume una carpeta "sonido" paralela a "imagen". Ajustar si el sitio
     // real usa otra convención (p. ej. /assets/audio/).
