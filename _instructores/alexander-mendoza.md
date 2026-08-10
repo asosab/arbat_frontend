@@ -14,6 +14,7 @@ resumen: "Clasificado a nivel panamericano en el puesto 69 del ranking de Sanlid
 
 Alexander lleva 10 años en el deporte de tiro con arco, 9 de ellos representando a Bolivia en campeonatos internacionales: continentales, panamericanos y mundiales.
 
+
 ## Trayectoria como deportista
 
 * Clasificado a nivel panamericano en el puesto 69 del ranking de Sanlida.

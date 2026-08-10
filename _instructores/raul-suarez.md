@@ -16,11 +16,13 @@ Raúl es socio fundador del primer club de tiro con arco de Santa Cruz de la Sie
 
 Ejerció como presidente del club, un cargo que lo mantuvo cerca de la organización aunque lo alejó de la práctica activa por un tiempo. En esos años acompañó a la asociación con fotos y videos en competencias. A comienzos de 2025 hizo el curso de entrenadores junto a Sebastián Bedregal y otros entrenadores de distintas partes del país. Con esa formación, cofundó la Escuela arbat junto a Sebastián e inició esta nueva etapa: como entrenador, y también como arquero.
 
+
 ## Trayectoria
 
 * Socio fundador del primer club de tiro con arco de Santa Cruz de la Sierra.
 * Arquero activo durante varios años, con paso por la presidencia del club.
 * Acompañante constante de la asociación, con fotos y videos durante competencias.
+
 
 ## Formación como entrenador
 
