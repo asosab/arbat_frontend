@@ -30,7 +30,7 @@ Como en toda arbat, no hay walk-in: agendás antes y te esperamos a esa hora, co
 
 ## Precio
 
-Ver [Precios](/precios/).
+Ver [Precios](arbat_frontend/precios/).
 
 
 ## Equipamiento
