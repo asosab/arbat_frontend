@@ -2,7 +2,7 @@
 title: "Clases de tiro con arco para principiantes"
 description: "Clases de tiro con arco para principiantes en Santa Cruz de la Sierra. Sin experiencia previa, con equipo incluido y agenda previa."
 ---
-![Grupo de principiantes practicando tiro con arco en arbat]({'/assets/images/grupales/grupo01.png' | relative_url })
+![Grupo de principiantes practicando tiro con arco en arbat]({{ '/assets/images/grupales/grupo01.png' | relative_url }})
 
 
 ## Para quién
