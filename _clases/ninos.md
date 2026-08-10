@@ -7,7 +7,7 @@ description: "Clases de tiro con arco para niños en Santa Cruz de la Sierra, co
 Para niños que quieren aprender tiro con arco de forma segura y divertida, con equipo pensado para su tamaño y su fuerza.
 
 <div class="clase-video">
-  <video src="{{ '/assets/images/nino01.mp4' | relative_url }}" autoplay muted loop playsinline style="width:100%;height:auto;"></video>
+  <video src="{{ '/assets/images/ninos/nino01.mp4' | relative_url }}" autoplay muted loop playsinline style="width:100%;height:auto;"></video>
 </div>
 <p class="video-caption">Así es una clase de niños en arbat.</p>
 
