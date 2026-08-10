@@ -34,7 +34,7 @@ hero_cta_secundario_url: "#clases"
       <article class="card">
         {% if clase.url contains "ninos" %}
         <div class="card__media card__media--video">
-          <video src="{{ '/assets/images/nino01.mp4' | relative_url }}" autoplay muted loop playsinline aria-hidden="true" style="width:100%;height:100%;object-fit:cover;object-position:center center;"></video>
+          <video src="{{ '/assets/images/ninos/nino01.mp4' | relative_url }}" autoplay muted loop playsinline aria-hidden="true" style="width:100%;height:100%;object-fit:cover;object-position:center center;"></video>
         </div>
         {% elsif clase.url contains "entrenamiento-deportivo" %}
         <div class="card__media">
