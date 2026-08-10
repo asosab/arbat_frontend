@@ -32,7 +32,13 @@ hero_cta_secundario_url: "#clases"
     <div class="grid">
       {% for clase in site.clases %}
       <article class="card">
+        {% if clase.url contains "ninos" %}
+        <div class="card__media card__media--video">
+          <video src="{{ '/assets/images/nino01.mp4' | relative_url }}" autoplay muted loop playsinline aria-hidden="true" style="width:100%;height:100%;object-fit:cover;"></video>
+        </div>
+        {% else %}
         <div class="card__media" aria-hidden="true"></div>
+        {% endif %}
         <div class="card__body">
           <h3 class="card__title"><a href="{{ clase.url | relative_url }}">{{ clase.title }}</a></h3>
           <p class="card__text">{{ clase.description }}</p>
