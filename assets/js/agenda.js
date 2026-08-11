@@ -62,7 +62,7 @@ layout: null
     timezone: {{ site.timezone | jsonify }},
 
     // Cuántos días hacia adelante se consultan en cada llamada a la API.
-    horizonteDias: 21,
+    horizonteDias: 31,
 
     // SUPUESTO SIN CONFIRMAR: no hay un cupo máximo por turno documentado
     // en ningún lado del proyecto. Se puso 8 como placeholder (2 arqueros
@@ -291,43 +291,43 @@ layout: null
     });
   }
 
+  function proximaFechaConEspacio(eventosRegulares, ahora, bloque, minutosAhora) {
+    for (var i = 0; i <= CONFIG.horizonteDias; i++) {
+      var candidata = new Date(ahora.getTime() + i * UN_DIA_MS);
+      var partesCandidata = partesBolivia(candidata);
+      if (bloque.diasSemana.indexOf(partesCandidata.diaSemana) === -1) continue;
+
+      var minutosDesde = (i === 0) ? minutosAhora : null;
+      if (hayEspacioEnBloque(eventosRegulares, partesCandidata, bloque, minutosDesde)) {
+        return { fecha: candidata, partes: partesCandidata, esHoy: i === 0 };
+      }
+    }
+    return null;
+  }
+
   function mensajesDisponibilidad(eventosRegulares, horariosNormalizados, ahora) {
     var resultados = [];
     var partesAhora = partesBolivia(ahora);
     var minutosAhora = partesAhora.hora * 60 + partesAhora.minuto;
-    var hoyEsSabado = partesAhora.diaSemana === 6;
 
-    // --- Hoy, si corresponde entrenamiento hoy ---
     horariosNormalizados.forEach(function (bloque) {
-      if (bloque.diasSemana.indexOf(partesAhora.diaSemana) === -1) return;
-      if (hayEspacioEnBloque(eventosRegulares, partesAhora, bloque, minutosAhora)) {
-        resultados.push({
-          fecha: ahora,
-          mensaje: hoyEsSabado
-            ? 'Aún quedan espacios disponibles en el entrenamiento de este sábado, recuerda reservar con tiempo'
-            : 'Aún quedan espacios disponibles para el entrenamiento de esta tarde, recuerda reservar con tiempo'
-        });
-      }
-    });
+      var proxima = proximaFechaConEspacio(eventosRegulares, ahora, bloque, minutosAhora);
+      if (!proxima) return;
 
-    // --- Próximo sábado, solo si hoy no es sábado (si lo es, ya se evaluó arriba) ---
-    if (!hoyEsSabado) {
-      var bloqueSabado = horariosNormalizados.filter(function (b) {
-        return b.diasSemana.indexOf(6) !== -1;
-      })[0];
-      if (bloqueSabado) {
-        var fechaSabado = proximaFechaConDiaSemana(ahora, 6, false);
-        if (fechaSabado) {
-          var partesSabado = partesBolivia(fechaSabado);
-          if (hayEspacioEnBloque(eventosRegulares, partesSabado, bloqueSabado, null)) {
-            resultados.push({
-              fecha: fechaSabado,
-              mensaje: 'Aún quedan espacios disponibles en el entrenamiento de este sábado, recuerda reservar con tiempo'
-            });
-          }
-        }
+      var mensaje;
+      if (proxima.esHoy) {
+        mensaje = proxima.partes.diaSemana === 6
+          ? 'Aún quedan espacios disponibles en el entrenamiento de este sábado, recuerda reservar con tiempo'
+          : 'Aún quedan espacios disponibles para el entrenamiento de esta tarde, recuerda reservar con tiempo';
+      } else {
+        var fechaTexto = DIAS_ES[proxima.partes.diaSemana] + ' ' + proxima.partes.dia +
+          ' de ' + MESES_ES[proxima.partes.mes - 1];
+        mensaje = 'Aún quedan espacios disponibles para el próximo entrenamiento, el ' +
+          fechaTexto + ', recuerda reservar con tiempo';
       }
-    }
+
+      resultados.push({ fecha: proxima.fecha, mensaje: mensaje });
+    });
 
     return resultados;
   }
