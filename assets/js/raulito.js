@@ -2513,8 +2513,15 @@
     // ese tipo de mensaje no tiene por qué interrumpir un tiro en curso ni
     // pisar un globo que ya está en pantalla, así que primero verifica que
     // Raúl esté realmente libre:
-    //   - state !== 'idle'  → está jugando (pending/aiming/resolved),
-    //     agotado (exhausted) u oculto (hidden). No se muestra nada.
+    //   - state === 'hidden' → no está "ocupado", simplemente no está
+    //     renderizado todavía (es el estado inicial: nada llama a
+    //     showCharacter() al cargar la página, solo el triple click lo
+    //     hace — ver onTestTriggerClick). Se lo muestra (mismo
+    //     showCharacter() del triple click) y se sigue de largo con el
+    //     aviso, en vez de descartarlo.
+    //   - state === 'pending' / 'aiming' / 'resolved' / 'exhausted' →
+    //     está jugando o agotado; ahí sí hay algo en curso que no se debe
+    //     interrumpir. No se muestra nada.
     //   - ya hay un globo visible (propio o disparado por el juego, da
     //     igual el origen) → tampoco se pisa.
     // Devuelve true si logró mostrar el globo, false si no — para que
@@ -2522,8 +2529,19 @@
     // encola nada por su cuenta, decirSiLibre es una consulta puntual).
     // `opts` es el mismo objeto que acepta say()/showSpeechBubble()
     // (opts.html, opts.promo).
+    //
+    // v1.8: antes 'hidden' cortaba acá igual que 'pending'/'aiming' —en la
+    // práctica eso significaba que, sin que el jugador hiciera el triple
+    // click primero, decirSiLibre() nunca lograba mostrar nada: Raúl se
+    // quedaba oculto para siempre y avisos como los de agenda nunca
+    // llegaban a verse. Ahora 'hidden' se resuelve mostrándolo antes de
+    // seguir, en vez de tratarse como ocupado.
     decirSiLibre: function (text, durationMs, opts) {
-      if (state !== 'idle') return false;
+      if (state === 'hidden') {
+        showCharacter();
+      } else if (state !== 'idle') {
+        return false;
+      }
       if (bubbleEl && bubbleEl.classList.contains('is-visible')) return false;
       showSpeechBubble(text, durationMs, opts);
       return true;
