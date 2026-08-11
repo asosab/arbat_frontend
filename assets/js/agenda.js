@@ -221,7 +221,7 @@ layout: null
   // disponibilidad, en vez de asumir que no hay reservas y afirmar algo que
   // no se pudo confirmar.
   function obtenerEventos(ahora) {
-    if (!CONFIG.apiKey || CONFIG.apiKey === 'AIzaSyDnoPb09RbigaWadj1ssOLYN-7IL5WSIgg') {
+    if (!CONFIG.apiKey || CONFIG.apiKey === '') {
       if (window.console) {
         console.warn(
           '[ArbatAgenda] Falta configurar window.ARBAT_AGENDA_API_KEY (API key ' +
