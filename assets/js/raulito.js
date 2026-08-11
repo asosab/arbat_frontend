@@ -729,7 +729,7 @@
   // Mensaje para la zona de "sabiduría" (CONFIG.wisdomZone): apuntar al
   // cuarto inferior del documento no cuenta como fallo, así que NO usa
   // MISS_TEXT — Raúl elige conscientemente no disparar.
-  var WISDOM_TEXT = 'Es sabio saber cuándo no disparar';
+  var WISDOM_TEXT = 'No disparar también es una forma de acertar';
 
 
   // ---------------------------------------------------------------------
