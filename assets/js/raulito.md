@@ -338,12 +338,27 @@ un intento en curso.
 Raulito.show()               // fuerza mostrar a Raulito
 Raulito.hide()                // fuerza ocultarlo
 Raulito.resetArrows()         // limpia todas las flechas clavadas en pantalla
-Raulito.say(texto)            // muestra un globo de diálogo con texto libre
+Raulito.say(texto)            // muestra un globo de diálogo con texto libre (siempre fuerza)
+Raulito.decirSiLibre(texto, duracionMs, opts) // como say(), pero NUNCA fuerza (v1.7)
 Raulito.computeScore(x, y)    // puntaje (10..5 o null) para un punto de pantalla dado
 Raulito.getArrowLog()         // copia del registro de flechas de la sesión (ver §7)
 Raulito.getFatigueLevel()     // nivel de cansancio actual (0..fatigue.maxLevel)
 Raulito.getCalibrationError() // desvío actual (px) de la mira sin calibrar (ver §6)
 ```
+
+A diferencia de `say()`/`showSpeechBubble()` (que **siempre** fuerzan el globo,
+pisando lo que haya en pantalla), `decirSiLibre()` está pensada para mensajería
+"de fondo" que no nace de una acción del jugador — por ejemplo los avisos de
+agenda que muestra `assets/js/raulito-agenda.js` (ver `agenda.md`). Nunca
+interrumpe un tiro en curso ni pisa un globo ya visible: si Raúl está oculto
+(`hidden`), lo muestra y sigue con el mensaje; si está jugando
+(`pending`/`aiming`/`resolved`), agotado (`exhausted`), o ya hay un globo
+visible, **no muestra nada** y devuelve `false` (si lo logró, devuelve `true`),
+para que quien llama decida si reintenta. `opts` es el mismo objeto que acepta
+`say()` (`opts.html`, `opts.promo`). v1.8: en versiones anteriores `hidden`
+también devolvía `false`, lo que impedía que un aviso de agenda se mostrara
+hasta que el jugador invocara a Raúl con el triple click; ahora `hidden` se
+resuelve mostrándolo primero.
 
 ## 12. Compatibilidad táctil
 

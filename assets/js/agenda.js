@@ -291,14 +291,18 @@ layout: null
     });
   }
 
-  function proximaFechaConEspacio(eventosRegulares, ahora, bloque, minutosAhora) {
+  // Busca la próxima fecha con espacio para UN día de la semana puntual
+  // (no para todo el bloque). Esto es lo que permite que lunes, miércoles y
+  // viernes generen cada uno su propio mensaje aunque compartan turnos y
+  // vivan en el mismo bloque de horariosNormalizados.
+  function proximaFechaConEspacioParaDia(eventosRegulares, ahora, diaSemanaObjetivo, turnos, minutosAhora) {
     for (var i = 0; i <= CONFIG.horizonteDias; i++) {
       var candidata = new Date(ahora.getTime() + i * UN_DIA_MS);
       var partesCandidata = partesBolivia(candidata);
-      if (bloque.diasSemana.indexOf(partesCandidata.diaSemana) === -1) continue;
+      if (partesCandidata.diaSemana !== diaSemanaObjetivo) continue;
 
       var minutosDesde = (i === 0) ? minutosAhora : null;
-      if (hayEspacioEnBloque(eventosRegulares, partesCandidata, bloque, minutosDesde)) {
+      if (hayEspacioEnBloque(eventosRegulares, partesCandidata, { turnos: turnos }, minutosDesde)) {
         return { fecha: candidata, partes: partesCandidata, esHoy: i === 0 };
       }
     }
@@ -311,22 +315,26 @@ layout: null
     var minutosAhora = partesAhora.hora * 60 + partesAhora.minuto;
 
     horariosNormalizados.forEach(function (bloque) {
-      var proxima = proximaFechaConEspacio(eventosRegulares, ahora, bloque, minutosAhora);
-      if (!proxima) return;
+      bloque.diasSemana.forEach(function (diaSemanaObjetivo) {
+        var proxima = proximaFechaConEspacioParaDia(
+          eventosRegulares, ahora, diaSemanaObjetivo, bloque.turnos, minutosAhora
+        );
+        if (!proxima) return;
 
-      var mensaje;
-      if (proxima.esHoy) {
-        mensaje = proxima.partes.diaSemana === 6
-          ? 'Aún quedan espacios disponibles en el entrenamiento de este sábado, recuerda reservar con tiempo'
-          : 'Aún quedan espacios disponibles para el entrenamiento de esta tarde, recuerda reservar con tiempo';
-      } else {
-        var fechaTexto = DIAS_ES[proxima.partes.diaSemana] + ' ' + proxima.partes.dia +
-          ' de ' + MESES_ES[proxima.partes.mes - 1];
-        mensaje = 'Aún quedan espacios disponibles para el próximo entrenamiento, el ' +
-          fechaTexto + ', recuerda reservar con tiempo';
-      }
+        var mensaje;
+        if (proxima.esHoy) {
+          mensaje = proxima.partes.diaSemana === 6
+            ? 'Aún quedan espacios disponibles en el entrenamiento de este sábado, recuerda reservar con tiempo'
+            : 'Aún quedan espacios disponibles para el entrenamiento de esta tarde, recuerda reservar con tiempo';
+        } else {
+          var fechaTexto = DIAS_ES[proxima.partes.diaSemana] + ' ' + proxima.partes.dia +
+            ' de ' + MESES_ES[proxima.partes.mes - 1];
+          mensaje = 'Aún quedan espacios disponibles para el próximo entrenamiento, el ' +
+            fechaTexto + ', recuerda reservar con tiempo';
+        }
 
-      resultados.push({ fecha: proxima.fecha, mensaje: mensaje });
+        resultados.push({ fecha: proxima.fecha, mensaje: mensaje });
+      });
     });
 
     return resultados;

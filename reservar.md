@@ -1,10 +1,10 @@
 ---
 title: "Reservar una clase"
-description: "Reservá tu primera clase de tiro con arco en arbat. Dejanos tu día, el nombre y la edad de cada persona y coordinamos por WhatsApp."
+description: "Reservá tu clase de tiro con arco en arbat. Dejanos tu día, el nombre y la edad de cada persona y coordinamos por WhatsApp."
 ---
 # {{ page.title }}
 
-<p class="sub">Elegí cómo preferís coordinar tu primera clase. Los tres caminos llegan al mismo lugar: coordinamos por WhatsApp.</p>
+<p class="sub">Elegí cómo preferís coordinar tu clase. Los tres caminos llegan al mismo lugar: coordinamos por WhatsApp.</p>
 
 <div class="grid metodos-reserva">
 
