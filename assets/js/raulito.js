@@ -224,6 +224,23 @@
  *     de pantalla ni centrado — es relativo al propio ancho del
  *     personaje, así que el corrimiento en píxeles varía con el tamaño
  *     con el que se está renderizando en cada momento (pantalla, pose).
+ * v1.3 — agrega:
+ *   - Corrige el posicionamiento horizontal: `characterLeftShiftRatio`
+ *     (v1.2) centraba el corrimiento sobre el ANCHO TOTAL de cada imagen,
+ *     asumiendo que el torso cae siempre en el medio de ese ancho. Eso es
+ *     cierto para pose03/pose04 (personaje centrado, sin arco) pero no
+ *     para pose01/pose02 (848×1264: el arco extendido ocupa buena parte
+ *     del lado izquierdo), así que aim/fire quedaban corridos varios
+ *     píxeles hacia la izquierda respecto de idle/fail.
+ *   - Se reemplaza por `CONFIG.characterAnchorXRatio` (por pose, medido a
+ *     mano sobre los PNG reales igual que `characterWaistRatio`: 0.57
+ *     para pose01/pose02, que comparten valor; 0.48 para pose03/pose04,
+ *     que comparten el suyo) + `CONFIG.characterAnchorRightPercent` (un
+ *     único valor que fija a qué distancia del borde derecho de pantalla
+ *     debe quedar ESE punto, igual para las 4 poses). `positionCharacter()`
+ *     ahora calcula `right` a partir del torso, no del rectángulo de la
+ *     imagen — dos números para calibrar en vez de tener que razonar
+ *     sobre el ancho renderizado de cada pose por separado.
  *
  * No requiere frameworks. Pensado para incluirse con:
  *   <script src="/assets/js/raulito.js" defer></script>
@@ -289,8 +306,8 @@
     scales: {
       character: {
         idle: 1,    // pose03
-        aim: 0.9,   // pose01 — ver nota arriba (recalibrado en v0.9)
-        fire: 0.9,  // pose02 — mismo encuadre que pose01
+        aim: 1.1,   // pose01 — ver nota arriba (recalibrado en v0.9)
+        fire: 1.1,  // pose02 — mismo encuadre que pose01
         fail: 1     // pose04
       },
       mira: 1,
@@ -323,7 +340,7 @@
     // (ver characterWaistRatio), en pantalla se ve más grande todavía.
     // v1.2: 0.30 -> 0.45 (50% más grande sobre el tamaño de v0.9).
     characterLongSidePercent: 0.45, // Raulito ocupa 45% del lado largo
-    arrowLongSidePercent: 0.03,     // cada flecha clavada ocupa 5%
+    arrowLongSidePercent: 0.03,     // cada flecha clavada ocupa 3%
     miraLongSidePercent: 0.20,      // mira.png ocupa 20% del lado largo
     targetLongSidePercent: 0.08,    // copia de repuesto del logo (demo)
 
@@ -686,12 +703,54 @@
     },
 
     characterMarginPx: 16,
-    // v1.2 — corrido horizontal: cuánto se mueve Raulito hacia la
-    // izquierda desde su posición pegada al borde derecho, expresado como
-    // fracción (0..1) de su PROPIO ANCHO ya renderizado (no del ancho de
-    // pantalla). 0.5 = medio personaje corrido a la izquierda. Se suma al
-    // margen normal (characterMarginPx) en positionCharacter().
-    characterLeftShiftRatio: 0.5,
+
+    // v1.3 — reemplaza a characterLeftShiftRatio (v1.2). Aquel único
+    // valor (0.5) asumía que el CENTRO del ancho ya renderizado de
+    // CUALQUIER pose caía sobre el torso del personaje. Eso vale para
+    // pose03/pose04 (372×1195, personaje centrado, sin arco) pero no para
+    // pose01/pose02 (848×1264): ahí el arco extendido ocupa buena parte
+    // del lado izquierdo de la imagen, así que el "centro del ancho" cae
+    // bastante a la izquierda del torso real — por eso aim/fire se veían
+    // corridos hacia la izquierda respecto de idle/fail.
+    //
+    // Ahora cada pose declara en qué columna de SU PROPIA imagen vive el
+    // torso (characterAnchorXRatio, medido a mano igual que
+    // characterWaistRatio) y un único valor global
+    // (characterAnchorRightPercent) fija a qué distancia del borde
+    // derecho de la pantalla debe quedar ESE punto — sin importar cuánto
+    // ancho de imagen "vacío" (arco, espacio) haya alrededor. Así todas
+    // las poses quedan alineadas por el cuerpo, no por el rectángulo de
+    // la imagen.
+    //
+    // Para calibrar (dos pasos, no hace falta tocar el resto del script):
+    //   1) characterAnchorRightPercent: UN solo número que mueve a
+    //      Raulito COMPLETO (las 4 poses juntas, ya alineadas entre sí)
+    //      más cerca o más lejos del borde derecho. Subirlo lo aleja del
+    //      borde (lo mueve a la izquierda); bajarlo lo acerca (derecha).
+    //   2) characterAnchorXRatio: si una pose puntual se ve corrida
+    //      respecto de las demás, es este el valor a tocar — solo el de
+    //      esa pose (y su pareja: aim/fire comparten uno, idle/fail el
+    //      otro). Subir el ratio de una pose la corre a la IZQUIERDA
+    //      relativa; bajarlo la corre a la DERECHA relativa.
+    //
+    // Medido a ojo sobre los PNG reales (franja de hombros/cabeza,
+    // evitando el brazo que sostiene el arco):
+    //   pose01/pose02 → torso al 57% del ancho de la imagen desde la
+    //   izquierda (ambas miden lo mismo: comparten el mismo encuadre de
+    //   cabeza/hombros, solo cambia el brazo de la cuerda).
+    //   pose03/pose04 → torso al 48% del ancho de la imagen desde la
+    //   izquierda (personaje casi centrado, ligera asimetría del cuerpo).
+    characterAnchorXRatio: {
+      idle: 0.48, // pose03
+      aim: 0.57,  // pose01 — ver nota arriba: NO usar 0.5 acá
+      fire: 0.57, // pose02 — mismo encuadre que pose01
+      fail: 0.48  // pose04
+    },
+    // Distancia del ancla de torso al borde derecho de la pantalla,
+    // como fracción del "lado largo de pantalla" (mismo criterio que
+    // characterLongSidePercent) — así el punto de anclaje escala junto
+    // con el resto de los tamaños en vez de quedar fijo en píxeles.
+    characterAnchorRightPercent: 0.15,
     miraMarginPx: 16,
 
     // Panel de depuración visible mientras se prueba el prototipo. Poner en
@@ -951,12 +1010,28 @@
     return CONFIG.characterMarginPx - belowWaistPx;
   }
 
-  // v1.2 — offset horizontal (CSS `right`, en px): al margen normal se le
-  // suma la mitad (characterLeftShiftRatio) del ancho YA renderizado del
-  // personaje, para correrlo ese tramo hacia la izquierda desde su
-  // posición pegada al borde derecho.
-  function characterRightOffsetPx(renderedWidthPx) {
-    return CONFIG.characterMarginPx + renderedWidthPx * CONFIG.characterLeftShiftRatio;
+  // v1.3 — offset horizontal (CSS `right`, en px), por ancla de torso en
+  // vez de por ancho total de la imagen (ver comentario largo junto a
+  // characterAnchorXRatio/characterAnchorRightPercent en CONFIG).
+  //
+  // Idea: characterAnchorXRatio[poseKey] dice a qué fracción del ANCHO
+  // YA RENDERIZADO está el torso, medida desde el borde IZQUIERDO de la
+  // imagen. Lo que queda a la DERECHA del torso, en píxeles, es entonces
+  // renderedWidthPx * (1 - anchorRatio) — ese es el tramo de imagen que
+  // hay que "reservar" entre el torso y el borde derecho de la pantalla.
+  // Restándolo del blanco fijo (characterAnchorTargetPx, el mismo para
+  // TODAS las poses) el CSS `right` que resulta deja al torso siempre a
+  // la misma distancia del borde derecho, sin importar cuánta imagen
+  // "vacía" (arco, aire) tenga cada pose a su izquierda o derecha.
+  function characterAnchorTargetPx() {
+    return CONFIG.characterAnchorRightPercent * screenLongSide();
+  }
+
+  function characterRightOffsetPx(renderedWidthPx, poseKey) {
+    var anchorRatio = CONFIG.characterAnchorXRatio[poseKey];
+    if (typeof anchorRatio !== 'number') anchorRatio = 0.5;
+    var pxToRightOfAnchor = renderedWidthPx * (1 - anchorRatio);
+    return characterAnchorTargetPx() - pxToRightOfAnchor;
   }
 
   function positionCharacter() {
@@ -965,7 +1040,7 @@
     var renderedWidth = charEl.offsetWidth;
     if (!renderedHeight || !renderedWidth) return;
     charEl.style.bottom = characterBottomOffsetPx(currentCharPoseKey, renderedHeight) + 'px';
-    charEl.style.right = characterRightOffsetPx(renderedWidth) + 'px';
+    charEl.style.right = characterRightOffsetPx(renderedWidth, currentCharPoseKey) + 'px';
   }
 
   function miraTargetPx() {
