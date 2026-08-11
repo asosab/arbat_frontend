@@ -212,6 +212,18 @@
  *     igualar entre poses es solo el tramo cabeza-cintura, así que se
  *     recalcula a partir de la misma cintura medida (0.52/0.58 ≈ 0.9).
  *     `right` (posición horizontal) no cambia.
+ * v1.2 — agrega:
+ *   - Personaje 50% más grande sobre el tamaño de v1.1
+ *     (`characterLongSidePercent` 0.30 -> 0.45).
+ *   - Corrido 50% de su propio ancho hacia la izquierda desde su
+ *     posición pegada al borde derecho: `CONFIG.characterLeftShiftRatio`
+ *     (0.5) se suma a `characterMarginPx` sobre el ANCHO ya renderizado
+ *     del personaje (`characterRightOffsetPx`), y se aplica junto con el
+ *     offset vertical en `positionCharacter()` (mismos puntos de
+ *     recálculo: load, cambio de pose, resize). No es fracción del ancho
+ *     de pantalla ni centrado — es relativo al propio ancho del
+ *     personaje, así que el corrimiento en píxeles varía con el tamaño
+ *     con el que se está renderizando en cada momento (pantalla, pose).
  *
  * No requiere frameworks. Pensado para incluirse con:
  *   <script src="/assets/js/raulito.js" defer></script>
@@ -309,7 +321,8 @@
     // v0.9: characterLongSidePercent pasa de 0.15 a 0.30 (personaje al
     // doble de tamaño); combinado con mostrar solo cintura para arriba
     // (ver characterWaistRatio), en pantalla se ve más grande todavía.
-    characterLongSidePercent: 0.30, // Raulito ocupa 30% del lado largo
+    // v1.2: 0.30 -> 0.45 (50% más grande sobre el tamaño de v0.9).
+    characterLongSidePercent: 0.45, // Raulito ocupa 45% del lado largo
     arrowLongSidePercent: 0.03,     // cada flecha clavada ocupa 5%
     miraLongSidePercent: 0.20,      // mira.png ocupa 20% del lado largo
     targetLongSidePercent: 0.08,    // copia de repuesto del logo (demo)
@@ -673,6 +686,12 @@
     },
 
     characterMarginPx: 16,
+    // v1.2 — corrido horizontal: cuánto se mueve Raulito hacia la
+    // izquierda desde su posición pegada al borde derecho, expresado como
+    // fracción (0..1) de su PROPIO ANCHO ya renderizado (no del ancho de
+    // pantalla). 0.5 = medio personaje corrido a la izquierda. Se suma al
+    // margen normal (characterMarginPx) en positionCharacter().
+    characterLeftShiftRatio: 0.5,
     miraMarginPx: 16,
 
     // Panel de depuración visible mientras se prueba el prototipo. Poner en
@@ -932,11 +951,21 @@
     return CONFIG.characterMarginPx - belowWaistPx;
   }
 
+  // v1.2 — offset horizontal (CSS `right`, en px): al margen normal se le
+  // suma la mitad (characterLeftShiftRatio) del ancho YA renderizado del
+  // personaje, para correrlo ese tramo hacia la izquierda desde su
+  // posición pegada al borde derecho.
+  function characterRightOffsetPx(renderedWidthPx) {
+    return CONFIG.characterMarginPx + renderedWidthPx * CONFIG.characterLeftShiftRatio;
+  }
+
   function positionCharacter() {
     if (!charEl) return;
     var renderedHeight = charEl.offsetHeight;
-    if (!renderedHeight) return;
+    var renderedWidth = charEl.offsetWidth;
+    if (!renderedHeight || !renderedWidth) return;
     charEl.style.bottom = characterBottomOffsetPx(currentCharPoseKey, renderedHeight) + 'px';
+    charEl.style.right = characterRightOffsetPx(renderedWidth) + 'px';
   }
 
   function miraTargetPx() {
