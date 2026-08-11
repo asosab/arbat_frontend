@@ -1,7 +1,11 @@
 /**
  * raulito.js
  * ---------------------------------------------------------------------------
- * Minijuego de puntería con toque largo.
+ * Prototipo del minijuego "Raulito" (ver raulito.md).
+ *
+ * Minijuego de puntería con toque largo. Documentación completa del
+ * comportamiento (mecánica, CONFIG, handicaps de puntería, API pública,
+ * supuestos pendientes de confirmar) en raulito.md, en la misma carpeta.
  *
  * No requiere frameworks. Pensado para incluirse con:
  *   <script src="/assets/js/raulito.js" defer></script>
@@ -109,9 +113,14 @@
     longPressThresholdMs: 350,
 
     // Ventana de disparo: soltar antes de esto = pose02 (disparó bien).
+    // Coincide a propósito con CONFIG.sostenido.imposibleEnMs (8s): a
+    // partir de ese punto el temblor por sostener la mira ya es tan
+    // grande que en la práctica apuntar bien deja de ser posible.
     fireWindowMs: 8000,
-    // Tiempo absoluto máximo sosteniendo el arco antes de forzar el fallo.
-    maxHoldMs: 10000,
+    // El tope de tiempo sosteniendo el arco ya no es un valor fijo: lo
+    // define CONFIG.sostenido, con un instante distinto (entre
+    // forzarBajaMinMs y forzarBajaMaxMs) cada vez que se apunta. Ver ese
+    // bloque más abajo.
 
     // Cuánto se queda mostrando pose02/pose04 antes de volver a pose03.
     resolveDisplayMs: 1500,
@@ -159,7 +168,7 @@
     hitDelayMs: 300,
 
     // Multiplicador de "exageración" del movimiento de la mira respecto al
-    // arrastre real del puntero (mecánica de la mira: "con
+    // arrastre real del puntero (ver raulito.md, mecánica de la mira: "con
     // demora y exageración respecto a los movimientos reales del usuario").
     // Sin amplificar, no hay espacio físico suficiente para mover la mira
     // hasta el borde izquierdo de la pantalla: Raulito arranca pegado a la
@@ -376,6 +385,63 @@
     },
 
     // -------------------------------------------------------------------
+    // Cansancio por sostener la mira (v2.0). Handicap nuevo, distinto de
+    // `fatigue` (que depende de cuántas flechas se dispararon en la
+    // sesión) y de `heartbeat` (que depende de qué tan rápido se mueve
+    // el puntero real). Este depende únicamente de cuánto tiempo lleva
+    // sostenida ESTA mira sin soltar, contado desde `aimStartedAt`.
+    //
+    // Mecánica: desde el instante de apuntar hasta `startAfterMs` (4s)
+    // no aporta nada. A partir de ahí crece con una curva EXPONENCIAL
+    // real, definida por `growthRate`, hasta llegar a intensidad máxima
+    // en `imposibleEnMs` (8s), momento en el que el temblor total ya es
+    // tan grande que apuntar bien deja de ser posible en la práctica.
+    // Ese crecimiento empuja dos cosas a la vez, tal como pidió el
+    // diseño ("se incrementa el temblor y los latidos"):
+    //   1. Un piso mínimo para `heartbeatTargetIntensity` (ver
+    //      aimTremorTick), así el pulso de `heartbeat` también se
+    //      acelera solo, aunque el puntero esté quieto.
+    //   2. Una sacudida propia adicional (amplitud/jitter definidos
+    //      acá), sumada encima de todo lo demás.
+    //
+    // Un poco después de volverse imposible de sostener, el brazo baja
+    // solo: entre `forzarBajaMinMs` y `forzarBajaMaxMs` (10 a 14s) se
+    // sortea un instante distinto cada vez que se apunta (ver
+    // enterAimState) en el que, si todavía no se soltó, se fuerza el
+    // fallo (pose04) mostrando `forzarBajaMensaje`.
+    sostenido: {
+      enabled: true,
+
+      // Desde acá empieza a subir la intensidad (ms desde que se
+      // empezó a apuntar).
+      startAfterMs: 4000,
+      // En este punto la intensidad llega a su máximo (1). Coincide con
+      // CONFIG.fireWindowMs por diseño (ver comentario ahí).
+      imposibleEnMs: 8000,
+      // Qué tan pronunciada es la curva exponencial (progress 0..1 hacia
+      // intensidad 0..1). Un valor más alto mantiene el arranque más
+      // suave y concentra el crecimiento fuerte cerca del final.
+      growthRate: 3.5,
+
+      // Amplitud propia (px) en el peor momento (intensidad 1), sumada
+      // encima del pulso de heartbeat.
+      maxAmplitudePx: 40,
+      // Ruido aleatorio propio (px) en el peor momento, análogo a
+      // heartbeat.jitterPx / fatigue.jitterPerLevelPx.
+      maxJitterPx: 22,
+      // Frecuencia de esta sacudida (Hz), más rápida que la de fatigue
+      // para que se sienta distinta y más urgente.
+      shakeHz: 11,
+
+      // Ventana (ms) en la que se sortea el instante exacto en el que el
+      // brazo se fuerza a bajar, si para entonces todavía no se soltó.
+      forzarBajaMinMs: 10000,
+      forzarBajaMaxMs: 14000,
+      // Mensaje que dice Raúl al bajar el brazo forzosamente.
+      forzarBajaMensaje: '¡Se me cansó el brazo! Necesito un descanzo'
+    },
+
+    // -------------------------------------------------------------------
     // Mira sin calibrar (v0.8). Handicap de puntería distinto a los
     // anteriores: no mueve el DIBUJO de la mira en pantalla (eso lo
     // siguen haciendo heartbeat/fatigue/vaiven encima), sino que desplaza
@@ -553,7 +619,7 @@
     // donde llega cada zona, medida desde el centro. Las primeras cinco
     // fracciones salen de examinar los píxeles reales de logo.png; la
     // última (5 puntos, "espacio blanco externo") no está delimitada por el
-    // arte del logo en sí —es un supuesto documentado—, así
+    // arte del logo en sí —es un supuesto documentado en raulito.md—, así
     // que es la más fácil de mover si hace falta agrandar o achicar la zona
     // de 5 puntos.
     rings: [
@@ -726,6 +792,8 @@
   var fatiguePhase = 0;            // fase acumulada de la sacudida de cansancio (radianes)
   var vaivenPhase = 0;             // fase acumulada del vaivén en forma de 8 (radianes)
   var lastVaivenRadiusPx = 0;      // último radio de 8 pintado (para el panel de debug)
+  var sostenidoPhase = 0;          // fase acumulada de la sacudida de "sostener la mira" (v2.0, radianes)
+  var lastSostenidoIntensity = 0;  // último valor 0..1 calculado (para el panel de debug)
   // Posición base de la mira (SIN los temblores): lo que antes se
   // escribía directo en miraEl.style.transform en cada pointermove. Ahora
   // solo aimTremorTick escribe el transform final (base + temblores),
@@ -1126,7 +1194,7 @@
   }
 
   // Clava una flecha aleatoria con su esquina superior izquierda (punto de
-  // "clavado") exactamente en (x, y), y guarda el puntaje
+  // "clavado", ver raulito.md) exactamente en (x, y), y guarda el puntaje
   // obtenido junto con la posición (base para la lógica de agrupamiento).
   // Deliberadamente sin acotar a los límites del viewport: si (x, y) cae
   // fuera de pantalla, la flecha se crea igual ahí — simplemente no será
@@ -1966,6 +2034,8 @@
     fatiguePhase = 0;
     vaivenPhase = 0;
     lastVaivenRadiusPx = CONFIG.vaiven.baseRadiusPx;
+    sostenidoPhase = 0;
+    lastSostenidoIntensity = 0;
     lastPointerMoveAt = performance.now();
     lastPointerX = startX;
     lastPointerY = startY;
@@ -1976,9 +2046,16 @@
     charEl.addEventListener('pointerup', onPointerUpWhileAiming);
     charEl.addEventListener('pointercancel', onPointerCancel);
 
+    // v2.0: el brazo se baja solo en algún punto entre forzarBajaMinMs y
+    // forzarBajaMaxMs (10 a 14s), sorteado acá mismo para que sea un
+    // instante distinto cada vez que se apunta, en vez de un cronómetro
+    // fijo. Ver CONFIG.sostenido para el resto del handicap (el temblor
+    // que lo precede desde los 4s).
+    var forzarBajaMs = CONFIG.sostenido.forzarBajaMinMs +
+      Math.random() * (CONFIG.sostenido.forzarBajaMaxMs - CONFIG.sostenido.forzarBajaMinMs);
     maxHoldTimer = setTimeout(function () {
-      resolve('fail', 'timeout (10s)');
-    }, CONFIG.maxHoldMs);
+      resolve('fail', 'brazo cansado (' + Math.round(forzarBajaMs) + 'ms)', CONFIG.sostenido.forzarBajaMensaje);
+    }, forzarBajaMs);
 
     setDebug('estado: aiming — soltá antes de 8s para disparar bien');
   }
@@ -1992,7 +2069,8 @@
   // el vaivén en forma de 8 está activo (éste no espera a ninguna flecha,
   // corre desde el primer instante de apuntado).
   function aimTremorActive() {
-    return !!CONFIG.heartbeat.enabled || fatigueActiveNow() || !!CONFIG.vaiven.enabled;
+    return !!CONFIG.heartbeat.enabled || fatigueActiveNow() || !!CONFIG.vaiven.enabled ||
+      !!CONFIG.sostenido.enabled;
   }
 
   function fatigueActiveNow() {
@@ -2065,6 +2143,26 @@
     // disparo (distancias originales, sin efecto).
     var cadMult = cadenciaMultiplier(now);
 
+    // v2.0: intensidad (0..1) del cansancio por sostener la mira (ver
+    // CONFIG.sostenido). Se calcula acá, antes que todo lo demás, porque
+    // el bloque de latido de abajo también la usa (empuja su piso
+    // mínimo de intensidad, así "los latidos" se aceleran solos con el
+    // tiempo sostenido, no solo con la velocidad real del puntero).
+    var sostenidoIntensity = 0;
+    if (CONFIG.sostenido.enabled) {
+      var heldMs = now - aimStartedAt;
+      if (heldMs > CONFIG.sostenido.startAfterMs) {
+        var span = CONFIG.sostenido.imposibleEnMs - CONFIG.sostenido.startAfterMs;
+        var progress = Math.min(1, (heldMs - CONFIG.sostenido.startAfterMs) / span);
+        // Curva exponencial real (no lineal): arranca casi plana y se
+        // dispara cerca de imposibleEnMs, tal como pidió el diseño
+        // ("el incremento aumenta exponencialmente cada segundo").
+        var k = CONFIG.sostenido.growthRate;
+        sostenidoIntensity = (Math.exp(k * progress) - 1) / (Math.exp(k) - 1);
+      }
+    }
+    lastSostenidoIntensity = sostenidoIntensity;
+
     // --- Latido (v0.4) ---------------------------------------------
     if (CONFIG.heartbeat.enabled) {
       // Si el puntero real no se movió en los últimos stillnessMs, el
@@ -2074,6 +2172,12 @@
       if (now - lastPointerMoveAt > CONFIG.heartbeat.stillnessMs) {
         heartbeatTargetIntensity = 0;
       }
+
+      // v2.0: sostener mucho tiempo pone un piso mínimo a la intensidad
+      // del latido, aunque el puntero esté quieto (ver sostenidoIntensity
+      // arriba). Nunca la baja: sólo puede subirla por encima de lo que
+      // ya haya puesto el movimiento real del puntero.
+      heartbeatTargetIntensity = Math.max(heartbeatTargetIntensity, sostenidoIntensity);
 
       var rate = (heartbeatTargetIntensity > heartbeatIntensity)
         ? CONFIG.heartbeat.intensityAttackPerSec
@@ -2127,6 +2231,22 @@
         pulseX += fatigueWave * fatigueAmplitude + fatigueJitterX;
         pulseY += fatigueWave * fatigueAmplitude * 0.8 + fatigueJitterY;
       }
+    }
+
+    // --- Cansancio por sostener la mira (v2.0) -----------------------
+    // Sacudida propia, sumada encima de todo lo anterior. No hace nada
+    // antes de startAfterMs (sostenidoIntensity queda en 0); de ahí en
+    // adelante crece con la curva exponencial calculada arriba, hasta
+    // volverse lo bastante grande como para que apuntar sea imposible
+    // en la práctica cerca de imposibleEnMs.
+    if (sostenidoIntensity > 0) {
+      sostenidoPhase += 2 * Math.PI * CONFIG.sostenido.shakeHz * (dt / 1000);
+      var sostenidoAmplitude = CONFIG.sostenido.maxAmplitudePx * sostenidoIntensity * cadMult;
+      var sostenidoWave = Math.sin(sostenidoPhase) + 0.6 * Math.sin(1.9 * sostenidoPhase + 0.4);
+      var sostenidoJitterX = (Math.random() * 2 - 1) * CONFIG.sostenido.maxJitterPx * sostenidoIntensity * cadMult;
+      var sostenidoJitterY = (Math.random() * 2 - 1) * CONFIG.sostenido.maxJitterPx * sostenidoIntensity * cadMult;
+      pulseX += sostenidoWave * sostenidoAmplitude + sostenidoJitterX;
+      pulseY += sostenidoWave * sostenidoAmplitude * 0.85 + sostenidoJitterY;
     }
 
     // --- Vaivén en forma de 8 (v0.6) --------------------------------
@@ -2263,7 +2383,8 @@
         ' — cansancio: ' + fatigueNow + '/' + CONFIG.fatigue.maxLevel +
         ' — vaivén: ' + Math.round(lastVaivenRadiusPx) + 'px' +
         ' — calibración: ' + Math.round(calibMagnitude) + 'px de error' +
-        ' — cadencia: +' + cadenciaExtraPct + '%'
+        ' — cadencia: +' + cadenciaExtraPct + '%' +
+        ' — sostenido: ' + Math.round(lastSostenidoIntensity * 100) + '%'
       );
     }
   }
