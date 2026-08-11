@@ -355,7 +355,7 @@
     // Cuánto se queda mostrando pose02/pose04 antes de volver a pose03.
     resolveDisplayMs: 1500,
     // Cuánto se queda visible el globo de diálogo con el resultado.
-    bubbleDisplayMs: 2200,
+    bubbleDisplayMs: 2800,
 
     // v1.4 — punto real de la cara/cabeza de cada pose, medido a mano
     // sobre los PNG (mismo criterio que characterAnchorXRatio/
@@ -377,7 +377,7 @@
       y: { idle: 0.13, aim: 0.26, fire: 0.26, fail: 0.13 }
     },
     // Separación vertical entre el globo y la cara/cabeza.
-    bubbleGapPx: 14,
+    bubbleGapPx: 20,
     // Corrimiento extra del CUERPO del globo hacia la izquierda del punto
     // exacto de la cara (la colita se queda apuntando al punto real; el
     // globo en sí queda un poco más a la izquierda y arriba, como en una
