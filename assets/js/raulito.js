@@ -191,6 +191,27 @@
  *     exige `fatigue` ni el cooldown del carcaj (`arrowLimit`) — es
  *     puramente un efecto visual sobre la mira, y no afecta la posición
  *     BASE que se usa para validar el apuntado.
+ * v1.1 — agrega:
+ *   - Reemplaza el atajo de teclado de prueba (tecla `r`) por un triple
+ *     click en cualquier parte del documento (`CONFIG.testTrigger`,
+ *     `onTestTriggerClick`): junta clicks sueltos dentro de una ventana de
+ *     `windowMs` (500ms por defecto) y, al llegar a `clicksToTrigger` (3),
+ *     dispara el mismo toggle mostrar/ocultar que antes hacía la tecla.
+ *   - Personaje al doble de tamaño y mostrado solo de la cintura para
+ *     arriba, en vez de cuerpo entero: `characterLongSidePercent` pasa de
+ *     0.15 a 0.30, y se agrega `CONFIG.characterWaistRatio` (fracción de
+ *     la altura de cada imagen de pose hasta la línea de cintura, medida
+ *     a mano sobre pose01.png/pose03.png: 58% en pose01/02, 52% en
+ *     pose03/04). `positionCharacter()` usa ese valor para calcular un
+ *     `bottom` dinámico (ya no fijo en `characterMarginPx`) que deja
+ *     siempre la cintura a `characterMarginPx` del borde inferior de la
+ *     ventana y empuja las piernas fuera de la vista, recalculado en
+ *     cada carga de imagen, cambio de pose y resize. De paso,
+ *     `scales.character.aim/fire` se recalibra de 1.3 a 0.9 —el valor
+ *     anterior compensaba el cuerpo completo; ahora lo que hay que
+ *     igualar entre poses es solo el tramo cabeza-cintura, así que se
+ *     recalcula a partir de la misma cintura medida (0.52/0.58 ≈ 0.9).
+ *     `right` (posición horizontal) no cambia.
  *
  * No requiere frameworks. Pensado para incluirse con:
  *   <script src="/assets/js/raulito.js" defer></script>
@@ -240,19 +261,24 @@
     //
     // Por qué pose01/pose02 necesitan un valor propio: ambas miden 848×1264,
     // bastante más anchas que pose03/pose04 (372×1195) porque incluyen el
-    // arco extendido hacia el lado. Como el ajuste de tamaño usa el LADO
-    // LARGO (la altura, en los cuatro casos), pose01/02 terminan con la
-    // misma altura de imagen que pose03/04 — pero dentro de esa altura, el
-    // cuerpo del personaje ocupa menos espacio (aprox. 76% vs. ~97%, porque
-    // arriba del hombro queda el arco/la punta de la flecha), así que se ve
-    // más chico. 1.3 es el valor inicial estimado a partir de esa
-    // proporción (0.97/0.76 ≈ 1.28) — ajustar aquí si al probarlo en
-    // pantalla no coincide con pose03/pose04.
+    // arco extendido hacia el lado.
+    //
+    // v0.9 — el personaje ahora se muestra solo de la cintura para arriba
+    // (ver characterWaistRatio y positionCharacter más abajo), así que lo
+    // que importa igualar entre poses ya no es el cuerpo completo sino el
+    // tramo cabeza-cintura. El valor de aim/fire se recalculó a partir de
+    // la cintura medida a mano sobre pose01.png/pose03.png (buscando la
+    // fila de píxeles donde la remera clara pasa a short negro):
+    // pose01 → cintura al 58% de la altura de la imagen; pose03 → 52%.
+    // scale[aim/fire] = waistRatio[idle] / waistRatio[aim] = 0.52/0.58 ≈ 0.90,
+    // así el tramo cabeza-cintura queda con la misma altura en pantalla sin
+    // importar la pose. Reemplaza el valor anterior (1.3), que compensaba
+    // el cuerpo completo en vez de solo la cintura para arriba.
     scales: {
       character: {
         idle: 1,    // pose03
-        aim: 1.3,   // pose01 — valor inicial estimado, ajustar en pruebas
-        fire: 1.3,  // pose02 — mismo encuadre que pose01
+        aim: 0.9,   // pose01 — ver nota arriba (recalibrado en v0.9)
+        fire: 0.9,  // pose02 — mismo encuadre que pose01
         fail: 1     // pose04
       },
       mira: 1,
@@ -260,10 +286,30 @@
       target: 1 // solo afecta la copia de repuesto del logo (ver más abajo)
     },
 
+    // v0.9 — fracción (0..1) de la altura total de cada imagen de pose,
+    // medida desde arriba, hasta la línea de cintura (borde superior del
+    // short). Medida a mano sobre pose01.png/pose03.png; se asume que
+    // pose02 comparte el encuadre de pose01 y pose04 el de pose03 (mismo
+    // criterio que ya usa scales.character de arriba). Se usa en
+    // positionCharacter() para: (a) que la cintura quede siempre a la
+    // misma altura de pantalla sin importar la pose, y (b) dejar la mitad
+    // inferior de la imagen (las piernas) fuera de la ventana. Si al
+    // probarlo con las imágenes reales de pose02/pose04 el corte no
+    // coincide con la cintura, ajustar estos dos valores.
+    characterWaistRatio: {
+      idle: 0.52,
+      aim: 0.58,
+      fire: 0.58,
+      fail: 0.52
+    },
+
     // Reglas de tamaño base. Se calculan sobre el "lado largo de la
     // pantalla" = Math.max(innerWidth, innerHeight). El multiplicador de
     // `scales` de arriba se aplica sobre estos porcentajes.
-    characterLongSidePercent: 0.15, // Raulito ocupa 15% del lado largo
+    // v0.9: characterLongSidePercent pasa de 0.15 a 0.30 (personaje al
+    // doble de tamaño); combinado con mostrar solo cintura para arriba
+    // (ver characterWaistRatio), en pantalla se ve más grande todavía.
+    characterLongSidePercent: 0.30, // Raulito ocupa 30% del lado largo
     arrowLongSidePercent: 0.03,     // cada flecha clavada ocupa 5%
     miraLongSidePercent: 0.20,      // mira.png ocupa 20% del lado largo
     targetLongSidePercent: 0.08,    // copia de repuesto del logo (demo)
@@ -872,6 +918,27 @@
     return CONFIG.characterLongSidePercent * screenLongSide() * scale;
   }
 
+  // v0.9 — offset vertical (CSS `bottom`, en px) para que la línea de
+  // cintura de la pose actual quede siempre a CONFIG.characterMarginPx del
+  // borde inferior de la ventana, sin importar cuánta imagen (piernas)
+  // haya debajo de la cintura en esa pose. `renderedHeightPx` es la altura
+  // YA renderizada en pantalla (post fitLongSide), no la natural del PNG.
+  // El resultado da negativo cuando hay piernas que empujar fuera de la
+  // vista (el caso normal), dejando solo cabeza-cintura visible.
+  function characterBottomOffsetPx(poseKey, renderedHeightPx) {
+    var waistRatio = CONFIG.characterWaistRatio[poseKey];
+    if (typeof waistRatio !== 'number') waistRatio = 0.5;
+    var belowWaistPx = renderedHeightPx * (1 - waistRatio);
+    return CONFIG.characterMarginPx - belowWaistPx;
+  }
+
+  function positionCharacter() {
+    if (!charEl) return;
+    var renderedHeight = charEl.offsetHeight;
+    if (!renderedHeight) return;
+    charEl.style.bottom = characterBottomOffsetPx(currentCharPoseKey, renderedHeight) + 'px';
+  }
+
   function miraTargetPx() {
     return CONFIG.miraLongSidePercent * screenLongSide() * CONFIG.scales.mira;
   }
@@ -1343,6 +1410,7 @@
     });
     charEl.addEventListener('load', function () {
       fitLongSide(charEl, characterTargetPx(currentCharPoseKey));
+      positionCharacter();
     });
 
     miraEl = document.createElement('img');
@@ -1423,6 +1491,7 @@
   function onResize() {
     if (charEl && charEl.style.display !== 'none') {
       fitLongSide(charEl, characterTargetPx(currentCharPoseKey));
+      positionCharacter();
     }
     if (miraEl && miraEl.style.display !== 'none') {
       fitLongSide(miraEl, miraTargetPx());
@@ -1466,7 +1535,10 @@
     // Si la imagen ya estaba cargada (misma src), 'load' no vuelve a
     // disparar — forzamos el ajuste igual por si cambió el tamaño de
     // pantalla o el multiplicador de escala entre disparos.
-    if (charEl.complete) fitLongSide(charEl, characterTargetPx(key));
+    if (charEl.complete) {
+      fitLongSide(charEl, characterTargetPx(key));
+      positionCharacter();
+    }
   }
 
   function showCharacter() {
