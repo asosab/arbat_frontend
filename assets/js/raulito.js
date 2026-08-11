@@ -2506,6 +2506,27 @@
     // que va a calibrar.
     getCalibrationError: function () {
       return Math.sqrt(calibOffsetX * calibOffsetX + calibOffsetY * calibOffsetY);
+    },
+    // v1.7 — versión de say()/showSpeechBubble() que NUNCA fuerza el globo.
+    // Pensada para mensajería "de fondo" que no nace de una acción del
+    // jugador (ej. avisos de agenda — ver assets/js/raulito-agenda.js):
+    // ese tipo de mensaje no tiene por qué interrumpir un tiro en curso ni
+    // pisar un globo que ya está en pantalla, así que primero verifica que
+    // Raúl esté realmente libre:
+    //   - state !== 'idle'  → está jugando (pending/aiming/resolved),
+    //     agotado (exhausted) u oculto (hidden). No se muestra nada.
+    //   - ya hay un globo visible (propio o disparado por el juego, da
+    //     igual el origen) → tampoco se pisa.
+    // Devuelve true si logró mostrar el globo, false si no — para que
+    // quien llama decida si reintenta más tarde (nunca lanza un error ni
+    // encola nada por su cuenta, decirSiLibre es una consulta puntual).
+    // `opts` es el mismo objeto que acepta say()/showSpeechBubble()
+    // (opts.html, opts.promo).
+    decirSiLibre: function (text, durationMs, opts) {
+      if (state !== 'idle') return false;
+      if (bubbleEl && bubbleEl.classList.contains('is-visible')) return false;
+      showSpeechBubble(text, durationMs, opts);
+      return true;
     }
   };
 })();
