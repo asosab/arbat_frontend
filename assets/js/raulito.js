@@ -263,7 +263,7 @@
     // pantalla" = Math.max(innerWidth, innerHeight). El multiplicador de
     // `scales` de arriba se aplica sobre estos porcentajes.
     characterLongSidePercent: 0.15, // Raulito ocupa 15% del lado largo
-    arrowLongSidePercent: 0.05,     // cada flecha clavada ocupa 5%
+    arrowLongSidePercent: 0.03,     // cada flecha clavada ocupa 5%
     miraLongSidePercent: 0.20,      // mira.png ocupa 20% del lado largo
     targetLongSidePercent: 0.08,    // copia de repuesto del logo (demo)
 
