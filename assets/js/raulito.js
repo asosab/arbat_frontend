@@ -191,11 +191,11 @@
     // Carpetas de assets. Pueden sobreescribirse antes de cargar este script
     // definiendo window.RAULITO_ASSET_BASE / window.RAULITO_AUDIO_BASE
     // (útil para pruebas locales con rutas relativas).
-    assetBase: window.RAULITO_ASSET_BASE || '/assets/images/minijuego/',
+    assetBase: window.RAULITO_ASSET_BASE || '/arbat_frontend/assets/images/minijuego/',
     // Supuesto: no se especificó dónde vive el audio del sitio real: se
     // asume una carpeta "sonido" paralela a "imagen". Ajustar si el sitio
     // real usa otra convención (p. ej. /assets/audio/).
-    audioBase: window.RAULITO_AUDIO_BASE || '/assets/sonido/minijuego/',
+    audioBase: window.RAULITO_AUDIO_BASE || '/arbat_frontend/assets/sonido/minijuego/',
 
     poses: {
       idle: 'pose03.png', // parado, en reposo — estado por defecto
@@ -572,7 +572,7 @@
 
     // Panel de depuración visible mientras se prueba el prototipo. Poner en
     // false (o borrar el bloque marcado como DEBUG) para producción.
-    debug: true
+    debug: false
   };
 
   // Frases del globo de diálogo según el puntaje. "MISS" (fuera de todos
