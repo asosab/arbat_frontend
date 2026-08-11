@@ -57,7 +57,7 @@ layout: null
     // Debe estar restringida por referrer HTTP a los dominios del sitio
     // (ver agenda.md §1). Sin key configurada, getMensajes() resuelve un
     // array vacío y avisa por consola — no rompe la página.
-    apiKey: window.ARBAT_AGENDA_API_KEY || 'AIzaSyDnoPb09RbigaWadj1ssOLYN-7IL5WSIgg',
+    apiKey: window.ARBAT_AGENDA_API_KEY || '',
 
     timezone: {{ site.timezone | jsonify }},
 
