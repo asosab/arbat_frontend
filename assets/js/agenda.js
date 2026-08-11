@@ -6,9 +6,7 @@ layout: null
  * ---------------------------------------------------------------------------
  * Lee la agenda pública de Google Calendar de arbat ({{ site.arbat.email }})
  * y genera, en memoria, un arreglo de mensajes (strings) para que el futuro
- * sistema de mensajería del sitio se los muestre a los visitantes. Documentación
- * completa (por qué se decidió así, supuestos pendientes de confirmar) en
- * agenda.md, en la misma carpeta.
+ * sistema de mensajería del sitio se los muestre a los visitantes.
  *
  * No requiere frameworks. Pensado para incluirse con:
  *   <script src="/assets/js/agenda.js" defer></script>
@@ -24,8 +22,7 @@ layout: null
  * código, es una restricción del lado de Google). El único camino 100% del
  * lado del cliente, sin backend propio, es la API REST de Google Calendar
  * (www.googleapis.com/calendar/v3/...), que sí responde con CORS cuando la
- * llamada trae una API key. Ver agenda.md §1 para los pasos de configuración
- * de esa API key en Google Cloud Console.
+ * llamada trae una API key.
  *
  * Uso típico desde otro script:
  *   <script>window.ARBAT_AGENDA_API_KEY = 'AIza...';</script>
@@ -54,8 +51,8 @@ layout: null
     // La API key NO vive en este archivo (no es secreta, pero conviene
     // poder rotarla sin tocar código versionado). Se define ANTES de cargar
     // este script con: window.ARBAT_AGENDA_API_KEY = 'AIza...'
-    // Debe estar restringida por referrer HTTP a los dominios del sitio
-    // (ver agenda.md §1). Sin key configurada, getMensajes() resuelve un
+    // Debe estar restringida por referrer HTTP a los dominios del sitio.
+    // Sin key configurada, getMensajes() resuelve un
     // array vacío y avisa por consola — no rompe la página.
     apiKey: window.ARBAT_AGENDA_API_KEY || '',
 
@@ -67,7 +64,7 @@ layout: null
     // SUPUESTO SIN CONFIRMAR: no hay un cupo máximo por turno documentado
     // en ningún lado del proyecto. Se puso 8 como placeholder (2 arqueros
     // por cada uno de los 4 campos de tiro). Ajustar a la cifra real antes
-    // de usar esto en producción — ver agenda.md §2.
+    // de usar esto en producción.
     capacidadPorTurno: 8,
 
     // Misma fuente que horarios.md e index.md (site.arbat.horarios en
@@ -78,8 +75,8 @@ layout: null
     // Un evento del calendario se trata como "evento especial" (mensaje
     // tipo 2) cuando su título contiene alguna de estas palabras. Cualquier
     // otro evento (ej. una cita reservada) cuenta como turno ocupado
-    // (mensaje tipo 1). Ver agenda.md §3 sobre la convención de nombres
-    // que esto le pide al calendario.
+    // (mensaje tipo 1). La convención de nombres que esto le pide al
+    // calendario se detalla en la documentación del proyecto.
     palabrasClaveEventoEspecial: [
       'competencia', 'torneo', 'campeonato', 'clínica', 'clinica', 'evento especial'
     ]
@@ -225,7 +222,7 @@ layout: null
       if (window.console) {
         console.warn(
           '[ArbatAgenda] Falta configurar window.ARBAT_AGENDA_API_KEY (API key ' +
-          'de Google Calendar). No se generarán mensajes de agenda. Ver agenda.md §1.'
+          'de Google Calendar). No se generarán mensajes de agenda.'
         );
       }
       return Promise.resolve(null);
@@ -361,8 +358,8 @@ layout: null
       var lugar = evento.location ? evento.location.trim() : null;
 
       // El título del evento se usa tal cual está escrito en el calendario:
-      // conviene redactarlo ya listo para encajar en la frase (ver agenda.md
-      // §3), ej. "la competencia interdepartamental" en vez de
+      // conviene redactarlo ya listo para encajar en la frase, ej. "la
+      // competencia interdepartamental" en vez de
       // "Competencia Interdepartamental 2026".
       var titulo = (evento.summary || 'un evento especial').trim();
 

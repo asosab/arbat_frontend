@@ -1,11 +1,7 @@
 /**
  * raulito.js
  * ---------------------------------------------------------------------------
- * Prototipo del minijuego "Raulito" (ver raulito.md).
- *
- * Minijuego de puntería con toque largo. Documentación completa del
- * comportamiento (mecánica, CONFIG, handicaps de puntería, API pública,
- * supuestos pendientes de confirmar) en raulito.md, en la misma carpeta.
+ * Minijuego de puntería con toque largo.
  *
  * No requiere frameworks. Pensado para incluirse con:
  *   <script src="/assets/js/raulito.js" defer></script>
@@ -163,7 +159,7 @@
     hitDelayMs: 300,
 
     // Multiplicador de "exageración" del movimiento de la mira respecto al
-    // arrastre real del puntero (ver raulito.md, mecánica de la mira: "con
+    // arrastre real del puntero (mecánica de la mira: "con
     // demora y exageración respecto a los movimientos reales del usuario").
     // Sin amplificar, no hay espacio físico suficiente para mover la mira
     // hasta el borde izquierdo de la pantalla: Raulito arranca pegado a la
@@ -557,7 +553,7 @@
     // donde llega cada zona, medida desde el centro. Las primeras cinco
     // fracciones salen de examinar los píxeles reales de logo.png; la
     // última (5 puntos, "espacio blanco externo") no está delimitada por el
-    // arte del logo en sí —es un supuesto documentado en raulito.md—, así
+    // arte del logo en sí —es un supuesto documentado—, así
     // que es la más fácil de mover si hace falta agrandar o achicar la zona
     // de 5 puntos.
     rings: [
@@ -1130,7 +1126,7 @@
   }
 
   // Clava una flecha aleatoria con su esquina superior izquierda (punto de
-  // "clavado", ver raulito.md) exactamente en (x, y), y guarda el puntaje
+  // "clavado") exactamente en (x, y), y guarda el puntaje
   // obtenido junto con la posición (base para la lógica de agrupamiento).
   // Deliberadamente sin acotar a los límites del viewport: si (x, y) cae
   // fuera de pantalla, la flecha se crea igual ahí — simplemente no será
