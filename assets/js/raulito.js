@@ -3,227 +3,6 @@
  * ---------------------------------------------------------------------------
  * Prototipo del minijuego "Raulito" (ver raulito.md).
  *
- * v0   — esqueleto de interacción con teclado + long-press (pose03 -> pose01
- *        -> pose02/pose04) y mira espejada.
- * v0.1 — agrega precarga de assets, sonido de disparo (disparo.mp3) y
- *        flechas clavadas (aleatorias entre f01-f04) en el punto real donde
- *        estaba el centro de la mira al soltar, sin acotar la mira a los
- *        bordes de pantalla.
- * v0.2 — agrega:
- *   - `CONFIG.scales`: una zona única para ajustar a mano el tamaño de cada
- *     elemento (personaje por pose, mira, flechas, logo de repuesto), pensada
- *     para ensayo y error visual sin tocar el resto del código.
- *   - `CONFIG.aimSensitivity`: amplifica el desplazamiento real del puntero
- *     al mover la mira (ver "exageración" en raulito.md). Sin esto no había
- *     espacio físico suficiente para arrastrar la mira hasta cruzar el borde
- *     izquierdo de la pantalla, porque Raulito arranca pegado a la esquina.
- *   - Regla de validez: el puntero real (dedo/mouse) debe quedarse en la
- *     mitad DERECHA de la pantalla mientras se apunta. Si cruza a la mitad
- *     izquierda (el lado del blanco), se cancela el disparo y se pasa a
- *     pose04, igual que un fallo por tiempo.
- *   - Sistema de puntería: detecta el logo real de arbat en el DOM
- *     (CONFIG.targetSelector) o, si no lo encuentra, dibuja su propia copia
- *     de logo.png en la esquina superior izquierda (para poder probar este
- *     demo aislado). Calcula distancia del punto de impacto al centro del
- *     logo y la compara contra `CONFIG.rings` (10 a 5 puntos, o "miss").
- *   - Globos de diálogo (`showSpeechBubble`) sobre el personaje: "MISS",
- *     "¡Eso fue un diez!", etc. Reutilizable para diálogos futuros.
- *   - Sonido de tensado (tensar.mp3): suena al entrar en pose de apuntado.
- * v0.3 — agrega:
- *   - Regla de mitad de pantalla para la MIRA (no solo para el puntero
- *     real): si el centro de la mira cruza a la mitad DERECHA de la
- *     pantalla (el lado de Raulito) mientras se apunta, se cancela el tiro
- *     y pasa a pose04 — antes solo se validaba la mitad de pantalla del
- *     puntero real, pero la mira (amplificada y espejada) podía terminar
- *     del lado derecho igual, lo que permitía clavar flechas ahí.
- *   - Se separa el sonido único `disparo.mp3` (antes representaba
- *     liberación + impacto juntos) del nuevo `golpe.mp3` (impacto):
- *     `disparo.mp3` suena apenas se libera la flecha (al entrar en
- *     pose02), y recién `CONFIG.hitDelayMs` después suena `golpe.mp3`
- *     junto con la flecha clavándose en pantalla y el cálculo/globo de
- *     puntaje (antes ambos ocurrían en el mismo instante, con un solo clip
- *     y sin delay).
- * v0.4 — agrega:
- *   - `CONFIG.heartbeat`: "latidos" de la mira. Mientras se apunta, un
- *     loop de animación (requestAnimationFrame) suma un pequeño temblor
- *     pulsante a la mira, encima del desplazamiento normal por el
- *     arrastre. En reposo (puntero real quieto) el pulso es casi
- *     imperceptible; ante un movimiento brusco del puntero se acelera y se
- *     vuelve errático (más amplitud, más frecuencia, más ruido aleatorio),
- *     simulando un latido de corazón que se agita. Toda la calibración
- *     (amplitudes, bpm de reposo/máximo, qué tan rápido sube/baja la
- *     intensidad) vive en `CONFIG.heartbeat`, pensada para ajuste a mano
- *     como la zona de `scales`. La validez de la mira (regla de mitad de
- *     pantalla) se sigue calculando sobre la posición BASE, sin el pulso,
- *     para que el temblor nunca sea la causa de un fallo.
- *   - `CONFIG.arrowLimit`: cada `countBeforeCooldown` flechas clavadas
- *     (6 por defecto), Raul necesita `cooldownMs` (10s) antes de poder
- *     disparar de nuevo. A los `fadeStartMs` (5s) de esa espera, las
- *     flechas de la tanda que se acaba de completar empiezan a
- *     desvanecerse (`fadeDurationMs`) hasta desaparecer del todo. Si se
- *     intenta iniciar un disparo estando en ese cooldown, Raul dice
- *     `CONFIG.arrowLimit.waitMessage` ("Espera, debo ir por las
- *     flechas...") en vez de entrar en pose de apuntado.
- *   - Mensaje de fallo específico cuando la MIRA cruza a la mitad derecha
- *     de la pantalla (se aleja demasiado de la diana, que vive del lado
- *     izquierdo): en vez del "MISS" genérico, el globo dice "No se debe
- *     apuntar tan lejos de la diana". El resto de los fallos (soltar
- *     tarde, timeout, o el puntero real cruzando de lado) siguen usando el
- *     "MISS" genérico, igual que un impacto que cae fuera de todos los
- *     aros.
- * v0.5 — agrega:
- *   - `CONFIG.arrowLog`: registro en memoria de TODAS las flechas
- *     lanzadas (impactadas) en esta sesión del explorador — cada entrada
- *     guarda número de flecha, marca de tiempo (Date.now()) y puntaje.
- *     Se agrupan en "andanadas" de `arrowLog.arrowsPerAndanada` flechas
- *     (6 por defecto). Pensado para usarse más adelante (estadísticas,
- *     analítica, etc.), expuesto vía `Raulito.getArrowLog()`. Vive sólo
- *     en memoria: no sobrevive a un F5 (ver comentario junto a
- *     `sessionArrowLog` más abajo).
- *   - `CONFIG.fatigue`: "temblor de cansancio muscular" en la mira,
- *     independiente del latido de `CONFIG.heartbeat` y sumado encima de
- *     él. Empieza a manifestarse a partir de `fatigue.startAfterArrow`
- *     flechas disparadas. Cada flecha que se dispara sin respetar
- *     `fatigue.expectedCooldownMs` desde la anterior sube el temblor un
- *     nivel; descansar (no disparar) `fatigue.restStartMs` lo baja, y
- *     cada `fatigue.restStepMs` adicionales de descanso lo baja un nivel
- *     más, hasta volver a cero. Si se acumulan
- *     `fatigue.exhaustionStreak` flechas seguidas sin respetar el
- *     cooldown, Raúl se agota: fuerza pose04 y dice
- *     `fatigue.exhaustionMessage`, bloqueando nuevos disparos hasta
- *     descansar `fatigue.exhaustionRestMs`, momento en el que vuelve solo
- *     a pose03 (sonriendo) y se puede seguir jugando.
- * v0.6 — agrega:
- *   - `CONFIG.vaiven`: nuevo handicap de puntería, independiente del
- *     latido (`heartbeat`) y del temblor de cansancio (`fatigue`), aunque
- *     comparte el mismo loop de animación (aimTremorTick). Mientras se
- *     apunta, la mira recorre un vaivén suave con forma de 8 (curva de
- *     Lissajous 1:2) alrededor de su posición base — a diferencia del
- *     latido, no reacciona a la velocidad del puntero real: es un
- *     movimiento ambiente constante, presente desde el primer instante de
- *     apuntado. El radio de ese 8 arranca chico (`vaiven.baseRadiusPx`,
- *     "un ligero vaivén") y crece con el mismo nivel de cansancio que ya
- *     calcula `currentFatigueLevel()` para el temblor de `fatigue`
- *     (`vaiven.radiusPerFatigueLevelPx` por nivel) — es decir, cuanto más
- *     cansado está Raúl, más lejos del centro se desplaza la mira tanto
- *     por el vaivén en 8 como por la sacudida de `fatigue` (que ya crecía
- *     con el nivel desde v0.5: `fatigue.amplitudePerLevelPx`).
- * v0.7 — agrega:
- *   - `CONFIG.targetSelector` pasa a apuntar por defecto al logo real del
- *     sitio (`.site-header .site-logo img`, confirmado contra el HTML/CSS
- *     reales de arbat_frontend) en vez de quedar en `null`. El juego NUNCA
- *     muestra, oculta, mueve ni redimensiona ese elemento — sólo LEE su
- *     posición y tamaño (getBoundingClientRect) para calcular aros y
- *     anclar flechas; el único gesto que controla algo visualmente es
- *     el triple click de prueba (`CONFIG.testTrigger`), y sólo afecta a
- *     Raulito (el personaje), nunca al logo, que es contenido de la
- *     página fuera de su control.
- *   - Anclaje de las flechas clavadas al blanco real (`stickArrowAt` +
- *     `repositionStuckArrows`, disparado en scroll/resize vía
- *     `bindArrowRepositioning`): antes, cada flecha guardaba solo su
- *     coordenada de VIEWPORT en el momento del impacto y quedaba fija ahí
- *     (position: fixed). Como el logo real vive en el flujo normal de la
- *     página (no es fixed), scrollear después de un impacto separaba
- *     visualmente la flecha del logo. Ahora cada flecha guarda además su
- *     offset respecto de la esquina superior izquierda del blanco en el
- *     instante del impacto (`anchorDx`/`anchorDy`), y ese offset se usa
- *     para recalcular left/top cada vez que la página scrollea o cambia
- *     de tamaño — así la flecha se mueve junto con el logo real, sin
- *     tocar la página en sí (sigue siendo `position: fixed`, sólo se le
- *     recalculan las coordenadas). `computeScore` ahora acepta un `rect`
- *     ya leído para no leer el DOM dos veces y garantizar que el puntaje
- *     y el anclaje usen la misma posición exacta del logo.
- * v0.8 — agrega:
- *   - `CONFIG.calibracion`: nuevo handicap, "mira sin calibrar". No mueve
- *     el DIBUJO de la mira (eso lo siguen haciendo heartbeat/fatigue/vaiven
- *     encima, sin cambios) sino el PUNTO DE IMPACTO real usado por
- *     computeScore/stickArrowAt, que queda corrido respecto del centro
- *     visual que el jugador vio al soltar — como una mira óptica
- *     descalibrada. Al cargar la página (`initCalibration`, llamada desde
- *     init()) se sortea un desvío fijo de entre `minErrorPx` y
- *     `maxErrorPx` en una dirección aleatoria; ese desvío se mantiene
- *     igual disparo a disparo y sólo se corrige un `correctionRatio`
- *     (25% por defecto) al completar cada andanada de
- *     `CONFIG.arrowLimit.countBeforeCooldown` flechas
- *     (`recalibrateMira`, llamada desde `startArrowCooldown` — reutiliza
- *     ese mismo umbral de "andanada" en vez de llevar un contador
- *     propio), momento en el que Raúl avisa con `calibracion.message`
- *     ("Voy a calibrar la mira...") con el mismo delay que dura el globo
- *     de puntaje recién mostrado, para no taparlo. El error nunca llega a
- *     0 exacto (siempre queda un 75% del anterior), sólo se achica con el
- *     tiempo.
- * v1.0 — primera versión en producción. Agrega:
- *   - Pedido de apuntado en cola desde pose02: antes, mientras Raúl
- *     estaba en 'resolved' (pose02, recién disparó, todavía sin volver a
- *     pose03), un nuevo pointerdown se ignoraba por completo
- *     (`onPointerDown` exigía `state === 'idle'`), así que había que
- *     esperar a que terminara toda la secuencia de disparo (impacto +
- *     globo de puntaje) para poder volver a tocar/arrastrar a Raulito.
- *     Ahora, si se hace click/touch-and-drag sobre Raulito mientras sigue
- *     en pose02 (`currentCharPoseKey === 'fire'`), la flecha que acaba de
- *     soltar NO se cancela ni se descarta — sigue su curso normal
- *     (`hitTimer`/`resolveTimer` intactos: impacto, puntaje, sonido,
- *     `arrowLimit`, todo igual que sin este click). Lo que hace el click
- *     es dejar anotado un pedido (`pendingAimRequest`): apenas esa
- *     flecha termina de resolverse — mismo instante en que antes volvía a
- *     pose03 — en vez de eso pasa DERECHO a pose01 (apuntando), sin pasar
- *     por 'pending' ni por el toque largo de `longPressThresholdMs`, como
- *     si el jugador ya lo estuviera volviendo a tensar con el arco
- *     todavía en la mano. Si Raúl queda agotado por ese disparo, o si ese
- *     mismo disparo completa una tanda y dispara el cooldown del carcaj,
- *     el pedido en cola se descarta (no se saltea ni el agotamiento ni el
- *     cooldown). Soltar antes de que la flecha anterior resuelva cancela
- *     el pedido en cola sin afectar esa flecha. Este atajo NO aplica
- *     sobre pose04 (fallo): ese caso sigue esperando a volver a 'idle'
- *     como antes.
- *   - `CONFIG.cadencia`: nuevo handicap, independiente de `fatigue`
- *     aunque mide lo mismo que dispara su umbral (tiempo transcurrido
- *     desde el último disparo, `lastShotAt`). A diferencia de `fatigue`
- *     (niveles discretos que suben de a uno y decaen de a pasos), acá el
- *     efecto es CONTINUO: cuanto menos tiempo pasó desde el último
- *     disparo, mayor el multiplicador (`cadenciaMultiplier`, > 1) que se
- *     aplica ENCIMA de lo que ya calculan por su cuenta el vaivén en 8
- *     (distancia), el latido (recorrido) y el temblor de cansancio
- *     (distancia) — los tres a la vez, en `aimTremorTick`. Con una pausa
- *     de `CONFIG.cadencia.restMs` (6s por defecto) sin disparar, el
- *     multiplicador vuelve a 1 y las tres distancias quedan en su valor
- *     original. No modifica ninguno de los tiempos de cooldown que ya
- *     exige `fatigue` ni el cooldown del carcaj (`arrowLimit`) — es
- *     puramente un efecto visual sobre la mira, y no afecta la posición
- *     BASE que se usa para validar el apuntado.
- * v1.1 — agrega:
- *   - Reemplaza el atajo de teclado de prueba (tecla `r`) por un triple
- *     click en cualquier parte del documento (`CONFIG.testTrigger`,
- *     `onTestTriggerClick`): junta clicks sueltos dentro de una ventana de
- *     `windowMs` (500ms por defecto) y, al llegar a `clicksToTrigger` (3),
- *     dispara el mismo toggle mostrar/ocultar que antes hacía la tecla.
- *   - Personaje al doble de tamaño y mostrado solo de la cintura para
- *     arriba, en vez de cuerpo entero: `characterLongSidePercent` pasa de
- *     0.15 a 0.30, y se agrega `CONFIG.characterWaistRatio` (fracción de
- *     la altura de cada imagen de pose hasta la línea de cintura, medida
- *     a mano sobre pose01.png/pose03.png: 58% en pose01/02, 52% en
- *     pose03/04). `positionCharacter()` usa ese valor para calcular un
- *     `bottom` dinámico (ya no fijo en `characterMarginPx`) que deja
- *     siempre la cintura a `characterMarginPx` del borde inferior de la
- *     ventana y empuja las piernas fuera de la vista, recalculado en
- *     cada carga de imagen, cambio de pose y resize. De paso,
- *     `scales.character.aim/fire` se recalibra de 1.3 a 0.9 —el valor
- *     anterior compensaba el cuerpo completo; ahora lo que hay que
- *     igualar entre poses es solo el tramo cabeza-cintura, así que se
- *     recalcula a partir de la misma cintura medida (0.52/0.58 ≈ 0.9).
- *     `right` (posición horizontal) no cambia.
- * v1.2 — agrega:
- *   - Personaje 50% más grande sobre el tamaño de v1.1
- *     (`characterLongSidePercent` 0.30 -> 0.45).
- *   - Corrido 50% de su propio ancho hacia la izquierda desde su
- *     posición pegada al borde derecho: `CONFIG.characterLeftShiftRatio`
- *     (0.5) se suma a `characterMarginPx` sobre el ANCHO ya renderizado
- *     del personaje (`characterRightOffsetPx`), y se aplica junto con el
- *     offset vertical en `positionCharacter()` (mismos puntos de
- *     recálculo: load, cambio de pose, resize). No es fracción del ancho
- *     de pantalla ni centrado — es relativo al propio ancho del
- *     personaje, así que el corrimiento en píxeles varía con el tamaño
- *     con el que se está renderizando en cada momento (pantalla, pose).
  * Minijuego de puntería con toque largo. Documentación completa del
  * comportamiento (mecánica, CONFIG, handicaps de puntería, API pública,
  * supuestos pendientes de confirmar) en raulito.md, en la misma carpeta.
@@ -773,17 +552,16 @@
 
     // -------------------------------------------------------------------
     // Zona de "sabiduría": si al apuntar la mira cae en el cuarto inferior
-    // del DOCUMENTO completo (no solo el viewport visible — el blanco real
-    // vive arriba de la página, así que buena parte de "abajo" puede no
-    // entrar en pantalla sin hacer scroll), Raúl decide directamente no
+    // de la VENTANA VISIBLE (viewport) — equivalente a apuntar hacia abajo,
+    // al suelo, en vez de hacia el blanco — Raúl decide directamente no
     // disparar. A diferencia de las otras reglas de validez (mitad de
     // pantalla), esto NO es un fallo: no pasa por pose04/MISS, vuelve
     // derecho a pose03 con un mensaje propio (ver WISDOM_TEXT y la regla
     // en onPointerMoveWhileAiming).
     wisdomZone: {
-      // Fracción (0..1) del alto total del documento que cuenta como
-      // "cuarto inferior", medida desde abajo. 0.25 = el 25% más bajo de
-      // toda la página.
+      // Fracción (0..1) del alto de la ventana visible que cuenta como
+      // "cuarto inferior", medida desde abajo. 0.25 = el 25% más bajo del
+      // viewport.
       bottomFraction: 0.25
     },
 
@@ -1008,26 +786,6 @@
   // ---------------------------------------------------------------------
   function screenLongSide() {
     return Math.max(window.innerWidth, window.innerHeight);
-  }
-
-  // Alto total del DOCUMENTO completo (toda la página, incluido lo que no
-  // entra en el viewport sin hacer scroll) — a diferencia de innerHeight
-  // (usado en screenLongSide y en las reglas de mitad de PANTALLA), esto es
-  // lo que hace falta para la zona de "sabiduría" (CONFIG.wisdomZone): el
-  // cuarto inferior de toda la página, no solo de lo que se ve ahora mismo.
-  function documentHeight() {
-    return Math.max(
-      document.documentElement.scrollHeight,
-      document.documentElement.offsetHeight,
-      document.body ? document.body.scrollHeight : 0,
-      document.body ? document.body.offsetHeight : 0
-    );
-  }
-
-  // Desplazamiento vertical actual de la página (scroll), con fallback para
-  // navegadores viejos que no soportan window.scrollY.
-  function currentScrollY() {
-    return window.scrollY || document.documentElement.scrollTop || 0;
   }
 
   // Ajusta un elemento para que su lado más largo mida targetPx, a partir
@@ -2178,16 +1936,16 @@
     }
 
     // Zona de "sabiduría" (CONFIG.wisdomZone): si la mira cae en el cuarto
-    // inferior del DOCUMENTO completo (no solo del viewport visible — hay
-    // que sumar el scroll actual para pasar de coordenadas de pantalla a
-    // coordenadas de página), Raúl decide no disparar. A diferencia de la
-    // regla de arriba, esto NO es un fallo: resolve('wisdom', ...) vuelve
-    // derecho a pose03 en vez de pose04/MISS (ver la rama 'wisdom' dentro
-    // de resolve()).
-    var miraPageY = miraCenterY + currentScrollY();
-    var wisdomThresholdY = documentHeight() * (1 - CONFIG.wisdomZone.bottomFraction);
-    if (miraPageY >= wisdomThresholdY) {
-      resolve('wisdom', 'la mira apuntó al cuarto inferior del documento');
+    // inferior de la VENTANA VISIBLE (viewport) — equivalente a apuntar
+    // hacia abajo, al suelo, en vez de hacia el blanco — Raúl decide no
+    // disparar. Se calcula con window.innerHeight, igual que la regla de
+    // arriba (mitad de pantalla), no con el alto del documento completo.
+    // A diferencia de esa regla, esto NO es un fallo: resolve('wisdom', ...)
+    // vuelve derecho a pose03 en vez de pose04/MISS (ver la rama 'wisdom'
+    // dentro de resolve()).
+    var wisdomThresholdY = window.innerHeight * (1 - CONFIG.wisdomZone.bottomFraction);
+    if (miraCenterY >= wisdomThresholdY) {
+      resolve('wisdom', 'la mira apuntó al cuarto inferior de la ventana visible');
       return;
     }
 
