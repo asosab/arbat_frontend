@@ -151,6 +151,30 @@
  *     de puntaje recién mostrado, para no taparlo. El error nunca llega a
  *     0 exacto (siempre queda un 75% del anterior), sólo se achica con el
  *     tiempo.
+ * v1.0 — primera versión en producción. Agrega:
+ *   - Pedido de apuntado en cola desde pose02: antes, mientras Raúl
+ *     estaba en 'resolved' (pose02, recién disparó, todavía sin volver a
+ *     pose03), un nuevo pointerdown se ignoraba por completo
+ *     (`onPointerDown` exigía `state === 'idle'`), así que había que
+ *     esperar a que terminara toda la secuencia de disparo (impacto +
+ *     globo de puntaje) para poder volver a tocar/arrastrar a Raulito.
+ *     Ahora, si se hace click/touch-and-drag sobre Raulito mientras sigue
+ *     en pose02 (`currentCharPoseKey === 'fire'`), la flecha que acaba de
+ *     soltar NO se cancela ni se descarta — sigue su curso normal
+ *     (`hitTimer`/`resolveTimer` intactos: impacto, puntaje, sonido,
+ *     `arrowLimit`, todo igual que sin este click). Lo que hace el click
+ *     es dejar anotado un pedido (`pendingAimRequest`): apenas esa
+ *     flecha termina de resolverse — mismo instante en que antes volvía a
+ *     pose03 — en vez de eso pasa DERECHO a pose01 (apuntando), sin pasar
+ *     por 'pending' ni por el toque largo de `longPressThresholdMs`, como
+ *     si el jugador ya lo estuviera volviendo a tensar con el arco
+ *     todavía en la mano. Si Raúl queda agotado por ese disparo, o si ese
+ *     mismo disparo completa una tanda y dispara el cooldown del carcaj,
+ *     el pedido en cola se descarta (no se saltea ni el agotamiento ni el
+ *     cooldown). Soltar antes de que la flecha anterior resuelva cancela
+ *     el pedido en cola sin afectar esa flecha. Este atajo NO aplica
+ *     sobre pose04 (fallo): ese caso sigue esperando a volver a 'idle'
+ *     como antes.
  *
  * No requiere frameworks. Pensado para incluirse con:
  *   <script src="/assets/js/raulito.js" defer></script>
@@ -589,6 +613,16 @@
   var hitTimer = null; // delay entre disparo.mp3/pose02 y golpe.mp3/flecha clavada
   var aimStartedAt = 0;
   var currentCharPoseKey = 'idle';
+
+  // v1.0: pedido de apuntado en cola — true si el jugador ya hizo
+  // click/touch-and-drag sobre Raulito mientras la flecha anterior
+  // todavía estaba resolviéndose (pose02, esperando hitTimer/resolveTimer).
+  // No cancela esa resolución: sólo queda anotado para, apenas termine,
+  // pasar derecho a pose01 en vez de volver a pose03 (ver el resolveTimer
+  // dentro de resolve()).
+  var pendingAimRequest = false;
+  var pendingAimStartX = 0;
+  var pendingAimStartY = 0;
 
   // Precarga: dimensiones naturales cacheadas por nombre de archivo, para
   // poder posicionar/dimensionar una flecha clavada al instante, sin
@@ -1394,6 +1428,15 @@
     if (fadeTimer) { clearTimeout(fadeTimer); fadeTimer = null; }
     arrowsInBatch = 0;
     cooldownUntil = 0;
+    // v1.0: si había un pedido de apuntado en cola (ver pendingAimRequest
+    // en onPointerDown), se descarta al ocultar — no tendría sentido
+    // "recordar" que había que volver a tensar apenas se muestre a Raúl
+    // de nuevo, potencialmente mucho después.
+    pendingAimRequest = false;
+    if (charEl) {
+      charEl.removeEventListener('pointerup', onPointerUpDuringPendingAimRequest);
+      charEl.removeEventListener('pointercancel', onPointerCancelDuringPendingAimRequest);
+    }
     // Cansancio (v0.5): al ocultar a Raúl se corta cualquier agotamiento o
     // temblor acumulado — no tendría sentido que "siga cansado" mientras
     // está oculto. El registro de sesión (sessionArrowLog) NO se toca acá:
@@ -1428,12 +1471,27 @@
       return;
     }
 
-    if (state !== 'idle') return;
+    // v1.0: si Raúl está en 'resolved' pero TODAVÍA se ve pose02 (la
+    // flecha recién soltada no terminó de resolverse), un nuevo
+    // click/touch-and-drag sobre él NO cancela ese disparo — sigue su
+    // curso normal (impacto, puntaje, sonido, `arrowLimit`, todo intacto,
+    // ver hitTimer/resolveTimer más abajo en resolve()). Lo único que hace
+    // este click es dejar en cola un pedido de apuntado: apenas esa
+    // flecha termine de resolverse, en vez de volver a pose03 pasa
+    // derecho a pose01, sin pasar por 'pending' ni por el toque largo de
+    // siempre (ver el resolveTimer dentro de resolve()). No se aplica
+    // sobre pose04 (fallo): ese caso sigue esperando a volver a 'idle'
+    // como antes de esta versión.
+    var canQueueAimRequest = (state === 'resolved' && currentCharPoseKey === 'fire');
+
+    if (state !== 'idle' && !canQueueAimRequest) return;
 
     // Cooldown del carcaj (v0.4): si todavía no pasó CONFIG.arrowLimit.cooldownMs
     // desde que se completó la última tanda de CONFIG.arrowLimit.countBeforeCooldown
     // flechas, Raul no entra en pose de apuntado — solo avisa que está yendo
-    // por las flechas.
+    // por las flechas. Se sigue respetando igual al querer poner un pedido
+    // en cola: no tendría sentido que un click salteara el cooldown del
+    // carcaj.
     if (cooldownUntil && performance.now() < cooldownUntil) {
       showSpeechBubble(CONFIG.arrowLimit.waitMessage);
       setDebug(idleDebugMessage());
@@ -1442,6 +1500,18 @@
 
     activePointerId = e.pointerId;
     try { charEl.setPointerCapture(activePointerId); } catch (err) { /* noop */ }
+
+    if (canQueueAimRequest) {
+      pendingAimRequest = true;
+      pendingAimStartX = e.clientX;
+      pendingAimStartY = e.clientY;
+      charEl.addEventListener('pointerup', onPointerUpDuringPendingAimRequest);
+      charEl.addEventListener('pointercancel', onPointerCancelDuringPendingAimRequest);
+      setDebug(
+        'estado: resolved (fire) — flecha en vuelo, arco listo para volver a tensar apenas llegue…'
+      );
+      return;
+    }
 
     startX = e.clientX;
     startY = e.clientY;
@@ -1452,6 +1522,21 @@
 
     charEl.addEventListener('pointerup', onPointerUpDuringPending);
     charEl.addEventListener('pointercancel', onPointerCancel);
+  }
+
+  // v1.0: soltar (o cancelar el gesto) mientras el pedido de apuntado
+  // sigue en cola simplemente lo descarta — el jugador se arrepintió de
+  // volver a tensar apenas llegue la flecha anterior. No toca esa flecha
+  // ni su resolución, que sigue corriendo sola en resolve()/hitTimer.
+  function onPointerUpDuringPendingAimRequest() {
+    if (!pendingAimRequest) return;
+    pendingAimRequest = false;
+    charEl.removeEventListener('pointerup', onPointerUpDuringPendingAimRequest);
+    charEl.removeEventListener('pointercancel', onPointerCancelDuringPendingAimRequest);
+  }
+
+  function onPointerCancelDuringPendingAimRequest() {
+    onPointerUpDuringPendingAimRequest();
   }
 
   // Soltar antes de cumplir el umbral de toque largo: se cancela, no cuenta
@@ -1858,18 +1943,47 @@
     }
 
     resolveTimer = setTimeout(function () {
+      // v1.0: si mientras esta flecha volaba/resolvía el jugador ya hizo
+      // click/touch-and-drag sobre Raulito (ver pendingAimRequest en
+      // onPointerDown), acá es donde se lo honra o se lo descarta — el
+      // pedido nunca tocó el disparo que se acaba de terminar de resolver.
+      var hadPendingAimRequest = pendingAimRequest;
+      if (hadPendingAimRequest) {
+        pendingAimRequest = false;
+        charEl.removeEventListener('pointerup', onPointerUpDuringPendingAimRequest);
+        charEl.removeEventListener('pointercancel', onPointerCancelDuringPendingAimRequest);
+      }
+
       // v0.5: si el disparo que se acaba de resolver dejó a Raúl agotado
       // (ver recordArrowFired -> exhausted = true), en vez de volver a
       // pose03 se lo deja en pose04 pidiendo descanso — sólo descansando
       // CONFIG.fatigue.exhaustionRestMs vuelve solo a pose03 (ver
-      // recoverFromExhaustion).
+      // recoverFromExhaustion). El pedido en cola, si había, se descarta:
+      // agotado no se puede volver a apuntar aunque ya se haya clickeado.
       if (exhausted) {
         enterExhaustedIdle();
-      } else {
-        state = 'idle';
-        showPose('idle');
-        setDebug(idleDebugMessage());
+        return;
       }
+
+      // Cooldown del carcaj (v0.4): si ESTA flecha fue la que completó la
+      // tanda y disparó el cooldown, un pedido en cola tampoco lo saltea
+      // — se descarta igual que si el click hubiera llegado recién ahora
+      // durante el cooldown (ver el mismo chequeo en onPointerDown).
+      var cooldownActive = cooldownUntil && performance.now() < cooldownUntil;
+
+      if (hadPendingAimRequest && !cooldownActive) {
+        // Pasa derecho a pose01 con la posición del click que quedó en
+        // cola, sin pasar por 'pending' ni por el toque largo de siempre.
+        startX = pendingAimStartX;
+        startY = pendingAimStartY;
+        state = 'pending';
+        enterAimState();
+        return;
+      }
+
+      state = 'idle';
+      showPose('idle');
+      setDebug(idleDebugMessage());
     }, CONFIG.resolveDisplayMs);
   }
 
