@@ -377,12 +377,12 @@
       y: { idle: 0.13, aim: 0.26, fire: 0.26, fail: 0.13 }
     },
     // Separación vertical entre el globo y la cara/cabeza.
-    bubbleGapPx: 20,
+    bubbleGapPx: 30,
     // Corrimiento extra del CUERPO del globo hacia la izquierda del punto
     // exacto de la cara (la colita se queda apuntando al punto real; el
     // globo en sí queda un poco más a la izquierda y arriba, como en una
     // historieta). Subir este valor para correrlo más a la izquierda.
-    bubbleLeftShiftPx: 24,
+    bubbleLeftShiftPx: 30,
     // Debe coincidir con la colita del globo (::after en
     // ensureBubbleStyles: "right:28px;width:14px" -> el centro de la
     // colita queda a 28+14/2=35px del borde derecho del globo). Si se
