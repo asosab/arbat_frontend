@@ -458,15 +458,20 @@
     },
 
     // -------------------------------------------------------------------
-    // Puntaje total de la andanada (v1.5). Al completarse cada tanda de
-    // CONFIG.arrowLimit.countBeforeCooldown flechas, además del globo de
-    // puntaje de cada flecha individual (SCORE_PHRASES), se narra la
-    // SUMA de esa tanda con un globo propio (ver narrateAndanadaTotal(),
-    // llamado desde el mismo lugar que startArrowCooldown()). Ese globo
-    // se muestra recién después de que se apaga el de la última flecha
-    // (mismo delay que ya usa recalibrateMira() para no pisarlo:
-    // CONFIG.bubbleDisplayMs) — y el de recalibración, a su vez, se corrió
-    // otro tanto para no pisar a este (ver el *2 en recalibrateMira()).
+    // Puntaje total de la andanada (v1.5) y premio por tanda perfecta
+    // (v1.6). Al completarse cada tanda de CONFIG.arrowLimit
+    // .countBeforeCooldown flechas, además del globo de puntaje de cada
+    // flecha individual (SCORE_PHRASES), se narra la SUMA de esa tanda
+    // con un globo propio (ver narrateAndanadaTotal(), llamado desde el
+    // mismo lugar que startArrowCooldown()) — o, si la tanda fue
+    // perfecta y CONFIG.andanada.promo.enabled, el globo del premio (ver
+    // promo más abajo) en vez del texto de puntaje. Ese globo se muestra
+    // recién después de que se apaga el de la última flecha (mismo delay
+    // que CONFIG.bubbleDisplayMs), y el aviso de recalibración de la mira
+    // se corre a su vez para aparecer justo cuando ESTE globo se apaga
+    // (ver scheduleCalibrationMessage()) — sin importar si duró
+    // CONFIG.bubbleDisplayMs (puntaje normal) o CONFIG.andanada.promo
+    // .displayMs (premio, bastante más largo).
     andanada: {
       // Umbral (inclusive) de puntos totales de la tanda a partir del cual
       // Raúl vuelve a pose03 (idle) como pose de reposo entre disparos;
@@ -480,12 +485,53 @@
       lowScorePoseThreshold: 36,
       // Plantilla del globo con la suma de la tanda. "{puntos}" se
       // reemplaza por el total (0..puntaje máximo posible de la tanda).
+      // No se usa cuando la tanda es perfecta y CONFIG.andanada.promo
+      // está habilitado (ver promo.bubbleHtml más abajo, que reemplaza a
+      // perfectMessage en ese caso).
       message: 'Hiciste {puntos} puntos',
       // Plantilla especial cuando la tanda entera dio el puntaje máximo
       // posible (CONFIG.arrowLimit.countBeforeCooldown flechas, cada una
       // en el aro de mayor valor de CONFIG.rings — con los valores por
-      // defecto, 6 × 10 = 60).
-      perfectMessage: '¡Fantástico! ¡Lograste {puntos} puntos!'
+      // defecto, 6 × 10 = 60). Sirve de respaldo si CONFIG.andanada
+      // .promo.enabled se pone en false más adelante.
+      perfectMessage: '¡Fantástico! ¡Lograste {puntos} puntos!',
+
+      // -----------------------------------------------------------------
+      // Premio por tanda perfecta (v1.6). Cuando la tanda da el puntaje
+      // máximo posible (ver perfectMessage arriba) Y esto está habilitado,
+      // en vez de perfectMessage se muestra bubbleHtml: un globo con un
+      // link a WhatsApp que arma un mensaje de reclamo con un código
+      // corto (ver buildPromoCode()/buildWhatsAppLink() más abajo).
+      //
+      // Supuesto documentado (no especificado en el pedido original): el
+      // "código de premio" es un hash MD5 (calculado con una
+      // implementación propia en JS puro — el juego no usa frameworks ni
+      // Web Crypto, que además no soporta MD5) de `Date.now()` + un
+      // componente aleatorio, en el instante exacto en que se completa la
+      // tanda perfecta, recortado a los primeros 6 caracteres hex. Como
+      // el juego es 100% cliente (sin backend), este código NO es
+      // verificable del lado del servidor — funciona como un
+      // comprobante liviano que el staff de arbat puede mirar a simple
+      // vista, no como una prueba criptográfica. Si arbat necesita
+      // validarlo contra algo (por ejemplo, un secreto compartido o un
+      // registro propio), hay que ajustar buildPromoCode().
+      promo: {
+        enabled: true,
+        whatsappNumber: '59170885758',
+        // "{hash}" se reemplaza por el código de 6 caracteres.
+        whatsappMessage: '¡Hola arbat! acabo de lograr hacer 60 puntos en la página web y me he ganado un 2x1, aquí está mi código de premio: {hash}',
+        // Texto del globo dentro del juego (HTML — ver showSpeechBubble
+        // con opts.html). "{link}" se reemplaza por el link de WhatsApp ya
+        // armado (wa.me + el mensaje de arriba, URL-encodeado).
+        bubbleHtml: '¿Te gustaría disparar flechas en el mundo real? ¡Te has ganado un 2x1 en arbat! ' +
+          'Basta con que tu o tu acompañante nunca hayan venido a una clase antes para que sólo uno ' +
+          'de los dos pague la clase personalizada, haz click <a href="{link}" target="_blank" rel="noopener noreferrer">aquí</a> ' +
+          'para recibir tu premio ¡Te lo has ganado!',
+        // Bastante más que CONFIG.bubbleDisplayMs: hay mucho más texto
+        // para leer y, a diferencia de los demás globos, éste tiene un
+        // link que hay que llegar a tocar.
+        displayMs: 12000
+      }
     },
 
     // -------------------------------------------------------------------
@@ -991,7 +1037,16 @@
       '.raulito-bubble.is-visible{opacity:1;transform:translateY(0) scale(1);}' +
       '.raulito-bubble::after{content:"";position:absolute;bottom:-6px;' +
       'right:28px;width:14px;height:14px;background:#ffffff;' +
-      'transform:rotate(45deg);border-radius:2px;}';
+      'transform:rotate(45deg);border-radius:2px;}' +
+      // v1.6 — globo del premio (ver CONFIG.andanada.promo): bastante más
+      // texto que el resto de los globos, así que necesita más ancho; y
+      // como tiene un <a> real adentro (ver narrateAndanadaTotal()), no
+      // puede heredar el pointer-events:none de la regla base — si no, el
+      // link quedaría ahí pero sería imposible de tocar.
+      '.raulito-bubble.is-promo{max-width:300px;pointer-events:auto;' +
+      'user-select:text;}' +
+      '.raulito-bubble.is-promo a{color:#0d6efd;text-decoration:underline;' +
+      'pointer-events:auto;}';
     document.head.appendChild(style);
   }
 
@@ -1023,9 +1078,27 @@
 
   // Función genérica de globo de texto — pensada para reusarse más
   // adelante con cualquier diálogo de Raulito, no solo resultados de tiro.
-  function showSpeechBubble(text, durationMs) {
+  //
+  // v1.6 — `opts` (todo opcional):
+  //   opts.html: si es true, `text` se inserta como innerHTML (permite un
+  //     <a> real, ver el globo de premio en narrateAndanadaTotal()). El
+  //     valor SIEMPRE sale de CONFIG (contenido propio del juego, nunca
+  //     de un dato ingresado por la persona jugando), así que no hay
+  //     riesgo de inyección — igual, no usar `opts.html` con texto de
+  //     origen externo sin sanitizar antes.
+  //   opts.promo: agrega la clase 'is-promo' (globo más ancho y con
+  //     pointer-events habilitado, ver ensureBubbleStyles(), para que el
+  //     link sea tocable — el resto de los globos siguen siendo
+  //     pointer-events:none, o sea "clickeables a través" del globo).
+  function showSpeechBubble(text, durationMs, opts) {
+    opts = opts || {};
     ensureElements();
-    bubbleEl.textContent = text;
+    if (opts.html) {
+      bubbleEl.innerHTML = text;
+    } else {
+      bubbleEl.textContent = text;
+    }
+    bubbleEl.classList.toggle('is-promo', !!opts.promo);
     positionBubble();
     bubbleEl.style.display = 'block';
     // Fuerza reflow para que la transición de entrada dispare siempre,
@@ -1211,30 +1284,145 @@
   // Se llama al completar cada tanda de CONFIG.arrowLimit.countBeforeCooldown
   // flechas (mismo momento que startArrowCooldown(), ver el hitTimer en
   // resolve()), ya con `total` = suma de puntos de esa tanda (batchScoreSum,
-  // miss cuenta 0). Dos efectos:
+  // miss cuenta 0). Tres efectos:
   //   1) Actualiza defaultIdlePoseKey según CONFIG.andanada
   //      .lowScorePoseThreshold — esto es inmediato (no depende del
   //      timer de abajo), así que la próxima vez que el personaje vuelva
   //      a su pose de reposo (resolveTimer, más abajo) ya refleja el
   //      resultado de esta tanda.
-  //   2) Agenda el globo con el texto de la suma, con el mismo delay que
-  //      usa recalibrateMira() para su mensaje (CONFIG.bubbleDisplayMs),
-  //      de modo que aparezca justo cuando se apaga el globo de puntaje
-  //      de la última flecha de la tanda. recalibrateMira() por su parte
-  //      corre su propio mensaje otro tanto (ver el *2 ahí) para no
-  //      pisar a este.
+  //   2) Agenda el globo (puntaje normal, o el del premio si la tanda fue
+  //      perfecta — ver CONFIG.andanada.promo) con el mismo delay que
+  //      dura el globo de puntaje de la última flecha (CONFIG
+  //      .bubbleDisplayMs), para que aparezca justo cuando ése se apaga.
+  //   3) Encadena el aviso de recalibración de la mira (ver
+  //      scheduleCalibrationMessage()) para que aparezca recién cuando
+  //      ESTE globo se apague — sea a los CONFIG.bubbleDisplayMs
+  //      (puntaje normal) o a los CONFIG.andanada.promo.displayMs, bien
+  //      más largos, del globo del premio.
   function narrateAndanadaTotal(total) {
     defaultIdlePoseKey = (total >= CONFIG.andanada.lowScorePoseThreshold) ? 'idle' : 'fail';
 
     var isPerfect = total >= maxAndanadaScore();
-    var template = isPerfect ? CONFIG.andanada.perfectMessage : CONFIG.andanada.message;
-    var bubbleText = template.replace('{puntos}', total);
+    var showPromo = isPerfect && CONFIG.andanada.promo.enabled;
 
     if (andanadaBubbleTimer) clearTimeout(andanadaBubbleTimer);
     andanadaBubbleTimer = setTimeout(function () {
       andanadaBubbleTimer = null;
-      showSpeechBubble(bubbleText);
+      var displayMs = CONFIG.bubbleDisplayMs;
+
+      if (showPromo) {
+        displayMs = CONFIG.andanada.promo.displayMs;
+        var html = CONFIG.andanada.promo.bubbleHtml.replace('{link}', buildWhatsAppLink());
+        showSpeechBubble(html, displayMs, { html: true, promo: true });
+      } else {
+        var template = isPerfect ? CONFIG.andanada.perfectMessage : CONFIG.andanada.message;
+        showSpeechBubble(template.replace('{puntos}', total));
+      }
+
+      scheduleCalibrationMessage(displayMs);
     }, CONFIG.bubbleDisplayMs);
+  }
+
+  // ---------------------------------------------------------------------
+  // Premio por tanda perfecta (v1.6) — ver CONFIG.andanada.promo.
+  // ---------------------------------------------------------------------
+  // Implementación propia de MD5 (RFC 1321) en JS puro, sin dependencias
+  // — coherente con "No requiere frameworks" (ver cabecera del archivo);
+  // Web Crypto (SubtleCrypto) no ofrece MD5, solo la familia SHA.
+  // Probada contra los vectores de prueba estándar del algoritmo (cadena
+  // vacía, "abc", "message digest", el pangrama del zorro).
+  function md5(str) {
+    function rotl(x, c) { return (x << c) | (x >>> (32 - c)); }
+
+    function toUtf8Bytes(s) {
+      var bytes = [];
+      for (var i = 0; i < s.length; i++) {
+        var code = s.codePointAt(i);
+        if (code > 0xFFFF) i++; // consumió un par subrogado
+        if (code < 0x80) {
+          bytes.push(code);
+        } else if (code < 0x800) {
+          bytes.push(0xC0 | (code >> 6), 0x80 | (code & 0x3F));
+        } else if (code < 0x10000) {
+          bytes.push(0xE0 | (code >> 12), 0x80 | ((code >> 6) & 0x3F), 0x80 | (code & 0x3F));
+        } else {
+          bytes.push(0xF0 | (code >> 18), 0x80 | ((code >> 12) & 0x3F), 0x80 | ((code >> 6) & 0x3F), 0x80 | (code & 0x3F));
+        }
+      }
+      return bytes;
+    }
+
+    var S = [
+      7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22,
+      5, 9, 14, 20, 5, 9, 14, 20, 5, 9, 14, 20, 5, 9, 14, 20,
+      4, 11, 16, 23, 4, 11, 16, 23, 4, 11, 16, 23, 4, 11, 16, 23,
+      6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21
+    ];
+    // K[i] = floor(abs(sin(i+1)) * 2^32), i = 0..63 (constante estándar
+    // de MD5) — se calcula en vez de hardcodear 64 números mágicos.
+    var K = new Array(64);
+    for (var i = 0; i < 64; i++) K[i] = (Math.floor(Math.abs(Math.sin(i + 1)) * 4294967296)) | 0;
+
+    var bytes = toUtf8Bytes(str);
+    var bitLen = bytes.length * 8;
+    bytes.push(0x80);
+    while (bytes.length % 64 !== 56) bytes.push(0);
+    // Longitud del mensaje en bits, 64 bits little-endian. Los 32 bits
+    // altos quedan en 0: asume entradas de menos de ~2^29 bytes, de sobra
+    // para los strings cortos que arma buildPromoCode().
+    for (var i = 0; i < 4; i++) bytes.push((bitLen >>> (8 * i)) & 0xFF);
+    for (var i = 0; i < 4; i++) bytes.push(0);
+
+    var a0 = 0x67452301, b0 = 0xefcdab89, c0 = 0x98badcfe, d0 = 0x10325476;
+
+    for (var chunkStart = 0; chunkStart < bytes.length; chunkStart += 64) {
+      var M = new Array(16);
+      for (var j = 0; j < 16; j++) {
+        M[j] = bytes[chunkStart + j * 4] |
+          (bytes[chunkStart + j * 4 + 1] << 8) |
+          (bytes[chunkStart + j * 4 + 2] << 16) |
+          (bytes[chunkStart + j * 4 + 3] << 24);
+      }
+      var A = a0, B = b0, C = c0, D = d0;
+      for (var i = 0; i < 64; i++) {
+        var F, g;
+        if (i < 16) { F = (B & C) | (~B & D); g = i; }
+        else if (i < 32) { F = (D & B) | (~D & C); g = (5 * i + 1) % 16; }
+        else if (i < 48) { F = B ^ C ^ D; g = (3 * i + 5) % 16; }
+        else { F = C ^ (B | ~D); g = (7 * i) % 16; }
+        F = (F + A + K[i] + M[g]) | 0;
+        A = D; D = C; C = B;
+        B = (B + rotl(F, S[i])) | 0;
+      }
+      a0 = (a0 + A) | 0; b0 = (b0 + B) | 0; c0 = (c0 + C) | 0; d0 = (d0 + D) | 0;
+    }
+
+    function toHexLE(n) {
+      var out = '';
+      for (var i = 0; i < 4; i++) out += ('0' + ((n >>> (8 * i)) & 0xFF).toString(16)).slice(-2);
+      return out;
+    }
+
+    return toHexLE(a0) + toHexLE(b0) + toHexLE(c0) + toHexLE(d0);
+  }
+
+  // Código corto (6 caracteres hex) de "comprobante" para el premio —
+  // ver el supuesto documentado en CONFIG.andanada.promo. Se arma a
+  // partir del instante exacto (Date.now()) en que se completó la tanda
+  // perfecta más un componente aleatorio, para variar de un premio a
+  // otro aunque se ganaran dos en el mismo milisegundo.
+  function buildPromoCode() {
+    var seed = Date.now() + ':' + Math.random().toString(36).slice(2);
+    return md5(seed).slice(0, 6);
+  }
+
+  // Arma el link de WhatsApp (wa.me) con el mensaje de
+  // CONFIG.andanada.promo.whatsappMessage ya completado con el código y
+  // URL-encodeado.
+  function buildWhatsAppLink() {
+    var promo = CONFIG.andanada.promo;
+    var text = promo.whatsappMessage.replace('{hash}', buildPromoCode());
+    return 'https://wa.me/' + promo.whatsappNumber + '?text=' + encodeURIComponent(text);
   }
 
   // ---------------------------------------------------------------------
@@ -1309,26 +1497,31 @@
 
   // Se llama al completar cada andanada (ver startArrowCooldown). Achica
   // el desvío actual en CONFIG.calibracion.correctionRatio (se acerca al
-  // centro real sin llegar nunca a 0 exacto) y hace que Raúl lo comente,
-  // con el mismo delay que dura el globo de puntaje recién mostrado para
-  // la última flecha de la andanada (CONFIG.bubbleDisplayMs) — así no lo
-  // tapa, se lee primero el puntaje y después el comentario.
+  // centro real sin llegar nunca a 0 exacto) — esto es puramente numérico
+  // y siempre inmediato, no depende de si se llega a mostrar el aviso
+  // (ver scheduleCalibrationMessage(), abajo, que es quien decide CUÁNDO
+  // se lo comenta).
   function recalibrateMira() {
     if (!CONFIG.calibracion.enabled) return;
     calibOffsetX *= (1 - CONFIG.calibracion.correctionRatio);
     calibOffsetY *= (1 - CONFIG.calibracion.correctionRatio);
+  }
 
+  // v1.6 — antes este mensaje se agendaba desde adentro de
+  // recalibrateMira() con un delay fijo. Ahora lo agenda
+  // narrateAndanadaTotal(), que es quien sabe cuánto va a durar el globo
+  // que se está por mostrar (CONFIG.bubbleDisplayMs para el puntaje
+  // normal, o CONFIG.andanada.promo.displayMs — bastante más largo —
+  // para el globo del premio en una tanda perfecta), así el aviso de
+  // calibración aparece siempre justo cuando ESE globo se apaga, sin
+  // pisarlo, sea cual sea su duración.
+  function scheduleCalibrationMessage(afterMs) {
+    if (!CONFIG.calibracion.enabled) return;
     if (calibrationBubbleTimer) clearTimeout(calibrationBubbleTimer);
-    // v1.5: antes este mensaje aparecía a los CONFIG.bubbleDisplayMs de
-    // completarse la tanda (justo cuando se apaga el globo de puntaje de
-    // la última flecha). Ahora, en ese mismo instante, aparece primero el
-    // globo con la suma de la tanda (ver narrateAndanadaTotal()) — este
-    // mensaje se corre un CONFIG.bubbleDisplayMs más (el *2) para
-    // aparecer recién cuando ESE globo se apaga, y no pisarlo.
     calibrationBubbleTimer = setTimeout(function () {
       calibrationBubbleTimer = null;
       showSpeechBubble(CONFIG.calibracion.message);
-    }, CONFIG.bubbleDisplayMs * 2);
+    }, afterMs);
   }
 
   // ---------------------------------------------------------------------
