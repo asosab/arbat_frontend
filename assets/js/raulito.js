@@ -175,6 +175,21 @@
  *     el pedido en cola sin afectar esa flecha. Este atajo NO aplica
  *     sobre pose04 (fallo): ese caso sigue esperando a volver a 'idle'
  *     como antes.
+ *   - `CONFIG.cadencia`: nuevo handicap, independiente de `fatigue`
+ *     aunque mide lo mismo que dispara su umbral (tiempo transcurrido
+ *     desde el último disparo, `lastShotAt`). A diferencia de `fatigue`
+ *     (niveles discretos que suben de a uno y decaen de a pasos), acá el
+ *     efecto es CONTINUO: cuanto menos tiempo pasó desde el último
+ *     disparo, mayor el multiplicador (`cadenciaMultiplier`, > 1) que se
+ *     aplica ENCIMA de lo que ya calculan por su cuenta el vaivén en 8
+ *     (distancia), el latido (recorrido) y el temblor de cansancio
+ *     (distancia) — los tres a la vez, en `aimTremorTick`. Con una pausa
+ *     de `CONFIG.cadencia.restMs` (6s por defecto) sin disparar, el
+ *     multiplicador vuelve a 1 y las tres distancias quedan en su valor
+ *     original. No modifica ninguno de los tiempos de cooldown que ya
+ *     exige `fatigue` ni el cooldown del carcaj (`arrowLimit`) — es
+ *     puramente un efecto visual sobre la mira, y no afecta la posición
+ *     BASE que se usa para validar el apuntado.
  *
  * No requiere frameworks. Pensado para incluirse con:
  *   <script src="/assets/js/raulito.js" defer></script>
@@ -191,7 +206,7 @@
     // Carpetas de assets. Pueden sobreescribirse antes de cargar este script
     // definiendo window.RAULITO_ASSET_BASE / window.RAULITO_AUDIO_BASE
     // (útil para pruebas locales con rutas relativas).
-    assetBase: window.RAULITO_ASSET_BASE || '/arbat_frontend/assets/images/minijuego/',
+    assetBase: window.RAULITO_ASSET_BASE || '/arbat_frontend/assets/imagen/minijuego/',
     // Supuesto: no se especificó dónde vive el audio del sitio real: se
     // asume una carpeta "sonido" paralela a "imagen". Ajustar si el sitio
     // real usa otra convención (p. ej. /assets/audio/).
@@ -448,6 +463,46 @@
       // segundo (Hz). Deliberadamente lento — es un balanceo, no un
       // temblor — para que se distinga a simple vista del latido/cansancio.
       hz: 0.35
+    },
+
+    // -------------------------------------------------------------------
+    // Cadencia de disparo (v1.0). Handicap nuevo, independiente de
+    // `fatigue` aunque mide lo mismo que dispara su umbral (el tiempo
+    // transcurrido desde el último disparo, `lastShotAt`). La diferencia:
+    // `fatigue` sube/baja por NIVELES discretos (un nivel entero por
+    // disparo apurado, decae de a pasos con `restStartMs`/`restStepMs`);
+    // acá el efecto es CONTINUO y puramente de tiempo transcurrido —
+    // cuanto MENOS tiempo pasó desde el último disparo, mayor el
+    // multiplicador (> 1) que se aplica ENCIMA de lo que cada uno ya
+    // calcula por su cuenta: la distancia del vaivén en 8
+    // (`vaivenRadius`), el recorrido del latido (`amplitude`/jitter de
+    // `heartbeat`) y la distancia del temblor de cansancio
+    // (`fatigueAmplitude`/jitter de `fatigue`) — los tres a la vez (ver
+    // `cadenciaMultiplier` y su uso en `aimTremorTick`). Con una pausa
+    // de `restMs` (6s por defecto) sin disparar, el multiplicador vuelve
+    // a 1 y las tres distancias quedan en su valor original, como si
+    // este handicap no existiera.
+    //
+    // Importante: esto NO toca ninguno de los tiempos de cooldown que ya
+    // exige `fatigue` (expectedCooldownMs, restStartMs/restStepMs,
+    // exhaustionStreak, exhaustionRestMs) ni el cooldown del carcaj
+    // (`arrowLimit`) — es un efecto puramente visual sobre la mira,
+    // igual que el resto de los temblores, y nunca afecta la posición
+    // BASE que se usa para validar el apuntado.
+    cadencia: {
+      enabled: true,
+
+      // Pausa (ms) sin disparar que hace falta para que el multiplicador
+      // vuelva a 1 (distancias en su valor original).
+      restMs: 6000,
+
+      // Multiplicador EXTRA (encima de 1) en el peor caso, cuando el
+      // tiempo desde el último disparo es ~0 (se vuelve a disparar casi
+      // inmediatamente). Con el valor por defecto (1) el multiplicador
+      // total va de 2× (recién disparado) a 1× (tras restMs de pausa) —
+      // ajustar a mano junto con el resto de las amplitudes si se siente
+      // poco o demasiado intenso.
+      maxExtraMultiplier: 1
     },
 
     // -------------------------------------------------------------------
@@ -1638,6 +1693,21 @@
     return Math.max(0, fatigueLevel - steps);
   }
 
+  // v1.0: multiplicador de cadencia de disparo (ver CONFIG.cadencia). 1 =
+  // sin efecto (distancias originales); crece de forma continua hacia
+  // 1 + maxExtraMultiplier a medida que el tiempo transcurrido desde el
+  // último disparo (lastShotAt) se acerca a 0, y vuelve a 1 apenas pasan
+  // CONFIG.cadencia.restMs sin disparar. No usa `fatigueLevel` ni sus
+  // pasos de descanso — es un cálculo de tiempo puro, independiente del
+  // sistema de niveles de `fatigue`.
+  function cadenciaMultiplier(now) {
+    if (!CONFIG.cadencia.enabled || !lastShotAt) return 1;
+    var gap = now - lastShotAt;
+    if (gap >= CONFIG.cadencia.restMs) return 1;
+    var intensity = 1 - (gap / CONFIG.cadencia.restMs); // 1 en gap≈0 → 0 en gap≥restMs
+    return 1 + intensity * CONFIG.cadencia.maxExtraMultiplier;
+  }
+
   function startAimTremor() {
     if (!aimTremorActive()) return;
     if (aimTremorRAF) cancelAnimationFrame(aimTremorRAF);
@@ -1669,6 +1739,12 @@
     var pulseX = 0;
     var pulseY = 0;
 
+    // v1.0: multiplicador de cadencia (ver CONFIG.cadencia), calculado
+    // una sola vez por frame y reutilizado por los tres temblores de
+    // abajo — 1 si pasaron CONFIG.cadencia.restMs o más desde el último
+    // disparo (distancias originales, sin efecto).
+    var cadMult = cadenciaMultiplier(now);
+
     // --- Latido (v0.4) ---------------------------------------------
     if (CONFIG.heartbeat.enabled) {
       // Si el puntero real no se movió en los últimos stillnessMs, el
@@ -1694,8 +1770,8 @@
       var hz = bpm / 60;
       heartbeatPhase += 2 * Math.PI * hz * (dt / 1000);
 
-      var amplitude = CONFIG.heartbeat.restAmplitudePx +
-        (CONFIG.heartbeat.maxAmplitudePx - CONFIG.heartbeat.restAmplitudePx) * heartbeatIntensity;
+      var amplitude = (CONFIG.heartbeat.restAmplitudePx +
+        (CONFIG.heartbeat.maxAmplitudePx - CONFIG.heartbeat.restAmplitudePx) * heartbeatIntensity) * cadMult;
 
       // Forma "lub-dub": dos lóbulos por ciclo (el segundo más chico y
       // desfasado), para que se sienta más a un latido real que a un seno
@@ -1704,9 +1780,10 @@
       var pulse = wave * amplitude;
 
       // Temblor errático: ruido aleatorio que solo se nota con intensidad
-      // alta (movimiento brusco reciente).
-      var jitterX = (Math.random() * 2 - 1) * CONFIG.heartbeat.jitterPx * heartbeatIntensity;
-      var jitterY = (Math.random() * 2 - 1) * CONFIG.heartbeat.jitterPx * heartbeatIntensity;
+      // alta (movimiento brusco reciente). También escalado por cadMult,
+      // igual que el pulso principal (ver CONFIG.cadencia).
+      var jitterX = (Math.random() * 2 - 1) * CONFIG.heartbeat.jitterPx * heartbeatIntensity * cadMult;
+      var jitterY = (Math.random() * 2 - 1) * CONFIG.heartbeat.jitterPx * heartbeatIntensity * cadMult;
 
       // El pulso principal se siente sobre todo en el eje vertical (como
       // un latido real), con una fracción menor en horizontal, más el
@@ -1720,13 +1797,13 @@
       var level = currentFatigueLevel(now);
       if (level > 0) {
         fatiguePhase += 2 * Math.PI * CONFIG.fatigue.shakeHz * (dt / 1000);
-        var fatigueAmplitude = level * CONFIG.fatigue.amplitudePerLevelPx;
+        var fatigueAmplitude = level * CONFIG.fatigue.amplitudePerLevelPx * cadMult;
         // Sacudida más errática que el latido: dos frecuencias no
         // múltiplo exacto entre sí, para que no se sienta como un simple
         // vaivén regular.
         var fatigueWave = Math.sin(fatiguePhase) + 0.5 * Math.sin(1.7 * fatiguePhase + 1.1);
-        var fatigueJitterX = (Math.random() * 2 - 1) * level * CONFIG.fatigue.jitterPerLevelPx;
-        var fatigueJitterY = (Math.random() * 2 - 1) * level * CONFIG.fatigue.jitterPerLevelPx;
+        var fatigueJitterX = (Math.random() * 2 - 1) * level * CONFIG.fatigue.jitterPerLevelPx * cadMult;
+        var fatigueJitterY = (Math.random() * 2 - 1) * level * CONFIG.fatigue.jitterPerLevelPx * cadMult;
         pulseX += fatigueWave * fatigueAmplitude + fatigueJitterX;
         pulseY += fatigueWave * fatigueAmplitude * 0.8 + fatigueJitterY;
       }
@@ -1737,10 +1814,12 @@
       // Reutiliza el mismo nivel de cansancio que ya calcula `fatigue`
       // (decaído en vivo por currentFatigueLevel) para agrandar el 8 — sin
       // cansancio acumulado (nivel 0, o fatigue.enabled=false) queda fijo
-      // en baseRadiusPx.
+      // en baseRadiusPx. v1.0: ese radio se escala además por cadMult
+      // (CONFIG.cadencia) — recién disparado, el mismo nivel de cansancio
+      // produce un 8 más grande que tras varios segundos de pausa.
       var vaivenLevel = currentFatigueLevel(now);
-      var vaivenRadius = CONFIG.vaiven.baseRadiusPx +
-        vaivenLevel * CONFIG.vaiven.radiusPerFatigueLevelPx;
+      var vaivenRadius = (CONFIG.vaiven.baseRadiusPx +
+        vaivenLevel * CONFIG.vaiven.radiusPerFatigueLevelPx) * cadMult;
       lastVaivenRadiusPx = vaivenRadius;
 
       vaivenPhase += 2 * Math.PI * CONFIG.vaiven.hz * (dt / 1000);
@@ -1839,13 +1918,18 @@
       var preview = computeScore(miraCenterX + calibOffsetX, miraCenterY + calibOffsetY);
       var fatigueNow = fatigueActiveNow() ? currentFatigueLevel(now) : 0;
       var calibMagnitude = Math.sqrt(calibOffsetX * calibOffsetX + calibOffsetY * calibOffsetY);
+      // v1.0: multiplicador de cadencia actual (ver CONFIG.cadencia),
+      // mostrado como % extra sobre las distancias originales — 0% si
+      // pasaron CONFIG.cadencia.restMs o más desde el último disparo.
+      var cadenciaExtraPct = Math.round((cadenciaMultiplier(now) - 1) * 100);
       setDebug(
         'estado: aiming — dx:' + Math.round(dx) + ' dy:' + Math.round(dy) +
         ' — puntería actual: ' + (preview != null ? preview : 'miss') +
         ' — pulso: ' + Math.round(heartbeatIntensity * 100) + '%' +
         ' — cansancio: ' + fatigueNow + '/' + CONFIG.fatigue.maxLevel +
         ' — vaivén: ' + Math.round(lastVaivenRadiusPx) + 'px' +
-        ' — calibración: ' + Math.round(calibMagnitude) + 'px de error'
+        ' — calibración: ' + Math.round(calibMagnitude) + 'px de error' +
+        ' — cadencia: +' + cadenciaExtraPct + '%'
       );
     }
   }
