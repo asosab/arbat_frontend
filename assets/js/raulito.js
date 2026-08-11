@@ -357,6 +357,38 @@
     // Cuánto se queda visible el globo de diálogo con el resultado.
     bubbleDisplayMs: 2200,
 
+    // v1.4 — punto real de la cara/cabeza de cada pose, medido a mano
+    // sobre los PNG (mismo criterio que characterAnchorXRatio/
+    // characterWaistRatio), usado por positionBubble() para apuntar el
+    // globo correctamente. Antes positionBubble() usaba el borde del
+    // RECTÁNGULO COMPLETO de la imagen (charEl.getBoundingClientRect()),
+    // que en aim/fire incluye el brazo+arco extendidos —mucho más ancho
+    // que la cabeza real— y en cualquier pose incluye aire por encima de
+    // la cabeza; por eso el globo quedaba desfasado.
+    //   x: fracción del ancho renderizado (desde la izquierda) hasta el
+    //      centro de la cara.
+    //   y: fracción de la altura renderizada (desde arriba) hasta esa
+    //      misma altura.
+    // pose01/pose02 comparten valor (de espaldas, sin cara visible: se
+    // usa el nivel del sombrero/nuca en su lugar); pose03/pose04
+    // comparten el suyo (de frente, nivel de los ojos).
+    characterFaceAnchor: {
+      x: { idle: 0.47, aim: 0.57, fire: 0.57, fail: 0.47 },
+      y: { idle: 0.13, aim: 0.26, fire: 0.26, fail: 0.13 }
+    },
+    // Separación vertical entre el globo y la cara/cabeza.
+    bubbleGapPx: 14,
+    // Corrimiento extra del CUERPO del globo hacia la izquierda del punto
+    // exacto de la cara (la colita se queda apuntando al punto real; el
+    // globo en sí queda un poco más a la izquierda y arriba, como en una
+    // historieta). Subir este valor para correrlo más a la izquierda.
+    bubbleLeftShiftPx: 24,
+    // Debe coincidir con la colita del globo (::after en
+    // ensureBubbleStyles: "right:28px;width:14px" -> el centro de la
+    // colita queda a 28+14/2=35px del borde derecho del globo). Si se
+    // cambia esa regla CSS, actualizar este número junto con ella.
+    bubbleTailOffsetPx: 35,
+
     // Delay entre el momento del disparo (pose02 + disparo.mp3) y el
     // impacto (golpe.mp3 + la flecha clavándose en pantalla + el cálculo
     // de puntaje/globo de diálogo). Valor inicial estimado — pensado para
@@ -1132,17 +1164,30 @@
     document.head.appendChild(style);
   }
 
-  // Posiciona el globo pegado arriba de Raulito, con la colita apuntando
-  // hacia su cabeza. Reutiliza charEl.getBoundingClientRect(), así que
-  // sigue funcionando aunque cambie el tamaño/posición del personaje.
+  // Posiciona el globo apuntando a la cara/cabeza real de Raulito (ver
+  // CONFIG.characterFaceAnchor), no al borde del rectángulo completo de
+  // la imagen. Reutiliza charEl.getBoundingClientRect(), así que sigue
+  // funcionando aunque cambie el tamaño/posición/pose del personaje.
   function positionBubble() {
     if (!charEl || !bubbleEl) return;
     var rect = charEl.getBoundingClientRect();
-    var gap = 14;
+
+    var anchorX = CONFIG.characterFaceAnchor.x[currentCharPoseKey];
+    var anchorY = CONFIG.characterFaceAnchor.y[currentCharPoseKey];
+    if (typeof anchorX !== 'number') anchorX = 0.5;
+    if (typeof anchorY !== 'number') anchorY = 0.15;
+    var faceX = rect.left + rect.width * anchorX;
+    var faceY = rect.top + rect.height * anchorY;
+
+    // La colita (CONFIG.bubbleTailOffsetPx) queda apuntando a faceX; el
+    // globo entero se corre CONFIG.bubbleLeftShiftPx más a la izquierda
+    // de eso, como se pidió ("sobre el rostro, un poco a la izquierda").
+    var tailTargetX = faceX - CONFIG.bubbleLeftShiftPx;
+
     bubbleEl.style.left = 'auto';
     bubbleEl.style.top = 'auto';
-    bubbleEl.style.right = Math.max(8, window.innerWidth - rect.right + 10) + 'px';
-    bubbleEl.style.bottom = (window.innerHeight - rect.top + gap) + 'px';
+    bubbleEl.style.right = Math.max(8, window.innerWidth - tailTargetX - CONFIG.bubbleTailOffsetPx) + 'px';
+    bubbleEl.style.bottom = (window.innerHeight - faceY + CONFIG.bubbleGapPx) + 'px';
   }
 
   // Función genérica de globo de texto — pensada para reusarse más
