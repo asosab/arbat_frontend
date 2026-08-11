@@ -1554,8 +1554,22 @@
       zIndex: '9999',
       touchAction: 'none',
       userSelect: 'none',
+      webkitUserSelect: 'none',
+      // El toque largo es la mecánica central del juego (ver onPointerDown
+      // más abajo), así que hay que evitar que el navegador lo intercepte
+      // con SU PROPIO menú antes de que le llegue a nuestro handler:
+      //  - iOS Safari muestra un "callout" (Copiar/Guardar imagen) al
+      //    mantener presionada una <img>; ni touch-action ni user-select lo
+      //    tapan, hace falta esta propiedad no estándar de WebKit.
+      //  - Android/Chrome no tiene callout, pero al soltar un long-press
+      //    dispara un evento 'contextmenu' sintético; eso no se previene
+      //    con CSS, hace falta el listener de abajo.
+      webkitTouchCallout: 'none',
       cursor: 'pointer',
       display: 'none'
+    });
+    charEl.addEventListener('contextmenu', function (e) {
+      e.preventDefault();
     });
     charEl.addEventListener('load', function () {
       fitLongSide(charEl, characterTargetPx(currentCharPoseKey));
