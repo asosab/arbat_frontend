@@ -458,6 +458,37 @@
     },
 
     // -------------------------------------------------------------------
+    // Puntaje total de la andanada (v1.5). Al completarse cada tanda de
+    // CONFIG.arrowLimit.countBeforeCooldown flechas, además del globo de
+    // puntaje de cada flecha individual (SCORE_PHRASES), se narra la
+    // SUMA de esa tanda con un globo propio (ver narrateAndanadaTotal(),
+    // llamado desde el mismo lugar que startArrowCooldown()). Ese globo
+    // se muestra recién después de que se apaga el de la última flecha
+    // (mismo delay que ya usa recalibrateMira() para no pisarlo:
+    // CONFIG.bubbleDisplayMs) — y el de recalibración, a su vez, se corrió
+    // otro tanto para no pisar a este (ver el *2 en recalibrateMira()).
+    andanada: {
+      // Umbral (inclusive) de puntos totales de la tanda a partir del cual
+      // Raúl vuelve a pose03 (idle) como pose de reposo entre disparos;
+      // por debajo de este umbral, en cambio, la pose de reposo pasa a
+      // ser pose04 (fail) hasta que se complete la próxima tanda — ver
+      // defaultIdlePoseKey. Pedido original: "por debajo de 35" -> pose04,
+      // "36 o más" -> pose03; el valor 35 en sí no se especificó, así que
+      // se resuelve igual que el resto de los valores por debajo de 36
+      // (pose04), para no dejar un puntaje sin regla. Ajustar acá si se
+      // quiere mover el corte.
+      lowScorePoseThreshold: 36,
+      // Plantilla del globo con la suma de la tanda. "{puntos}" se
+      // reemplaza por el total (0..puntaje máximo posible de la tanda).
+      message: 'Hiciste {puntos} puntos',
+      // Plantilla especial cuando la tanda entera dio el puntaje máximo
+      // posible (CONFIG.arrowLimit.countBeforeCooldown flechas, cada una
+      // en el aro de mayor valor de CONFIG.rings — con los valores por
+      // defecto, 6 × 10 = 60).
+      perfectMessage: '¡Fantástico! ¡Lograste {puntos} puntos!'
+    },
+
+    // -------------------------------------------------------------------
     // Blanco / puntería. El logo real de arbat (esquina superior izquierda
     // de la página) sirve de diana. El juego usa su posición y tamaño
     // reales (getBoundingClientRect) para calcular los aros — nunca lo
@@ -676,6 +707,21 @@
   var arrowsInBatch = 0;    // flechas clavadas desde el último cooldown
   var cooldownUntil = 0;    // performance.now() hasta el que hay que esperar; 0 = sin cooldown
   var fadeTimer = null;     // dispara el desvanecimiento de la tanda actual
+
+  // -------------------------------------------------------------------
+  // Puntaje total de la andanada (v1.5) — ver CONFIG.andanada.
+  // -------------------------------------------------------------------
+  var batchScoreSum = 0;        // suma de puntos de la tanda en curso (miss cuenta 0); se reinicia junto con arrowsInBatch
+  var andanadaBubbleTimer = null; // delay del globo con la suma de la tanda, tras el de la última flecha
+  // Pose a la que Raúl vuelve entre disparos cuando no hay nada más
+  // puntual que mostrar (fuego/apuntado/fallo de ESE tiro/agotamiento).
+  // Arranca en 'idle' (pose03) y narrateAndanadaTotal() la actualiza al
+  // completar cada tanda de seis flechas según CONFIG.andanada
+  // .lowScorePoseThreshold. A propósito NO se reinicia en resetArrows()
+  // ni en hideCharacter() — es "cómo quedó Raúl" tras la última tanda
+  // jugada, no algo que dependa de las flechas que estén dibujadas en
+  // pantalla en este momento.
+  var defaultIdlePoseKey = 'idle';
 
   // -------------------------------------------------------------------
   // Mira sin calibrar (v0.8) — ver CONFIG.calibracion. Desvío (px) entre
@@ -1133,11 +1179,62 @@
     // a que "desaparezcan" flechas que este reset ya borró.
     if (fadeTimer) { clearTimeout(fadeTimer); fadeTimer = null; }
     arrowsInBatch = 0;
+    batchScoreSum = 0; // v1.5: la tanda en curso queda incompleta, no se narra su suma
     cooldownUntil = 0;
     // Deliberadamente NO toca fatigueLevel/lateShotStreak/sessionArrowLog
-    // (v0.5) ni calibOffsetX/Y (v0.8): esto sólo limpia las flechas
-    // clavadas en pantalla, no "descansa" el brazo de Raúl, no borra el
-    // historial de la sesión, ni recalibra la mira.
+    // (v0.5), calibOffsetX/Y (v0.8) ni defaultIdlePoseKey (v1.5): esto
+    // sólo limpia las flechas clavadas en pantalla, no "descansa" el
+    // brazo de Raúl, no borra el historial de la sesión, no recalibra la
+    // mira, ni cambia cómo quedó Raúl tras la última tanda completa.
+  }
+
+  // ---------------------------------------------------------------------
+  // Puntaje total de la andanada (v1.5) — ver CONFIG.andanada.
+  // ---------------------------------------------------------------------
+  // Puntos del aro de mayor valor de CONFIG.rings (10 con los valores por
+  // defecto). Se calcula en vez de hardcodearlo para que
+  // maxAndanadaScore() siga siendo correcto si se editan los aros.
+  function maxSingleArrowScore() {
+    var max = 0;
+    for (var i = 0; i < CONFIG.rings.length; i++) {
+      if (CONFIG.rings[i].points > max) max = CONFIG.rings[i].points;
+    }
+    return max;
+  }
+
+  // Puntaje máximo posible de una tanda completa (60 con los valores por
+  // defecto: 6 flechas × 10 puntos).
+  function maxAndanadaScore() {
+    return CONFIG.arrowLimit.countBeforeCooldown * maxSingleArrowScore();
+  }
+
+  // Se llama al completar cada tanda de CONFIG.arrowLimit.countBeforeCooldown
+  // flechas (mismo momento que startArrowCooldown(), ver el hitTimer en
+  // resolve()), ya con `total` = suma de puntos de esa tanda (batchScoreSum,
+  // miss cuenta 0). Dos efectos:
+  //   1) Actualiza defaultIdlePoseKey según CONFIG.andanada
+  //      .lowScorePoseThreshold — esto es inmediato (no depende del
+  //      timer de abajo), así que la próxima vez que el personaje vuelva
+  //      a su pose de reposo (resolveTimer, más abajo) ya refleja el
+  //      resultado de esta tanda.
+  //   2) Agenda el globo con el texto de la suma, con el mismo delay que
+  //      usa recalibrateMira() para su mensaje (CONFIG.bubbleDisplayMs),
+  //      de modo que aparezca justo cuando se apaga el globo de puntaje
+  //      de la última flecha de la tanda. recalibrateMira() por su parte
+  //      corre su propio mensaje otro tanto (ver el *2 ahí) para no
+  //      pisar a este.
+  function narrateAndanadaTotal(total) {
+    defaultIdlePoseKey = (total >= CONFIG.andanada.lowScorePoseThreshold) ? 'idle' : 'fail';
+
+    var isPerfect = total >= maxAndanadaScore();
+    var template = isPerfect ? CONFIG.andanada.perfectMessage : CONFIG.andanada.message;
+    var bubbleText = template.replace('{puntos}', total);
+
+    if (andanadaBubbleTimer) clearTimeout(andanadaBubbleTimer);
+    andanadaBubbleTimer = setTimeout(function () {
+      andanadaBubbleTimer = null;
+      showSpeechBubble(bubbleText);
+    }, CONFIG.bubbleDisplayMs);
   }
 
   // ---------------------------------------------------------------------
@@ -1222,10 +1319,16 @@
     calibOffsetY *= (1 - CONFIG.calibracion.correctionRatio);
 
     if (calibrationBubbleTimer) clearTimeout(calibrationBubbleTimer);
+    // v1.5: antes este mensaje aparecía a los CONFIG.bubbleDisplayMs de
+    // completarse la tanda (justo cuando se apaga el globo de puntaje de
+    // la última flecha). Ahora, en ese mismo instante, aparece primero el
+    // globo con la suma de la tanda (ver narrateAndanadaTotal()) — este
+    // mensaje se corre un CONFIG.bubbleDisplayMs más (el *2) para
+    // aparecer recién cuando ESE globo se apaga, y no pisarlo.
     calibrationBubbleTimer = setTimeout(function () {
       calibrationBubbleTimer = null;
       showSpeechBubble(CONFIG.calibracion.message);
-    }, CONFIG.bubbleDisplayMs);
+    }, CONFIG.bubbleDisplayMs * 2);
   }
 
   // ---------------------------------------------------------------------
@@ -1494,7 +1597,10 @@
     state = 'idle';
     charEl.style.display = 'block';
     updateTargetVisibility();
-    showPose('idle');
+    // v1.5: respeta defaultIdlePoseKey (pose03/pose04 según la última
+    // andanada jugada) en vez de forzar siempre pose03 — ver la
+    // declaración de defaultIdlePoseKey.
+    showPose(defaultIdlePoseKey);
     setDebug(idleDebugMessage());
   }
 
@@ -1506,6 +1612,7 @@
     stopAimTremor();
     if (fadeTimer) { clearTimeout(fadeTimer); fadeTimer = null; }
     arrowsInBatch = 0;
+    batchScoreSum = 0; // v1.5: la tanda en curso queda incompleta, no se narra su suma
     cooldownUntil = 0;
     // v1.0: si había un pedido de apuntado en cola (ver pendingAimRequest
     // en onPointerDown), se descarta al ocultar — no tendría sentido
@@ -1636,7 +1743,7 @@
     charEl.removeEventListener('pointerup', onPointerUpDuringPending);
     if (state !== 'hidden') {
       state = 'idle';
-      showPose('idle');
+      showPose(defaultIdlePoseKey); // v1.5: ver defaultIdlePoseKey
       if (miraEl) miraEl.style.display = 'none';
       setDebug(idleDebugMessage());
     }
@@ -2050,18 +2157,24 @@
         // Límite de flechas (v0.4): esta flecha recién clavada cuenta para
         // la tanda actual. Al completar CONFIG.arrowLimit.countBeforeCooldown,
         // arranca el cooldown y se reinicia el conteo para la próxima tanda.
+        // v1.5: batchScoreSum acompaña a arrowsInBatch flecha a flecha (un
+        // miss suma 0) y se narra/reinicia en el mismo momento.
         arrowsInBatch++;
+        batchScoreSum += (score != null ? score : 0);
         if (arrowsInBatch >= CONFIG.arrowLimit.countBeforeCooldown) {
           startArrowCooldown();
+          narrateAndanadaTotal(batchScoreSum);
           arrowsInBatch = 0;
+          batchScoreSum = 0;
         }
       }, CONFIG.hitDelayMs);
     } else if (outcome === 'wisdom') {
       // Zona de "sabiduría" (CONFIG.wisdomZone): NO es un fallo — Raúl
-      // elige conscientemente no disparar, así que vuelve derecho a
-      // pose03 (idle), nunca a pose04 (fail/MISS).
+      // elige conscientemente no disparar, así que vuelve derecho a su
+      // pose de reposo (idle/pose03 salvo que la última andanada haya
+      // sido floja — ver defaultIdlePoseKey), nunca a pose04 por MISS.
       miraEl.style.display = 'none';
-      showPose('idle');
+      showPose(defaultIdlePoseKey); // v1.5: ver defaultIdlePoseKey
       showSpeechBubble(failBubbleText || WISDOM_TEXT);
       setDebug('estado: resolved (wisdom) — ' + reasonLabel + ' — ' + WISDOM_TEXT);
     } else {
@@ -2112,7 +2225,7 @@
       }
 
       state = 'idle';
-      showPose('idle');
+      showPose(defaultIdlePoseKey); // v1.5: ver defaultIdlePoseKey
       setDebug(idleDebugMessage());
     }, CONFIG.resolveDisplayMs);
   }
