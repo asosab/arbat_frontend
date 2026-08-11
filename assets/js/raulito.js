@@ -224,23 +224,9 @@
  *     de pantalla ni centrado — es relativo al propio ancho del
  *     personaje, así que el corrimiento en píxeles varía con el tamaño
  *     con el que se está renderizando en cada momento (pantalla, pose).
- * v1.3 — agrega:
- *   - Corrige el posicionamiento horizontal: `characterLeftShiftRatio`
- *     (v1.2) centraba el corrimiento sobre el ANCHO TOTAL de cada imagen,
- *     asumiendo que el torso cae siempre en el medio de ese ancho. Eso es
- *     cierto para pose03/pose04 (personaje centrado, sin arco) pero no
- *     para pose01/pose02 (848×1264: el arco extendido ocupa buena parte
- *     del lado izquierdo), así que aim/fire quedaban corridos varios
- *     píxeles hacia la izquierda respecto de idle/fail.
- *   - Se reemplaza por `CONFIG.characterAnchorXRatio` (por pose, medido a
- *     mano sobre los PNG reales igual que `characterWaistRatio`: 0.57
- *     para pose01/pose02, que comparten valor; 0.48 para pose03/pose04,
- *     que comparten el suyo) + `CONFIG.characterAnchorRightPercent` (un
- *     único valor que fija a qué distancia del borde derecho de pantalla
- *     debe quedar ESE punto, igual para las 4 poses). `positionCharacter()`
- *     ahora calcula `right` a partir del torso, no del rectángulo de la
- *     imagen — dos números para calibrar en vez de tener que razonar
- *     sobre el ancho renderizado de cada pose por separado.
+ * Minijuego de puntería con toque largo. Documentación completa del
+ * comportamiento (mecánica, CONFIG, handicaps de puntería, API pública,
+ * supuestos pendientes de confirmar) en raulito.md, en la misma carpeta.
  *
  * No requiere frameworks. Pensado para incluirse con:
  *   <script src="/assets/js/raulito.js" defer></script>
@@ -785,6 +771,22 @@
     characterAnchorRightPercent: 0.15,
     miraMarginPx: 16,
 
+    // -------------------------------------------------------------------
+    // Zona de "sabiduría": si al apuntar la mira cae en el cuarto inferior
+    // del DOCUMENTO completo (no solo el viewport visible — el blanco real
+    // vive arriba de la página, así que buena parte de "abajo" puede no
+    // entrar en pantalla sin hacer scroll), Raúl decide directamente no
+    // disparar. A diferencia de las otras reglas de validez (mitad de
+    // pantalla), esto NO es un fallo: no pasa por pose04/MISS, vuelve
+    // derecho a pose03 con un mensaje propio (ver WISDOM_TEXT y la regla
+    // en onPointerMoveWhileAiming).
+    wisdomZone: {
+      // Fracción (0..1) del alto total del documento que cuenta como
+      // "cuarto inferior", medida desde abajo. 0.25 = el 25% más bajo de
+      // toda la página.
+      bottomFraction: 0.25
+    },
+
     // Panel de depuración visible mientras se prueba el prototipo. Poner en
     // false (o borrar el bloque marcado como DEBUG) para producción.
     debug: false
@@ -807,6 +809,11 @@
   // genérico solo en ese caso puntual — ver la regla de validez en
   // onPointerMoveWhileAiming.
   var FAR_AIM_TEXT = 'No se debe apuntar tan lejos de la diana';
+  // Mensaje para la zona de "sabiduría" (CONFIG.wisdomZone): apuntar al
+  // cuarto inferior del documento no cuenta como fallo, así que NO usa
+  // MISS_TEXT — Raúl elige conscientemente no disparar.
+  var WISDOM_TEXT = 'Es sabio saber cuándo no disparar';
+
 
   // ---------------------------------------------------------------------
   // Estado interno
@@ -1001,6 +1008,26 @@
   // ---------------------------------------------------------------------
   function screenLongSide() {
     return Math.max(window.innerWidth, window.innerHeight);
+  }
+
+  // Alto total del DOCUMENTO completo (toda la página, incluido lo que no
+  // entra en el viewport sin hacer scroll) — a diferencia de innerHeight
+  // (usado en screenLongSide y en las reglas de mitad de PANTALLA), esto es
+  // lo que hace falta para la zona de "sabiduría" (CONFIG.wisdomZone): el
+  // cuarto inferior de toda la página, no solo de lo que se ve ahora mismo.
+  function documentHeight() {
+    return Math.max(
+      document.documentElement.scrollHeight,
+      document.documentElement.offsetHeight,
+      document.body ? document.body.scrollHeight : 0,
+      document.body ? document.body.offsetHeight : 0
+    );
+  }
+
+  // Desplazamiento vertical actual de la página (scroll), con fallback para
+  // navegadores viejos que no soportan window.scrollY.
+  function currentScrollY() {
+    return window.scrollY || document.documentElement.scrollTop || 0;
   }
 
   // Ajusta un elemento para que su lado más largo mida targetPx, a partir
@@ -2150,6 +2177,20 @@
       return;
     }
 
+    // Zona de "sabiduría" (CONFIG.wisdomZone): si la mira cae en el cuarto
+    // inferior del DOCUMENTO completo (no solo del viewport visible — hay
+    // que sumar el scroll actual para pasar de coordenadas de pantalla a
+    // coordenadas de página), Raúl decide no disparar. A diferencia de la
+    // regla de arriba, esto NO es un fallo: resolve('wisdom', ...) vuelve
+    // derecho a pose03 en vez de pose04/MISS (ver la rama 'wisdom' dentro
+    // de resolve()).
+    var miraPageY = miraCenterY + currentScrollY();
+    var wisdomThresholdY = documentHeight() * (1 - CONFIG.wisdomZone.bottomFraction);
+    if (miraPageY >= wisdomThresholdY) {
+      resolve('wisdom', 'la mira apuntó al cuarto inferior del documento');
+      return;
+    }
+
     if (CONFIG.debug) {
       // v0.8: el preview de puntería en debug también aplica el desvío de
       // calibración, para poder ver en vivo el puntaje REAL esperado (no
@@ -2257,6 +2298,14 @@
           arrowsInBatch = 0;
         }
       }, CONFIG.hitDelayMs);
+    } else if (outcome === 'wisdom') {
+      // Zona de "sabiduría" (CONFIG.wisdomZone): NO es un fallo — Raúl
+      // elige conscientemente no disparar, así que vuelve derecho a
+      // pose03 (idle), nunca a pose04 (fail/MISS).
+      miraEl.style.display = 'none';
+      showPose('idle');
+      showSpeechBubble(failBubbleText || WISDOM_TEXT);
+      setDebug('estado: resolved (wisdom) — ' + reasonLabel + ' — ' + WISDOM_TEXT);
     } else {
       miraEl.style.display = 'none';
       showPose('fail');
