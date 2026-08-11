@@ -114,9 +114,10 @@
  *     reales de arbat_frontend) en vez de quedar en `null`. El juego NUNCA
  *     muestra, oculta, mueve ni redimensiona ese elemento — sólo LEE su
  *     posición y tamaño (getBoundingClientRect) para calcular aros y
- *     anclar flechas; la única tecla que controla algo visualmente es
- *     `testTriggerKey` ('r'), y sólo afecta a Raulito (el personaje),
- *     nunca al logo, que es contenido de la página fuera de su control.
+ *     anclar flechas; el único gesto que controla algo visualmente es
+ *     el triple click de prueba (`CONFIG.testTrigger`), y sólo afecta a
+ *     Raulito (el personaje), nunca al logo, que es contenido de la
+ *     página fuera de su control.
  *   - Anclaje de las flechas clavadas al blanco real (`stickArrowAt` +
  *     `repositionStuckArrows`, disparado en scroll/resize vía
  *     `bindArrowRepositioning`): antes, cada flecha guardaba solo su
@@ -618,9 +619,12 @@
       { points: 5,  outerPercent: 1.05 }  // espacio blanco externo (supuesto)
     ],
 
-    // Tecla de prueba para invocar/ocultar a Raulito. Cambiar si genera
-    // conflicto con otros atajos del sitio.
-    testTriggerKey: 'r',
+    // Triple click de prueba para invocar/ocultar a Raulito. Cambiar
+    // clicksToTrigger o windowMs si genera falsos positivos/negativos.
+    testTrigger: {
+      clicksToTrigger: 3,
+      windowMs: 500
+    },
 
     characterMarginPx: 16,
     miraMarginPx: 16,
@@ -2072,21 +2076,42 @@
   }
 
   // ---------------------------------------------------------------------
-  // Atajo de teclado (solo para esta fase de prueba)
+  // Atajo de triple click (solo para esta fase de prueba)
   // ---------------------------------------------------------------------
-  function onKeyDown(e) {
-    var target = e.target;
-    var isTyping = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
-    if (isTyping) return;
-    if (e.key.toLowerCase() !== CONFIG.testTriggerKey) return;
+  // Cuenta clicks sueltos en cualquier parte del documento; si se juntan
+  // CONFIG.testTrigger.clicksToTrigger (3 por defecto) dentro de la
+  // ventana de CONFIG.testTrigger.windowMs (500ms por defecto), dispara
+  // el mismo toggle mostrar/ocultar que antes hacía la tecla 'r'. Un click
+  // sobre el propio Raulito (charEl) también cuenta para el conteo, pero
+  // no se descarta: no interfiere con el pointerdown de apuntado, que se
+  // maneja aparte en onPointerDown.
+  var testTriggerClickCount = 0;
+  var testTriggerClickTimer = null;
+
+  function onTestTriggerClick(e) {
+    testTriggerClickCount++;
+
+    if (testTriggerClickTimer) {
+      clearTimeout(testTriggerClickTimer);
+    }
+    testTriggerClickTimer = setTimeout(function () {
+      testTriggerClickCount = 0;
+      testTriggerClickTimer = null;
+    }, CONFIG.testTrigger.windowMs);
+
+    if (testTriggerClickCount < CONFIG.testTrigger.clicksToTrigger) return;
+
+    testTriggerClickCount = 0;
+    clearTimeout(testTriggerClickTimer);
+    testTriggerClickTimer = null;
 
     if (state === 'hidden') {
       showCharacter();
     } else if (state === 'idle') {
       hideCharacter();
     }
-    // Si está en 'pending' / 'aiming' / 'resolved' se ignora la tecla para
-    // no interrumpir una prueba en curso.
+    // Si está en 'pending' / 'aiming' / 'resolved' se ignora el triple
+    // click para no interrumpir una prueba en curso.
   }
 
   // ---------------------------------------------------------------------
@@ -2097,7 +2122,7 @@
     ensureElements();
     bindArrowRepositioning();
     initCalibration(); // v0.8: sortea el desvío inicial de la mira sin calibrar
-    document.addEventListener('keydown', onKeyDown);
+    document.addEventListener('click', onTestTriggerClick);
     charEl.addEventListener('pointerdown', onPointerDown);
   }
 
