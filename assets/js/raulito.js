@@ -10,6 +10,13 @@
  * No requiere frameworks. Pensado para incluirse con:
  *   <script src="/assets/js/raulito.js" defer></script>
  * en cualquier página del sitio Jekyll (arbat_frontend).
+ *
+ * Diálogos (ver planmsj.md): los textos de los globos ya no están
+ * hardcodeados acá, se resuelven vía getDialogue() contra
+ * window.RaulitoDialogues. Por eso el archivo de datos del personaje debe
+ * incluirse ANTES que este script:
+ *   <script src="/assets/es/raulito.js" defer></script>
+ *   <script src="/assets/js/raulito.js" defer></script>
  * ---------------------------------------------------------------------------
  */
 (function () {
@@ -285,8 +292,10 @@
       // exhaustionMessage, bloqueando nuevos disparos. Sólo cuenta a
       // partir de startAfterArrow.
       exhaustionStreak: 18,
-      // Lo que dice Raúl al agotarse del todo.
-      exhaustionMessage: 'dame un descanzo, se me canzó el brazo',
+      // Lo que dice Raúl al agotarse del todo. Texto real en
+      // getDialogue('raulito', 'exhaustion') — ver enterExhaustedIdle() y
+      // onPointerDown(). Null para permitir sobreescritura puntual.
+      exhaustionMessage: null,
       // Cuánto descanso (ms sin disparar) hace falta, una vez agotado,
       // para que Raúl vuelva solo a pose03 y se pueda seguir jugando. Por
       // defecto es igual a restStartMs (el mismo umbral que empieza a
@@ -479,8 +488,11 @@
 
       // Lo que dice Raúl al recalibrar, mostrado con el mismo delay que
       // dura el globo de puntaje de la última flecha de la andanada
-      // (CONFIG.bubbleDisplayMs), para no taparlo.
-      message: 'Voy a calibrar la mira...'
+      // (CONFIG.bubbleDisplayMs), para no taparlo. Texto real en
+      // getDialogue('raulito', 'recalibrating') — ver uso en
+      // scheduleCalibrationMessage(). Se deja en null para permitir
+      // sobreescritura puntual si se necesita.
+      message: null
     },
 
     // -------------------------------------------------------------------
@@ -501,7 +513,9 @@
       // vuelve a poder disparar. Se puede fijar a mano si se prefiere un
       // desvanecimiento más rápido o más lento.
       fadeDurationMs: 5000,
-      waitMessage: 'Espera, debo ir por las flechas...'
+      // Texto real en getDialogue('raulito', 'arrow_cooldown_wait') — ver
+      // uso en onPointerDown(). Null para permitir sobreescritura puntual.
+      waitMessage: null
     },
 
     // -------------------------------------------------------------------
@@ -523,7 +537,7 @@
     // Puntaje total de la andanada (v1.5) y premio por tanda perfecta
     // (v1.6). Al completarse cada tanda de CONFIG.arrowLimit
     // .countBeforeCooldown flechas, además del globo de puntaje de cada
-    // flecha individual (SCORE_PHRASES), se narra la SUMA de esa tanda
+    // flecha individual (getDialogue('raulito', 'score_N')), se narra la SUMA de esa tanda
     // con un globo propio (ver narrateAndanadaTotal(), llamado desde el
     // mismo lugar que startArrowCooldown()) — o, si la tanda fue
     // perfecta y CONFIG.andanada.promo.enabled, el globo del premio (ver
@@ -549,14 +563,17 @@
       // reemplaza por el total (0..puntaje máximo posible de la tanda).
       // No se usa cuando la tanda es perfecta y CONFIG.andanada.promo
       // está habilitado (ver promo.bubbleHtml más abajo, que reemplaza a
-      // perfectMessage en ese caso).
-      message: 'Hiciste {puntos} puntos',
+      // perfectMessage en ese caso). Texto real en
+      // getDialogue('raulito', 'andanada_score') — ver narrateAndanadaTotal().
+      // Null para permitir sobreescritura puntual.
+      message: null,
       // Plantilla especial cuando la tanda entera dio el puntaje máximo
       // posible (CONFIG.arrowLimit.countBeforeCooldown flechas, cada una
       // en el aro de mayor valor de CONFIG.rings — con los valores por
       // defecto, 6 × 10 = 60). Sirve de respaldo si CONFIG.andanada
-      // .promo.enabled se pone en false más adelante.
-      perfectMessage: '¡Fantástico! ¡Lograste {puntos} puntos!',
+      // .promo.enabled se pone en false más adelante. Texto real en
+      // getDialogue('raulito', 'andanada_perfect').
+      perfectMessage: null,
 
       // -----------------------------------------------------------------
       // Premio por tanda perfecta (v1.6). Cuando la tanda da el puntaje
@@ -584,11 +601,10 @@
         whatsappMessage: '¡Hola arbat! acabo de lograr hacer 60 puntos en la página web y me he ganado un 2x1, aquí está mi código de premio: {hash}',
         // Texto del globo dentro del juego (HTML — ver showSpeechBubble
         // con opts.html). "{link}" se reemplaza por el link de WhatsApp ya
-        // armado (wa.me + el mensaje de arriba, URL-encodeado).
-        bubbleHtml: '¿Te gustaría disparar flechas en el mundo real? ¡Te has ganado un 2x1 en arbat! ' +
-          'Basta con que tu o tu acompañante nunca hayan venido a una clase antes para que sólo uno ' +
-          'de los dos pague la clase personalizada, haz click <a href="{link}" target="_blank" rel="noopener noreferrer">aquí</a> ' +
-          'para recibir tu premio ¡Te lo has ganado!',
+        // armado (wa.me + el mensaje de arriba, URL-encodeado). Texto real
+        // en getDialogue('raulito', 'andanada_promo_reward') — ver uso en
+        // narrateAndanadaTotal(). Null para permitir sobreescritura puntual.
+        bubbleHtml: null,
         // Bastante más que CONFIG.bubbleDisplayMs: hay mucho más texto
         // para leer y, a diferencia de los demás globos, éste tiene un
         // link que hay que llegar a tocar.
@@ -695,7 +711,7 @@
     // al suelo, en vez de hacia el blanco — Raúl decide directamente no
     // disparar. A diferencia de las otras reglas de validez (mitad de
     // pantalla), esto NO es un fallo: no pasa por pose04/MISS, vuelve
-    // derecho a pose03 con un mensaje propio (ver WISDOM_TEXT y la regla
+    // derecho a pose03 con un mensaje propio (ver clave "arm_lowered_early" y la regla
     // en onPointerMoveWhileAiming).
     wisdomZone: {
       // Fracción (0..1) del alto de la ventana visible que cuenta como
@@ -709,27 +725,56 @@
     debug: false
   };
 
-  // Frases del globo de diálogo según el puntaje. "MISS" (fuera de todos
-  // los aros, o intento inválido) no necesita entrada acá, se usa el string
-  // fijo más abajo. Agregar/editar frases acá cuando haya más variedad.
-  var SCORE_PHRASES = {
-    10: '¡Eso fue un diez!',
-    9: '¡Eso fue un nueve!',
-    8: '¡Eso fue un ocho!',
-    7: '¡Eso fue un siete!',
-    6: '¡Eso fue un seis!',
-    5: '¡Eso fue un cinco!'
-  };
-  var MISS_TEXT = 'MISS';
-  // Mensaje específico (v0.4) para cuando la MIRA cruza a la mitad derecha
-  // de la pantalla (se aleja demasiado de la diana). Reemplaza al "MISS"
-  // genérico solo en ese caso puntual — ver la regla de validez en
-  // onPointerMoveWhileAiming.
-  var FAR_AIM_TEXT = 'No se debe apuntar tan lejos de la diana';
-  // Mensaje para la zona de "sabiduría" (CONFIG.wisdomZone): apuntar al
-  // cuarto inferior del documento no cuenta como fallo, así que NO usa
-  // MISS_TEXT — Raúl elige conscientemente no disparar.
-  var WISDOM_TEXT = 'No disparar también es una forma de acertar';
+  // ---------------------------------------------------------------------
+  // Diálogos (ver planmsj.md) — ya no viven hardcodeados acá. Cada texto
+  // que antes era un string/objeto fijo ahora se resuelve por clave de
+  // evento contra los datos de personaje cargados en window.RaulitoDialogues
+  // (ver assets/es/raulito.js, que debe incluirse con un <script> ANTES que
+  // este archivo). Claves usadas por este script: arm_lowered_early,
+  // aim_too_far, miss, score_5..score_10, exhaustion, arrow_cooldown_wait,
+  // recalibrating, andanada_score, andanada_perfect, andanada_promo_reward.
+  //
+  // Adaptación respecto al ejemplo de planmsj.md: acá NO se usa
+  // `export default` (este archivo se carga como <script> clásico, sin
+  // módulos), así que assets/es/raulito.js expone los datos como
+  // `window.RaulitoDialogues.es` en vez de un export — misma forma
+  // (meta + dialogues), distinto mecanismo de exposición.
+  var dialogueLastIndex = {}; // último índice mostrado por "character:key" (no-repetición)
+
+  // Resolución de región (fallback chain, ver planmsj.md): por ahora solo
+  // existe el genérico (`region: "generic"`) — cuando existan archivos de
+  // región (raulito.scz.js, etc.) la cadena real se agrega acá.
+  function resolveLocaleData(character, locale, region) {
+    return (window.RaulitoDialogues && window.RaulitoDialogues[locale]) || null;
+  }
+
+  function pickRandom(variants, memoKey) {
+    if (!variants || variants.length === 0) return null;
+    if (variants.length === 1) return variants[0];
+
+    var lastIndex = dialogueLastIndex[memoKey];
+    var index;
+    do {
+      index = Math.floor(Math.random() * variants.length);
+    } while (index === lastIndex);
+
+    dialogueLastIndex[memoKey] = index;
+    return variants[index];
+  }
+
+  // Función de acceso única a los diálogos de un personaje (ver
+  // planmsj.md). `character` ya trae su tono fijo definido en su propio
+  // archivo de datos (acá siempre "raulito", zen).
+  function getDialogue(character, key, opts) {
+    opts = opts || {};
+    var locale = opts.locale || 'es';
+    var region = opts.region || null;
+
+    var data = resolveLocaleData(character, locale, region);
+    if (!data || !data.dialogues) return null;
+
+    return pickRandom(data.dialogues[key], character + ':' + key);
+  }
 
 
   // ---------------------------------------------------------------------
@@ -1376,10 +1421,13 @@
 
       if (showPromo) {
         displayMs = CONFIG.andanada.promo.displayMs;
-        var html = CONFIG.andanada.promo.bubbleHtml.replace('{link}', buildWhatsAppLink());
+        var htmlTemplate = CONFIG.andanada.promo.bubbleHtml || getDialogue('raulito', 'andanada_promo_reward');
+        var html = htmlTemplate.replace('{link}', buildWhatsAppLink());
         showSpeechBubble(html, displayMs, { html: true, promo: true });
       } else {
-        var template = isPerfect ? CONFIG.andanada.perfectMessage : CONFIG.andanada.message;
+        var template = isPerfect
+          ? (CONFIG.andanada.perfectMessage || getDialogue('raulito', 'andanada_perfect'))
+          : (CONFIG.andanada.message || getDialogue('raulito', 'andanada_score'));
         showSpeechBubble(template.replace('{puntos}', total));
       }
 
@@ -1584,7 +1632,7 @@
     if (calibrationBubbleTimer) clearTimeout(calibrationBubbleTimer);
     calibrationBubbleTimer = setTimeout(function () {
       calibrationBubbleTimer = null;
-      showSpeechBubble(CONFIG.calibracion.message);
+      showSpeechBubble(CONFIG.calibracion.message || getDialogue('raulito', 'recalibrating'));
     }, afterMs);
   }
 
@@ -1651,7 +1699,7 @@
   function enterExhaustedIdle() {
     state = 'exhausted';
     showPose('fail'); // pose04
-    showSpeechBubble(CONFIG.fatigue.exhaustionMessage);
+    showSpeechBubble(CONFIG.fatigue.exhaustionMessage || getDialogue('raulito', 'exhaustion'));
     setDebug('estado: exhausted — Raúl necesita descansar el brazo…');
     scheduleExhaustionRecovery();
   }
@@ -1909,7 +1957,7 @@
     // recuerda que necesita descansar. Se revisa ANTES que 'idle' porque
     // 'exhausted' es un estado propio, distinto de 'idle'.
     if (state === 'exhausted') {
-      showSpeechBubble(CONFIG.fatigue.exhaustionMessage);
+      showSpeechBubble(CONFIG.fatigue.exhaustionMessage || getDialogue('raulito', 'exhaustion'));
       setDebug('estado: exhausted — Raúl necesita descansar el brazo…');
       return;
     }
@@ -1936,7 +1984,7 @@
     // en cola: no tendría sentido que un click salteara el cooldown del
     // carcaj.
     if (cooldownUntil && performance.now() < cooldownUntil) {
-      showSpeechBubble(CONFIG.arrowLimit.waitMessage);
+      showSpeechBubble(CONFIG.arrowLimit.waitMessage || getDialogue('raulito', 'arrow_cooldown_wait'));
       setDebug(idleDebugMessage());
       return;
     }
@@ -2347,7 +2395,7 @@
     if (miraCenterX >= window.innerWidth / 2) {
       // v0.4: mensaje específico ("no apuntar tan lejos de la diana") en
       // vez del MISS genérico — la mira se alejó demasiado del blanco.
-      resolve('fail', 'la mira cruzó a la mitad derecha de la pantalla', FAR_AIM_TEXT);
+      resolve('fail', 'la mira cruzó a la mitad derecha de la pantalla', getDialogue('raulito', 'aim_too_far'));
       return;
     }
 
@@ -2457,7 +2505,9 @@
         stickArrowAt(impactX, impactY, score, targetRect);
         playHitSound();
         logArrowShot(score); // v0.5: registro de la sesión (ver CONFIG.arrowLog)
-        var bubbleText = (score != null) ? (SCORE_PHRASES[score] || ('¡Eso fue un ' + score + '!')) : MISS_TEXT;
+        var bubbleText = (score != null)
+          ? (getDialogue('raulito', 'score_' + score) || ('¡Eso fue un ' + score + '!'))
+          : getDialogue('raulito', 'miss');
         showSpeechBubble(bubbleText);
         setDebug(
           'estado: resolved (fire) — ' + reasonLabel + ' — ' + bubbleText +
@@ -2483,14 +2533,15 @@
       // elige conscientemente no disparar, así que vuelve derecho a su
       // pose de reposo (idle/pose03 salvo que la última andanada haya
       // sido floja — ver defaultIdlePoseKey), nunca a pose04 por MISS.
+      var wisdomText = failBubbleText || getDialogue('raulito', 'arm_lowered_early');
       miraEl.style.display = 'none';
       showPose(defaultIdlePoseKey); // v1.5: ver defaultIdlePoseKey
-      showSpeechBubble(failBubbleText || WISDOM_TEXT);
-      setDebug('estado: resolved (wisdom) — ' + reasonLabel + ' — ' + WISDOM_TEXT);
+      showSpeechBubble(wisdomText);
+      setDebug('estado: resolved (wisdom) — ' + reasonLabel + ' — ' + wisdomText);
     } else {
       miraEl.style.display = 'none';
       showPose('fail');
-      var failText = failBubbleText || MISS_TEXT;
+      var failText = failBubbleText || getDialogue('raulito', 'miss');
       showSpeechBubble(failText);
       setDebug('estado: resolved (fail) — ' + reasonLabel + ' — ' + failText);
     }
