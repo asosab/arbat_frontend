@@ -1,4 +1,5 @@
 ---
+layout: null
 ---
 /**
  * ARBAT — assets/js/agenda.js
