@@ -95,7 +95,8 @@
       // Intento de disparo durante el cooldown del carcaj
       // (CONFIG.arrowLimit).
       arrow_cooldown_wait: [
-        'Espera, debo ir por las flechas...', 'Primero tráe las flechas...'
+        'Espera, debo ir por las flechas...', 
+        '¿Te gustaría probar un arco olímpico real? <a href="https://asosab.github.io/arbat_frontend/ubicacion/" target="_blank" rel="noopener noreferrer">¡Ven!</a> '
       ],
 
       // Aviso de recalibración de la mira tras completar una andanada
