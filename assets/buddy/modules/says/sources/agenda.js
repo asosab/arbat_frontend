@@ -270,7 +270,8 @@
   }
 
   function esReserva(evento) {
-    return (evento.summary || '').trim() === 'Agenda tu entrenamiento';
+    var titulo = (evento.summary || '').trim();
+    return /^Agenda tu entrenamiento(?:\s*\([^)]*\))?$/i.test(titulo);
   }
 
   function esEventoEspecial(evento) {
