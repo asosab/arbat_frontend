@@ -1,141 +1,146 @@
 /**
- * chars/raulito/buddy_char_Raulito.js
+ * buddy_char_Raulito.js
  * ---------------------------------------------------------------------------
- * Perfil de personaje "Raulito" para el sistema Buddy (ver planBuddy.md §1.1).
- *
- * FASE: 2 (parcial). Este archivo respeta la forma acordada en el contrato
- * de datos, pero varios valores son PLACEHOLDERS marcados con TODO porque
- * el prototipo original (raulito.js) no define un personaje con este
- * vocabulario: tenía 4 "poses" funcionales (idle/aim/fire/fail) atadas al
- * minijuego, no un set de "expresiones" emocionales reutilizables +
- * "poses de módulo" separadas, como pide el nuevo sistema.
- *
- * DECISIONES ABIERTAS para confirmar con Alejandro antes de dar esto por
- * cerrado (ver también planBuddy.md §1.1 y §1.7):
- *
- *   1) `expresiones` — sereno es la única obligatoria y por ahora es la
- *      única poblada, reutilizando pose04.png (la pose "parado, en reposo"
- *      del prototipo) como base. sonriente/riendo/serio/enojado/guino/
- *      preocupado NO tienen sprite propio todavía: quedan comentados como
- *      placeholder. Mientras no existan, cualquier módulo que las pida cae
- *      en sereno automáticamente (resolverExpresion(), planBuddy.md §1.3),
- *      así que el sistema funciona igual, solo que Raulito no gesticula.
- *
- *   2) `modulos.archery` — el contrato de módulo (§1.6) solo define DOS
- *      poses de acción (personajeIdle, personajeDisparo), pero el
- *      prototipo real de Raulito tiene CUATRO poses de juego (idle/aim/
- *      fire/fail: pose03/pose01/pose02/pose04). Acá se mapean las dos que
- *      calzan sin ambigüedad:
- *        - personajeIdle     -> pose01.png (apuntando, arco tensado)
- *        - personajeDisparo  -> pose02.png (flecha liberada)
- *      Quedan SIN mapear pose03 (reposo antes de apuntar) y pose04
- *      (fallo/agotamiento) porque el contrato actual de buddy_archery.js
- *      no tiene una clave para ellas. Falta decidir si:
- *        a) se agregan claves nuevas al contrato del módulo (ej.
- *           personajeReposo, personajeFallo), o
- *        b) esos dos estados pasan a resolverse con `expresiones` en vez
- *           de con poses de módulo (ej. reposo -> sereno, fallo ->
- *           preocupado).
- *      Mientras no se resuelva, dejar pose03/pose04 fuera de este archivo
- *      (no inventar claves que buddy_archery.js todavía no declara).
- *
- *   3) `modulos.archery.sounds` — el prototipo no distingue sonido de
- *      "acierto" vs "fallo": golpe.mp3 suena en CUALQUIER impacto,
- *      acierte o no. Se mapea acá como `acierto` (mejor aproximación
- *      disponible) y se deja `fallo` sin definir (cae al default del
- *      módulo). Confirmar si arbat quiere un sonido de fallo distinto.
- *
- *   4) Todas las `anclas` (x/y relativos 0–1) y las medidas `w`/`h` de
- *      sereno están en 0 — hace falta medirlas a mano sobre pose03.png,
- *      igual que se hizo con characterWaistRatio/characterAnchorXRatio en
- *      el prototipo (ver raulito.js CONFIG). No se copian esos valores
- *      directamente porque miden otra cosa (cintura/torso para el
- *      encuadre de pantalla), no las anclas cabeza/ojos/pies que pide
- *      este contrato.
- *
- *   5) `escenarios` — no hay fondos definidos todavía (cantinero,
- *      carnicero, etc. son ejemplos del contrato, no un pedido real para
- *      ARBAT). Queda vacío; es opcional por diseño (§1.1, §1.3).
- *
- * MIGRACIÓN DE ASSETS PENDIENTE: los `src` de abajo ya apuntan a las
- * rutas nuevas bajo assets/buddy/chars/raulito/, no a las rutas viejas de
- * raulito.js (CONFIG.assetBase = '/arbat_frontend/assets/images/minijuego/').
- * Falta copiar/renombrar los archivos físicos:
- *   pose03.png -> chars/raulito/images/expresiones/sereno.png
- *   pose01.png -> chars/raulito/images/archery/apuntar.png
- *   pose02.png -> chars/raulito/images/archery/liberar.png
- *   golpe.mp3  -> chars/raulito/sounds/archery/acierto.mp3
+ * Perfil del personaje "Raulito" para la arquitectura "buddy".
+ * Generado en la Fase 1 del plan de migración (ver planBuddy_v5.md, 4.1).
+ * Fuente de valores: raulito.js (CONFIG). Estructura/contrato: planBuddy_v5.md.
  * ---------------------------------------------------------------------------
  */
-
-export const buddyChar = {
-  id: "raulito",
-  nombre: "Raulito",
-  estiloConversacion: "zen",   // debe existir modules/*/es/*_zen.js en cada módulo activo
-  idiomaBase: "es",
-  voseo: true,
-
-  // -----------------------------------------------------------------------
-  // Expresiones — estado emocional, reutilizable por cualquier módulo.
-  // sereno es la única obligatoria (fallback universal, ver §1.3).
-  // -----------------------------------------------------------------------
-  expresiones: {
-    sereno: {
-      src: "chars/raulito/images/expresiones/sereno.png", 
-      w: 0, h: 0, // TODO: completar con la resolución nativa real del PNG
-      anclas: {
-        // TODO: medir a mano sobre sereno.png (mismo criterio que
-        // characterWaistRatio/characterFaceAnchor en raulito.js CONFIG).
-        cabezaSuperior: { x: 0, y: 0 },   // pixel central en margen superior de la cabeza (para medir altura del personaje, en caso de mostrarlo en escenarios dentro de un auto o una cueva, para que no sobrepase el techo del escenario)
-        ojoIzq:         { x: 0, y: 0 },   // pixel central del ojo izquierdo
-        ojoDer:         { x: 0, y: 0 },   // pixel central del ojo derecho
-        cintura:        { x: 0, y: 0 },   // pixel central de la cintura
-        pieIzq:         { x: 0, y: 0 },   // pixel mas bajo y centrado del pie (para medir dónde colocar el suelo bajo sus pies)
-        pieDer:         { x: 0, y: 0 }    // pixel mas bajo y centrado del pie (para medir dónde colocar el suelo bajo sus pies)
-      }
-    }
-
-    // TODO (decisión abierta #1): sin sprite propio todavía.
-    // sonriente: { src: "...", w: 0, h: 0, anclas: { /* mismo set */ } },
-    // riendo:    { src: "...", w: 0, h: 0, anclas: { /* mismo set */ } },
-    // serio:     { src: "...", w: 0, h: 0, anclas: { /* mismo set */ } },
-    // enojado:   { src: "...", w: 0, h: 0, anclas: { /* mismo set */ } },
-    // guino:     { src: "...", w: 0, h: 0, anclas: { /* mismo set */ } },
-    // preocupado:{ src: "...", w: 0, h: 0, anclas: { /* mismo set */ } }
+window.BuddyChars = window.BuddyChars || {};
+window.BuddyChars.raulito = {
+  perfil: {
+    id: 'raulito',
+    nombre: 'Raulito',
+    idioma: 'es',
+    estilo: 'zen'
   },
 
-  // -----------------------------------------------------------------------
-  // Escenarios — opcional por completo (decisión abierta #5). Sin fondos
-  // definidos todavía: sin escenarios, Raulito se muestra solo.
-  // -----------------------------------------------------------------------
-  escenarios: {},
-
-  // -----------------------------------------------------------------------
-  // Overrides de assets por módulo (§1.7). Solo lo que Raulito reemplaza;
-  // lo que no define acá, el módulo lo cubre con sus propios `defaults`.
-  // -----------------------------------------------------------------------
-  modulos: {
-    archery: {
-      images: {
-        personajeIdle:    "chars/raulito/images/archery/apuntar.png",   
-        personajeDisparo: "chars/raulito/images/archery/liberar.png",
-        flecha01:         "chars/raulito/images/archery/f01.png",
-        flecha02:         "chars/raulito/images/archery/f02.png",
-        flecha03:         "chars/raulito/images/archery/f03.png",
-        flecha04:         "chars/raulito/images/archery/f04.png",
-        mira:             "chars/raulito/images/archery/mira.png",
-
-      },
-      sounds: {
-        impacto:  "chars/raulito/sounds/archery/impacto.mp3" // sonido de impacto de flecha
-        disparo:  "chars/raulito/sounds/archery/disparo.mp3" // sonido de disparo de flecha
-        tensar:   "chars/raulito/sounds/archery/tensar.mp3" // sonido tensando la cuerda del arco, al comenzar a apuntar
-        
-
+  // Convención de nombres: el archivo se llama igual que la expresión que
+  // representa. 'sereno' es obligatoria (viene de CONFIG.poses.idle /
+  // pose03.png). 'sonriendo' y 'guinio' son nuevas en esta arquitectura:
+  // raulito.js no tiene fuente para sus dimensiones/anclas.
+  expresiones: {
+    sereno: {
+      archivo: 'sereno.png', // = CONFIG.poses.idle (pose03.png)
+      ancho: 372,  // pose03/pose04 miden 372×1195 (raulito.js, comentario scales.character)
+      alto: 1195,
+      escala: 1,   // = CONFIG.scales.character.idle
+      anclas: {
+        // TODO: medir sobre sereno.png la esquina superior izquierda real de la cabeza.
+        cabeza_superior: { x: 'TODO', y: 'TODO' },
+        // TODO: medir ojos sobre el PNG cuando se disponga del arte definitivo.
+        ojo_izquierdo: { x: 'TODO', y: 'TODO' },
+        ojo_derecho: { x: 'TODO', y: 'TODO' },
+        // = CONFIG.characterAnchorXRatio.idle / CONFIG.characterWaistRatio.idle
+        cintura: { x: 0.48, y: 0.52 },
+        // TODO: medir pies sobre el PNG cuando se disponga del arte definitivo.
+        pie_izquierdo: { x: 'TODO', y: 'TODO' },
+        pie_derecho: { x: 'TODO', y: 'TODO' }
+      }
+    },
+    sonriendo: {
+      archivo: 'sonriendo.png', // nueva expresión, sin equivalente en raulito.js
+      // Dimensiones verificadas sobre el PNG entregado en esta ejecución.
+      // La escala sigue sin fuente de verdad en raulito.js y se conserva como TODO.
+      ancho: 372,
+      alto: 1195,
+      escala: 'TODO',
+      anclas: {
+        cabeza_superior: { x: 'TODO', y: 'TODO' }, // TODO: medir sobre sonriendo.png.
+        ojo_izquierdo: { x: 'TODO', y: 'TODO' },
+        ojo_derecho: { x: 'TODO', y: 'TODO' },
+        cintura: { x: 'TODO', y: 'TODO' },
+        pie_izquierdo: { x: 'TODO', y: 'TODO' },
+        pie_derecho: { x: 'TODO', y: 'TODO' }
+      }
+    },
+    guinio: {
+      archivo: 'guinio.png', // reservada: aún no la usa ningún módulo
+      // TODO: no hay dato de origen en raulito.js para ancho/alto/escala de guinio.png.
+      ancho: 'TODO',
+      alto: 'TODO',
+      escala: 'TODO',
+      anclas: {
+        cabeza_superior: { x: 'TODO', y: 'TODO' }, // TODO: medir sobre guinio.png.
+        ojo_izquierdo: { x: 'TODO', y: 'TODO' },
+        ojo_derecho: { x: 'TODO', y: 'TODO' },
+        cintura: { x: 'TODO', y: 'TODO' },
+        pie_izquierdo: { x: 'TODO', y: 'TODO' },
+        pie_derecho: { x: 'TODO', y: 'TODO' }
       }
     }
-    // "inform" queda sin overrides por ahora (Fase 3/4 del plan) — Raulito
-    // usa los defaults del módulo hasta que se decida si necesita ícono o
-    // sonido propios de notificación.
+    // Expresiones negativas futuras (pesar, dolor, melancolia...) se agregan
+    // acá con el mismo criterio cuando exista el arte. pose04.png
+    // (CONFIG.poses.fail) queda disponible como posible base para una de
+    // ellas, pero NO se registra automáticamente como expresión negativa
+    // (ver decisión F del plan): 'negativo' sigue apuntando a 'sereno'.
+  },
+
+  diccionarioExpresiones: {
+    neutral: 'sereno',
+    positivo: 'sonriendo',
+    complice: 'guinio',
+    negativo: 'sereno' // hasta que exista una expresión negativa propia
+  },
+
+  // Fondos donde este personaje puede aparecer. raulito.js no contiene
+  // configuración de escenarios/fondos (no hay CONFIG.escenarios ni
+  // equivalente), así que no se pudo confirmar aquí ningún nombre ni
+  // dimensión propios del código fuente.
+  // TODO: confirmar el set de escenarios y sus dimensiones; se deja el
+  // objeto vacío por no encontrarse fuente de verdad en raulito.js.
+  escenarios: {},
+
+  overridesPorModulo: {
+    archery: {
+      images: {
+        apuntar: {
+          archivo: 'apuntar.png', // = CONFIG.poses.aim (pose01.png)
+          ancho: 848,  // pose01/pose02 miden 848×1264 (raulito.js, comentario scales.character)
+          alto: 1264,
+          escala: 1.1, // = CONFIG.scales.character.aim
+          anclas: {
+            // = CONFIG.characterAnchorXRatio.aim / CONFIG.characterWaistRatio.aim
+            cintura: { x: 0.57, y: 0.58 },
+            cabeza_superior: { x: 'TODO', y: 'TODO' }, // TODO: medir sobre apuntar.png.
+            ojo_izquierdo: { x: 'TODO', y: 'TODO' },
+            ojo_derecho: { x: 'TODO', y: 'TODO' },
+            pie_izquierdo: { x: 'TODO', y: 'TODO' },
+            pie_derecho: { x: 'TODO', y: 'TODO' }
+          }
+        },
+        liberar_flecha: {
+          archivo: 'liberar_flecha.png', // = CONFIG.poses.fire (pose02.png)
+          ancho: 848,  // mismo encuadre que pose01 (raulito.js, comentario scales.character)
+          alto: 1264,
+          escala: 1.1, // = CONFIG.scales.character.fire
+          anclas: {
+            // = CONFIG.characterAnchorXRatio.fire / CONFIG.characterWaistRatio.fire
+            cintura: { x: 0.57, y: 0.58 },
+            cabeza_superior: { x: 'TODO', y: 'TODO' }, // TODO: medir sobre liberar_flecha.png.
+            ojo_izquierdo: { x: 'TODO', y: 'TODO' },
+            ojo_derecho: { x: 'TODO', y: 'TODO' },
+            pie_izquierdo: { x: 'TODO', y: 'TODO' },
+            pie_derecho: { x: 'TODO', y: 'TODO' }
+          }
+        },
+        // Sin "diana": raulito.js no identifica un asset de diana propio de
+        // Raulito dentro del mapeo obligatorio de la Fase 1 (CONFIG.targetImage
+        // = 'logo.png' es un logo genérico de repuesto, no está en la tabla
+        // de mapeo de la sección 4.1). Sin archivo propio, este módulo cae en
+        // el default de archery (regla de override, decisión D del plan).
+        mira: {
+          archivo: 'mira.png' // = CONFIG.miraImage
+        },
+        // = CONFIG.arrowImages, renombrado según Fase 0 (f0N.png -> flechaN.png)
+        flechas: ['flecha01.png', 'flecha02.png', 'flecha03.png', 'flecha04.png']
+      },
+      sounds: {
+        disparar: 'disparar.mp3', // = CONFIG.shotSound ('disparo.mp3'), renombrado según Fase 0
+        impacto: 'impacto.mp3',   // = CONFIG.hitSound ('golpe.mp3'), renombrado según Fase 0
+        tensar: 'tensar.mp3'      // = CONFIG.tensSound
+      }
+    },
+    says: {}
   }
 };
