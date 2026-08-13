@@ -60,10 +60,10 @@
     horarios: [{"dias":"Lunes, miércoles y viernes","turnos":["16:00","18:00"],"duracion":"2 horas"},{"dias":"Sábados","turnos":["09:00–12:00","14:30–17:00"]}],
 
     // Un evento del calendario se trata como "evento especial" (mensaje
-    // tipo 2) cuando su título contiene alguna de estas palabras. Cualquier
-    // otro evento (ej. una cita reservada) cuenta como turno ocupado
-    // (mensaje tipo 1). La convención de nombres que esto le pide al
-    // calendario se detalla en la documentación del proyecto.
+    // tipo 2) cuando su título contiene alguna de estas palabras. Las reservas
+    // de la agenda de citas de Google se identifican exclusivamente por el
+    // título automático "Agenda tu entrenamiento". Los demás eventos se
+    // ignoran para el cálculo de ocupación.
     palabrasClaveEventoEspecial: [
       'competencia', 'torneo', 'campeonato', 'clínica', 'clinica', 'evento especial'
     ]
@@ -265,6 +265,10 @@
       });
   }
 
+  function esReserva(evento) {
+    return (evento.summary || '').trim() === 'Agenda tu entrenamiento';
+  }
+
   function esEventoEspecial(evento) {
     var titulo = (evento.summary || '').toLowerCase();
     return CONFIG.palabrasClaveEventoEspecial.some(function (palabra) {
@@ -401,10 +405,10 @@
       if (eventos === null) return []; // no se pudo confirmar la agenda real: no se afirma nada
 
       var especiales = eventos.filter(esEventoEspecial);
-      var regulares = eventos.filter(function (evento) { return !esEventoEspecial(evento); });
+      var reservas = eventos.filter(esReserva);
       var horariosNormalizados = normalizarHorarios(CONFIG.horarios);
 
-      var disponibilidad = mensajesDisponibilidad(regulares, horariosNormalizados, ahora);
+      var disponibilidad = mensajesDisponibilidad(reservas, horariosNormalizados, ahora);
       var eventosEspecialesMsgs = mensajesEventosEspeciales(especiales);
 
       var todos = disponibilidad.concat(eventosEspecialesMsgs);

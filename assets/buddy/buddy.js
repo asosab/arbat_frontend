@@ -186,6 +186,45 @@ window.Buddy = window.Buddy || {};
   // resolveAsset(modulo, tipoAsset, clave)
   // Precedencia: override del personaje activo -> default del módulo.
   // ---------------------------------------------------------------------
+  // Resuelve exclusivamente el asset por defecto del módulo, sin consultar
+  // overrides del personaje. Los módulos pueden usar esta API cuando su
+  // configuración declara prioridad sobre los recursos del personaje.
+  function resolveAssetDefault(modulo, tipoAsset, clave) {
+    if (tipoAsset === 'sounds') {
+      return moduleDefaultPath(modulo, 'sounds', clave);
+    }
+    return {
+      archivo: moduleDefaultPath(modulo, 'images', clave),
+      ancho: undefined,
+      alto: undefined,
+      escala: undefined,
+      anclas: undefined
+    };
+  }
+
+  // Indica si el personaje activo declara explícitamente un override
+  // para este asset. No considera el default del módulo como override.
+  function hasAssetOverride(modulo, tipoAsset, clave) {
+    var charData = getCharData();
+    var moduleOverrides = charData &&
+      charData.overridesPorModulo &&
+      charData.overridesPorModulo[modulo] &&
+      charData.overridesPorModulo[modulo][tipoAsset];
+    if (!moduleOverrides) return false;
+
+    if (moduleOverrides[clave] !== undefined && moduleOverrides[clave] !== null) {
+      return true;
+    }
+
+    return Object.keys(moduleOverrides).some(function (collectionKey) {
+      var collection = moduleOverrides[collectionKey];
+      if (!Array.isArray(collection)) return false;
+      return collection.some(function (item) {
+        return typeof item === 'string' && item.replace(/\.[^.]+$/, '') === clave;
+      });
+    });
+  }
+
   function resolveAsset(modulo, tipoAsset, clave) {
     var charData = getCharData();
     var overrideEntry = charData &&
@@ -267,15 +306,18 @@ window.Buddy = window.Buddy || {};
   // resolveExpression(expresionId)
   // Exclusivo del personaje activo. Sin fallback hacia ningún módulo.
   // ---------------------------------------------------------------------
-  function resolveExpression(expresionId) {
+  // ---------------------------------------------------------------------
+  // resolveExpressionExact(expresionId)
+  // Resuelve SOLO una expresión explícitamente declarada por el personaje.
+  // No hace fallback: esto permite distinguir una expresión inexistente de
+  // una expresión válida que casualmente use la misma imagen que 'sereno'.
+  // ---------------------------------------------------------------------
+  function resolveExpressionExact(expresionId) {
     var charData = getCharData();
-    if (!charData || !charData.expresiones) return null;
+    if (!charData || !charData.expresiones || !expresionId) return null;
 
     var entry = charData.expresiones[expresionId];
-    if (!entry) {
-      entry = charData.expresiones[EXPRESION_OBLIGATORIA];
-    }
-    if (!entry) return null; // ni siquiera existe 'sereno': personaje mal definido
+    if (!entry) return null;
 
     return {
       archivo: charPath('images', 'expresiones', entry.archivo),
@@ -287,18 +329,29 @@ window.Buddy = window.Buddy || {};
   }
 
   // ---------------------------------------------------------------------
+  // resolveExpression(expresionId)
+  // API compatible con el comportamiento anterior: intenta la expresión
+  // exacta y, si no existe, cae en la expresión obligatoria (sereno).
+  // ---------------------------------------------------------------------
+  function resolveExpression(expresionId) {
+    var exacta = resolveExpressionExact(expresionId);
+    if (exacta) return exacta;
+    return resolveExpressionExact(EXPRESION_OBLIGATORIA);
+  }
+
+  // ---------------------------------------------------------------------
   // resolveExpressionByCategory(categoria)
+  // Resuelve SOLO categorías realmente declaradas en el diccionario.
   // ---------------------------------------------------------------------
   function resolveExpressionByCategory(categoria) {
     var charData = getCharData();
-    var expresionId = charData &&
-      charData.diccionarioExpresiones &&
-      charData.diccionarioExpresiones[categoria];
+    var diccionario = charData && charData.diccionarioExpresiones;
+    if (!diccionario || !categoria) return null;
 
-    // Si la categoría no existe en el diccionario del personaje,
-    // resolveExpression(undefined) ya cae en 'sereno' por su propio
-    // fallback — comportamiento seguro y coherente con el resto del plan.
-    return resolveExpression(expresionId);
+    var expresionId = diccionario[categoria];
+    if (!expresionId) return null;
+
+    return resolveExpressionExact(expresionId);
   }
 
   // ---------------------------------------------------------------------
@@ -347,36 +400,89 @@ window.Buddy = window.Buddy || {};
     return LAYOUT.characterLongSidePercent * screenLongSide() * scale;
   }
 
-  // Antes: characterBottomOffsetPx(poseKey, renderedHeightPx) leía
-  // CONFIG.characterWaistRatio[poseKey]. Ahora recibe waistRatio directo
-  // (= anclas.cintura.y del objeto ya resuelto).
-  function characterBottomOffsetPx(waistRatio, renderedHeightPx) {
-    if (typeof waistRatio !== 'number') waistRatio = 0.5;
-    var belowWaistPx = renderedHeightPx * (1 - waistRatio);
-    return LAYOUT.characterMarginPx - belowWaistPx;
+  // Las coordenadas de `anclas` son coordenadas ABSOLUTAS en píxeles
+  // dentro del archivo original de la imagen (0,0 = esquina superior
+  // izquierda). Como la imagen se redimensiona para adaptarse al viewport,
+  // primero hay que transformar esos píxeles originales a píxeles renderizados.
+  //
+  // Ejemplo:
+  //   imagen original: 848 x 1264
+  //   ancla cintura:   x=512, y=737
+  //   imagen renderizada: 699 x 1041
+  //   ancla renderizada: x=422, y=607
+  //
+  // Esto evita tratar x/y como porcentajes o ratios. También hace que las
+  // coordenadas sigan siendo correctas cuando cambia el tamaño/orientación
+  // del viewport.
+  function imageAnchorToRenderedPx(datosImagen, anchor, renderedWidth, renderedHeight) {
+    if (!datosImagen || !anchor ||
+        typeof anchor.x !== 'number' || typeof anchor.y !== 'number') {
+      return null;
+    }
+
+    var sourceWidth = Number(datosImagen.ancho);
+    var sourceHeight = Number(datosImagen.alto);
+
+    if (!sourceWidth || !sourceHeight ||
+        !isFinite(sourceWidth) || !isFinite(sourceHeight)) {
+      return null;
+    }
+
+    return {
+      x: anchor.x * renderedWidth / sourceWidth,
+      y: anchor.y * renderedHeight / sourceHeight
+    };
   }
 
   function characterAnchorTargetPx() {
     return LAYOUT.characterAnchorRightPercent * screenLongSide();
   }
 
-  // Antes: characterRightOffsetPx(renderedWidthPx, poseKey) leía
-  // CONFIG.characterAnchorXRatio[poseKey]. Ahora recibe anchorRatio
-  // directo (= anclas.cintura.x del objeto ya resuelto).
-  function characterRightOffsetPx(renderedWidthPx, anchorRatio) {
-    if (typeof anchorRatio !== 'number') anchorRatio = 0.5;
-    var pxToRightOfAnchor = renderedWidthPx * (1 - anchorRatio);
-    return characterAnchorTargetPx() - pxToRightOfAnchor;
+  function characterBottomOffsetPx(datosImagen, renderedHeightPx, renderedWidthPx) {
+    var anchor = datosImagen && datosImagen.anclas && datosImagen.anclas.cintura;
+    var renderedAnchor = imageAnchorToRenderedPx(
+      datosImagen,
+      anchor,
+      renderedWidthPx,
+      renderedHeightPx
+    );
+
+    if (!renderedAnchor) {
+      // Fallback para assets antiguos que no tengan dimensiones/anclas.
+      renderedAnchor = {
+        x: renderedWidthPx * 0.5,
+        y: renderedHeightPx * 0.5
+      };
+    }
+
+    // `bottom` se mide desde el borde inferior del viewport. Queremos que
+    // el punto absoluto de la imagen quede sobre la línea de referencia.
+    return LAYOUT.characterMarginPx -
+      (renderedHeightPx - renderedAnchor.y);
   }
 
-  function waistRatioOf(datosImagen) {
-    return datosImagen && datosImagen.anclas && datosImagen.anclas.cintura &&
-      typeof datosImagen.anclas.cintura.y === 'number' ? datosImagen.anclas.cintura.y : undefined;
-  }
+  function characterRightOffsetPx(datosImagen, renderedWidthPx, renderedHeightPx) {
+    var anchor = datosImagen && datosImagen.anclas && datosImagen.anclas.cintura;
+    var renderedAnchor = imageAnchorToRenderedPx(
+      datosImagen,
+      anchor,
+      renderedWidthPx,
+      renderedHeightPx
+    );
 
-  function anchorRatioOf(datosImagen) {
-    return datosImagen && datosImagen.anclas && datosImagen.anclas.cintura &&
-      typeof datosImagen.anclas.cintura.x === 'number' ? datosImagen.anclas.cintura.x : undefined;
+    if (!renderedAnchor) {
+      // Fallback para assets antiguos que no tengan dimensiones/anclas.
+      renderedAnchor = {
+        x: renderedWidthPx * 0.5,
+        y: renderedHeightPx * 0.5
+      };
+    }
+
+    // `right` se mide desde el borde derecho del viewport. Si el ancla está
+    // a renderedAnchor.x desde la izquierda de la imagen, quedan
+    // (renderedWidth - renderedAnchor.x) píxeles a su derecha.
+    return characterAnchorTargetPx() -
+      (renderedWidthPx - renderedAnchor.x);
   }
 
   function positionCharacter(datosImagen) {
@@ -384,8 +490,18 @@ window.Buddy = window.Buddy || {};
     var renderedHeight = charEl.offsetHeight;
     var renderedWidth = charEl.offsetWidth;
     if (!renderedHeight || !renderedWidth) return;
-    charEl.style.bottom = characterBottomOffsetPx(waistRatioOf(datosImagen), renderedHeight) + 'px';
-    charEl.style.right = characterRightOffsetPx(renderedWidth, anchorRatioOf(datosImagen)) + 'px';
+
+    charEl.style.bottom = characterBottomOffsetPx(
+      datosImagen,
+      renderedHeight,
+      renderedWidth
+    ) + 'px';
+
+    charEl.style.right = characterRightOffsetPx(
+      datosImagen,
+      renderedWidth,
+      renderedHeight
+    ) + 'px';
   }
 
   // ---------------------------------------------------------------------
@@ -451,18 +567,24 @@ window.Buddy = window.Buddy || {};
     charEl.src = datosImagen.archivo;
 
     // Una vez que cualquier parte de Buddy hace visible al personaje,
-    // todos los módulos activos deben considerarlo visible/activo.
+    // todos los módulos activos deben poder sincronizar su propio estado
+    // interno con esa visibilidad. No limitamos el evento a la transición
+    // CSS hidden -> visible: un módulo puede haber quedado en estado
+    // 'hidden' aunque la imagen ya esté visible (por ejemplo, después de
+    // una recarga o una restauración iniciada por Says).
     // Los módulos se suscriben a este evento sin que el núcleo tenga que
     // conocer implementaciones concretas como archery.
-    if (wasHidden) {
-      try {
-        window.dispatchEvent(new CustomEvent('buddy:character-visible', {
-          detail: { character: personajeActivo, abilities: modulosActivos.slice() }
-        }));
-      } catch (e) {
-        // Compatibilidad con entornos antiguos: la visibilidad del personaje
-        // no debe fallar por un problema al emitir el evento.
-      }
+    try {
+      window.dispatchEvent(new CustomEvent('buddy:character-visible', {
+        detail: {
+          character: personajeActivo,
+          abilities: modulosActivos.slice(),
+          wasHidden: wasHidden
+        }
+      }));
+    } catch (e) {
+      // Compatibilidad con entornos antiguos: la visibilidad del personaje
+      // no debe fallar por un problema al emitir el evento.
     }
 
     // Si la imagen ya estaba cargada (misma src), 'load' no vuelve a
@@ -581,6 +703,13 @@ window.Buddy = window.Buddy || {};
 
   function scriptUrlForModule(moduleId) {
     return ASSET_BASE + 'modules/' + moduleId + '/buddy_' + moduleId + '.js';
+  }
+
+  // Cada módulo puede tener su propia configuración. Se carga ANTES de la
+  // implementación del módulo para que buddy_<modulo>.js pueda consumirla
+  // durante su inicialización.
+  function scriptUrlForModuleConfig(moduleId) {
+    return ASSET_BASE + 'modules/' + moduleId + '/config.js';
   }
 
   function scriptUrlForModuleText(moduleId, locale, style) {
@@ -719,6 +848,11 @@ window.Buddy = window.Buddy || {};
       .then(function () {
         return abilities.reduce(function (chain, moduleId) {
           return chain
+            // La configuración del módulo debe existir antes de ejecutar su
+            // implementación. Esto evita que módulos como Archery intenten
+            // leer window.BuddyArcheryConfig antes de que config.js haya sido
+            // cargado.
+            .then(function () { return loadScript(scriptUrlForModuleConfig(moduleId)); })
             .then(function () { return loadScript(scriptUrlForModule(moduleId)); })
             .then(function () {
               var charData = getCharData();
@@ -752,6 +886,9 @@ window.Buddy = window.Buddy || {};
   window.Buddy.registerBusyProvider = registerBusyProvider;
   window.Buddy.isBusy = isBusy;
   window.Buddy.resolveAsset = resolveAsset;
+  window.Buddy.hasAssetOverride = hasAssetOverride;
+  window.Buddy.resolveAssetDefault = resolveAssetDefault;
+  window.Buddy.resolveExpressionExact = resolveExpressionExact;
   window.Buddy.resolveExpression = resolveExpression;
   window.Buddy.resolveExpressionByCategory = resolveExpressionByCategory;
   window.Buddy.resolveScenario = resolveScenario;

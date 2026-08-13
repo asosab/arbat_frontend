@@ -12,540 +12,10 @@
 (function () {
   'use strict';
 
-  var CONFIG = {
-      arrowImages: ['flecha01.png', 'flecha02.png', 'flecha03.png', 'flecha04.png'],
-      shotSound: 'disparar.mp3',
-      hitSound: 'impacto.mp3',
-      tensSound: 'tensar.mp3',
-      scales: {
-        mira: 1,
-        arrow: 1,
-        target: 1
-      },
-
-      // Tamaño base de los elementos propios del módulo, medido sobre el
-      // lado largo del viewport. Valores heredados de raulito.js.
-      arrowLongSidePercent: 0.1,
-      miraLongSidePercent: 0.20,
-      targetLongSidePercent: 0.09,
-      longPressThresholdMs: 350,
-  
-      // Ventana de disparo: soltar antes de esto = pose02 (disparó bien).
-      // Coincide a propósito con CONFIG.sostenido.imposibleEnMs (8s): a
-      // partir de ese punto el temblor por sostener la mira ya es tan
-      // grande que en la práctica apuntar bien deja de ser posible.,
-      fireWindowMs: 8000,
-      // El tope de tiempo sosteniendo el arco ya no es un valor fijo: lo
-      // define CONFIG.sostenido, con un instante distinto (entre
-      // forzarBajaMinMs y forzarBajaMaxMs) cada vez que se apunta. Ver ese
-      // bloque más abajo.
-  
-      // Cuánto se queda mostrando pose02/pose04 antes de volver a pose03.,
-      resolveDisplayMs: 1500,
-      // Cuánto se queda visible el globo de diálogo con el resultado.,
-      hitDelayMs: 300,
-  
-      // Multiplicador de "exageración" del movimiento de la mira respecto al
-      // arrastre real del puntero (ver raulito.md, mecánica de la mira: "con
-      // demora y exageración respecto a los movimientos reales del usuario").
-      // Sin amplificar, no hay espacio físico suficiente para mover la mira
-      // hasta el borde izquierdo de la pantalla: Raulito arranca pegado a la
-      // esquina inferior derecha, así que el arrastre válido (ver regla de
-      // "mitad de pantalla" abajo) dispone de poco recorrido en píxeles reales
-      // antes de considerarse inválido. Subir este valor si la mira sigue sin
-      // llegar al borde; bajarlo si se vuelve demasiado nerviosa/difícil de
-      // controlar.,
-      aimSensitivity: 4,
-  
-      // -------------------------------------------------------------------
-      // Latidos de la mira (v0.4). Zona de calibración pensada para ensayo y
-      // error visual, igual que `scales` — no hace falta tocar el resto del
-      // script para ajustar cómo se siente el pulso.
-      //
-      // Mecánica: mientras se apunta, un loop de animación calcula en cada
-      // frame una intensidad 0..1. Esa intensidad SUBE rápido (ver
-      // `intensityAttackPerSec`) cuando el puntero real se mueve rápido
-      // (medido en px/ms contra `velocityForMaxIntensity`), y BAJA lento
-      // (`intensityReleasePerSec`) apenas el puntero deja de moverse — igual
-      // que un pulso real, que se acelera al instante ante un sobresalto
-      // pero tarda en volver a calmarse. La intensidad interpola entre los
-      // valores "rest" (reposo) y "max" (agitado) de amplitud/bpm de abajo,
-      // y también escala el ruido aleatorio (`jitterPx`) que hace que el
-      // temblor se sienta errático y no un simple vaivén regular.,
-      heartbeat: {
-        enabled: true,
-  
-        // Amplitud del pulso en reposo (px) — debe ser chica, casi
-        // imperceptible a simple vista.
-        restAmplitudePx: 1.5,
-        // Amplitud del pulso al máximo de agitación (px).
-        maxAmplitudePx: 14,
-  
-        // Frecuencia del pulso en reposo, en pulsaciones por minuto (bpm),
-        // como un latido cardíaco tranquilo.
-        restBpm: 62,
-        // Frecuencia del pulso al máximo de agitación (bpm), como un latido
-        // acelerado.
-        maxBpm: 190,
-  
-        // Velocidad real del puntero (px/ms) que corresponde a intensidad
-        // máxima (1). Un arrastre rápido con mouse/dedo suele rondar 1.5-3
-        // px/ms — bajar este valor si cuesta llegar a la intensidad máxima,
-        // subirlo si se dispara demasiado fácil.
-        velocityForMaxIntensity: 2.2,
-  
-        // Qué tan rápido SUBE la intensidad ante un movimiento brusco,
-        // expresado en "unidades de intensidad (0 a 1) por segundo". Alto =
-        // reacciona casi al instante ante el sobresalto.
-        intensityAttackPerSec: 10,
-        // Qué tan rápido BAJA la intensidad cuando el puntero se queda
-        // quieto, mismas unidades. Bajo = tarda en calmarse.
-        intensityReleasePerSec: 1.2,
-        // Cuántos ms sin un evento pointermove hacen falta para considerar
-        // que el puntero real "dejó de moverse" (y por lo tanto el objetivo
-        // de intensidad empieza a decaer hacia el reposo).
-        stillnessMs: 80,
-  
-        // Temblor errático adicional (px), sumado al pulso principal y
-        // escalado por la intensidad actual — a intensidad 0 no suma nada,
-        // a intensidad 1 suma hasta este valor en cada eje.
-        jitterPx: 6
-      },
-  
-      // -------------------------------------------------------------------
-      // Temblor de cansancio muscular (v0.5). A diferencia del latido de
-      // `heartbeat` (que reacciona a la VELOCIDAD del puntero real), este
-      // temblor depende de CUÁNTAS flechas se llevan disparadas y CUÁNTO se
-      // descansó entre una y otra — simula que sostener y tensar el arco
-      // repetidas veces, sin pausas, cansa el brazo. Se suma encima del
-      // pulso de `heartbeat` (ambos comparten el mismo loop de animación,
-      // ver aimTremorTick), y puede activarse/desactivarse por separado con
-      // `enabled`.,
-      fatigue: {
-        enabled: true,
-  
-        // Cantidad de flechas disparadas (impactadas) en la sesión a partir
-        // de la cual empieza a manifestarse el cansancio. Antes de llegar a
-        // esta flecha no hay temblor de cansancio (sólo puede seguir
-        // habiendo latido, que es independiente).
-        startAfterArrow: 6,
-  
-        // Tiempo mínimo esperable entre el disparo de una flecha y el
-        // siguiente para considerarlo un ritmo "sano". Disparar antes de
-        // que pase este tiempo desde la flecha anterior sube el temblor un
-        // nivel (ver increasePerLateShot) y suma una flecha a la racha de
-        // exhaustionStreak.
-        expectedCooldownMs: 5000,
-  
-        // Cuántos niveles de temblor se suman cada vez que se dispara sin
-        // respetar expectedCooldownMs.
-        increasePerLateShot: 1,
-  
-        // Tope de niveles de temblor (0 = sin temblor). Evita que crezca
-        // sin límite visual aunque se acumulen muchas flechas seguidas.
-        maxLevel: 6,
-  
-        // A partir de cuántos ms de descanso (sin disparar) empieza a BAJAR
-        // el temblor. Por debajo de este tiempo el temblor no sube (si se
-        // respetó expectedCooldownMs) ni baja: queda como está.
-        restStartMs: 15000,
-        // Cada cuántos ms adicionales de descanso, por encima de
-        // restStartMs, se suma un nivel más de reducción. Con los valores
-        // por defecto: a los 15s se reduce 1 nivel, a los 20s 2 niveles, a
-        // los 25s 3 niveles, y así de a restStepMs hasta llegar a 0. Ajustar
-        // estos dos valores (restStartMs / restStepMs) para hacer la
-        // recuperación más rápida o más lenta.
-        restStepMs: 5000,
-  
-        // Cuántas flechas SEGUIDAS disparadas sin respetar
-        // expectedCooldownMs (sin que se corte la racha con un disparo bien
-        // espaciado) hacen que Raúl se agote del todo: fuerza pose04 y dice
-        // exhaustionMessage, bloqueando nuevos disparos. Sólo cuenta a
-        // partir de startAfterArrow.
-        exhaustionStreak: 18,
-        // Lo que dice Raúl al agotarse del todo. Texto real en
-        // getDialogue('exhaustion') — ver enterExhaustedIdle() y
-        // onPointerDown(). Null para permitir sobreescritura puntual.
-        exhaustionMessage: null,
-        // Cuánto descanso (ms sin disparar) hace falta, una vez agotado,
-        // para que Raúl vuelva solo a pose03 y se pueda seguir jugando. Por
-        // defecto es igual a restStartMs (el mismo umbral que empieza a
-        // bajar el temblor), pero se deja como valor propio por si se
-        // quiere pedir un descanso más largo específicamente para
-        // recuperarse del agotamiento total.
-        exhaustionRestMs: 15000,
-  
-        // Calibración visual: cuántos px de amplitud aporta CADA nivel de
-        // temblor (se suma encima del pulso de heartbeat).
-        amplitudePerLevelPx: 2.5,
-        // Ruido/jitter aleatorio adicional por nivel, análogo a
-        // heartbeat.jitterPx pero propio de este sistema.
-        jitterPerLevelPx: 1.2,
-        // Frecuencia de la sacudida de cansancio, en ciclos por segundo
-        // (Hz). A diferencia del latido (bpm variable según intensidad),
-        // acá la frecuencia es fija — sólo la amplitud/jitter escalan con
-        // el nivel de cansancio.
-        shakeHz: 9
-      },
-  
-      // -------------------------------------------------------------------
-      // Vaivén en forma de 8 (v0.6). Handicap de puntería independiente del
-      // latido (`heartbeat`) y del temblor de cansancio (`fatigue`), aunque
-      // se calcula en el mismo loop de animación y se suma encima de ambos.
-      //
-      // Mecánica: mientras se apunta, la mira recorre constantemente una
-      // curva de Lissajous 1:2 (x = sin(fase), y = 0.5·sin(2·fase)) alrededor
-      // de su posición base — el trazo clásico de un "8" acostado. A
-      // diferencia del latido, NO depende de qué tan rápido se mueve el
-      // puntero real: es un balanceo ambiente presente desde el primer
-      // instante de apuntado, constante mientras no haya cansancio.
-      //
-      // El radio de ese 8 (qué tan lejos del centro llega la mira) arranca
-      // chico (`baseRadiusPx`) y crece con el mismo nivel de cansancio que
-      // ya calcula `currentFatigueLevel()` para `fatigue` — reutiliza ese
-      // nivel (0..fatigue.maxLevel) en vez de llevar un contador propio, así
-      // que si `fatigue.enabled` está en false el radio nunca crece y queda
-      // fijo en `baseRadiusPx`.,
-      vaiven: {
-        enabled: true,
-  
-        // Radio (px) del 8 sin cansancio acumulado — debe ser chico, "un
-        // ligero vaivén" apenas perceptible.
-        baseRadiusPx: 5,
-        // Radio adicional (px) que aporta CADA nivel de cansancio actual
-        // (currentFatigueLevel), sumado sobre baseRadiusPx. Con los valores
-        // por defecto de `fatigue` (maxLevel: 6), el radio máximo posible es
-        // baseRadiusPx + 6 * radiusPerFatigueLevelPx.
-        radiusPerFatigueLevelPx: 3.5,
-  
-        // Velocidad a la que se recorre el 8, en vueltas completas por
-        // segundo (Hz). Deliberadamente lento — es un balanceo, no un
-        // temblor — para que se distinga a simple vista del latido/cansancio.
-        hz: 0.35
-      },
-  
-      // -------------------------------------------------------------------
-      // Cadencia de disparo (v1.0). Handicap nuevo, independiente de
-      // `fatigue` aunque mide lo mismo que dispara su umbral (el tiempo
-      // transcurrido desde el último disparo, `lastShotAt`). La diferencia:
-      // `fatigue` sube/baja por NIVELES discretos (un nivel entero por
-      // disparo apurado, decae de a pasos con `restStartMs`/`restStepMs`);
-      // acá el efecto es CONTINUO y puramente de tiempo transcurrido —
-      // cuanto MENOS tiempo pasó desde el último disparo, mayor el
-      // multiplicador (> 1) que se aplica ENCIMA de lo que cada uno ya
-      // calcula por su cuenta: la distancia del vaivén en 8
-      // (`vaivenRadius`), el recorrido del latido (`amplitude`/jitter de
-      // `heartbeat`) y la distancia del temblor de cansancio
-      // (`fatigueAmplitude`/jitter de `fatigue`) — los tres a la vez (ver
-      // `cadenciaMultiplier` y su uso en `aimTremorTick`). Con una pausa
-      // de `restMs` (6s por defecto) sin disparar, el multiplicador vuelve
-      // a 1 y las tres distancias quedan en su valor original, como si
-      // este handicap no existiera.
-      //
-      // Importante: esto NO toca ninguno de los tiempos de cooldown que ya
-      // exige `fatigue` (expectedCooldownMs, restStartMs/restStepMs,
-      // exhaustionStreak, exhaustionRestMs) ni el cooldown del carcaj
-      // (`arrowLimit`) — es un efecto puramente visual sobre la mira,
-      // igual que el resto de los temblores, y nunca afecta la posición
-      // BASE que se usa para validar el apuntado.,
-      cadencia: {
-        enabled: true,
-  
-        // Pausa (ms) sin disparar que hace falta para que el multiplicador
-        // vuelva a 1 (distancias en su valor original).
-        restMs: 6000,
-  
-        // Multiplicador EXTRA (encima de 1) en el peor caso, cuando el
-        // tiempo desde el último disparo es ~0 (se vuelve a disparar casi
-        // inmediatamente). Con el valor por defecto (1) el multiplicador
-        // total va de 2× (recién disparado) a 1× (tras restMs de pausa) —
-        // ajustar a mano junto con el resto de las amplitudes si se siente
-        // poco o demasiado intenso.
-        maxExtraMultiplier: 1
-      },
-  
-      // -------------------------------------------------------------------
-      // Cansancio por sostener la mira (v2.0). Handicap nuevo, distinto de
-      // `fatigue` (que depende de cuántas flechas se dispararon en la
-      // sesión) y de `heartbeat` (que depende de qué tan rápido se mueve
-      // el puntero real). Este depende únicamente de cuánto tiempo lleva
-      // sostenida ESTA mira sin soltar, contado desde `aimStartedAt`.
-      //
-      // Mecánica: desde el instante de apuntar hasta `startAfterMs` (4s)
-      // no aporta nada. A partir de ahí crece con una curva EXPONENCIAL
-      // real, definida por `growthRate`, hasta llegar a intensidad máxima
-      // en `imposibleEnMs` (8s), momento en el que el temblor total ya es
-      // tan grande que apuntar bien deja de ser posible en la práctica.
-      // Ese crecimiento empuja dos cosas a la vez, tal como pidió el
-      // diseño ("se incrementa el temblor y los latidos"):
-      //   1. Un piso mínimo para `heartbeatTargetIntensity` (ver
-      //      aimTremorTick), así el pulso de `heartbeat` también se
-      //      acelera solo, aunque el puntero esté quieto.
-      //   2. Una sacudida propia adicional (amplitud/jitter definidos
-      //      acá), sumada encima de todo lo demás.
-      //
-      // Un poco después de volverse imposible de sostener, el brazo baja
-      // solo: entre `forzarBajaMinMs` y `forzarBajaMaxMs` (10 a 14s) se
-      // sortea un instante distinto cada vez que se apunta (ver
-      // enterAimState) en el que, si todavía no se soltó, se fuerza el
-      // fallo (pose04) mostrando `forzarBajaMensaje`.,
-      sostenido: {
-        enabled: true,
-  
-        // Desde acá empieza a subir la intensidad (ms desde que se
-        // empezó a apuntar).
-        startAfterMs: 4000,
-        // En este punto la intensidad llega a su máximo (1). Coincide con
-        // CONFIG.fireWindowMs por diseño (ver comentario ahí).
-        imposibleEnMs: 8000,
-        // Qué tan pronunciada es la curva exponencial (progress 0..1 hacia
-        // intensidad 0..1). Un valor más alto mantiene el arranque más
-        // suave y concentra el crecimiento fuerte cerca del final.
-        growthRate: 3.5,
-  
-        // Amplitud propia (px) en el peor momento (intensidad 1), sumada
-        // encima del pulso de heartbeat.
-        maxAmplitudePx: 40,
-        // Ruido aleatorio propio (px) en el peor momento, análogo a
-        // heartbeat.jitterPx / fatigue.jitterPerLevelPx.
-        maxJitterPx: 22,
-        // Frecuencia de esta sacudida (Hz), más rápida que la de fatigue
-        // para que se sienta distinta y más urgente.
-        shakeHz: 11,
-  
-        // Ventana (ms) en la que se sortea el instante exacto en el que el
-        // brazo se fuerza a bajar, si para entonces todavía no se soltó.
-        forzarBajaMinMs: 10000,
-        forzarBajaMaxMs: 14000,
-        // Mensaje que dice Raúl al bajar el brazo forzosamente.
-        forzarBajaMensaje: '¡Se me cansó el brazo! Necesito un descanzo'
-      },
-  
-      // -------------------------------------------------------------------
-      // Mira sin calibrar (v0.8). Handicap de puntería distinto a los
-      // anteriores: no mueve el DIBUJO de la mira en pantalla (eso lo
-      // siguen haciendo heartbeat/fatigue/vaiven encima), sino que desplaza
-      // el PUNTO DE IMPACTO real (el que usan computeScore y stickArrowAt)
-      // respecto de donde el jugador vio realmente el centro de la mira al
-      // soltar — como una mira óptica que no está bien calibrada: uno
-      // apunta donde parece correcto, pero la flecha cae corrida.
-      //
-      // Al cargar la página se sortea un error fijo (`calibOffsetX/Y`, ver
-      // más abajo) de entre `minErrorPx` y `maxErrorPx` de magnitud, en una
-      // dirección aleatoria. Ese error se mantiene igual disparo a disparo
-      // dentro de una misma andanada — no es ruido nuevo en cada flecha,
-      // es un desvío constante, como correspondería a una mira mal
-      // calibrada de verdad — y sólo se corrige (se reduce un
-      // `correctionRatio` de su valor actual, es decir se achica un 25% por
-      // defecto) al completar cada andanada de
-      // `CONFIG.arrowLimit.countBeforeCooldown` flechas (reutiliza ese
-      // mismo umbral en vez de llevar un contador propio — ver
-      // startArrowCooldown/recalibrateMira), momento en el que Raúl avisa
-      // con `message` que va a ajustarla. Con el tiempo (varias andanadas)
-      // el error tiende a cero sin llegar a desaparecer del todo (75% del
-      // error anterior, nunca 0 exacto).,
-      calibracion: {
-        enabled: true,
-  
-        // Magnitud mínima/máxima (px) del error inicial, sorteado una sola
-        // vez al cargar la página (ver initCalibration).
-        minErrorPx: 10,
-        maxErrorPx: 30,
-  
-        // Fracción del error ACTUAL que se corrige (se acerca al centro
-        // real) cada vez que se completa una andanada. 0.25 = el error
-        // queda en 75% de lo que era.
-        correctionRatio: 0.25,
-  
-        // Lo que dice Raúl al recalibrar, mostrado con el mismo delay que
-        // dura el globo de puntaje de la última flecha de la andanada
-        // (2800), para no taparlo. Texto real en
-        // getDialogue('recalibrating') — ver uso en
-        // scheduleCalibrationMessage(). Se deja en null para permitir
-        // sobreescritura puntual si se necesita.
-        message: null
-      },
-  
-      // -------------------------------------------------------------------
-      // Límite de flechas / cooldown del carcaj (v0.4). Cada
-      // `countBeforeCooldown` flechas clavadas, Raul necesita `cooldownMs`
-      // antes de poder disparar de nuevo (va a buscar las flechas). A los
-      // `fadeStartMs` de esa espera, las flechas de la tanda recién
-      // completada empiezan a desvanecerse durante `fadeDurationMs`, hasta
-      // desaparecer del todo. Si se intenta iniciar un disparo estando en
-      // cooldown, se muestra `waitMessage` en vez de entrar en pose de
-      // apuntado.,
-      arrowLimit: {
-        countBeforeCooldown: 6,
-        cooldownMs: 10000,
-        fadeStartMs: 5000,
-        // Por defecto ocupa el resto del cooldown (cooldownMs - fadeStartMs)
-        // para que las flechas terminen de desvanecerse justo cuando se
-        // vuelve a poder disparar. Se puede fijar a mano si se prefiere un
-        // desvanecimiento más rápido o más lento.
-        fadeDurationMs: 5000,
-        // Texto real en getDialogue('arrow_cooldown_wait') — ver
-        // uso en onPointerDown(). Null para permitir sobreescritura puntual.
-        waitMessage: null
-      },
-  
-      // -------------------------------------------------------------------
-      // Registro de flechas de la sesión (v0.5). Ver `sessionArrowLog` más
-      // abajo — un arreglo en memoria con TODAS las flechas disparadas
-      // (impactadas) desde que se cargó la página, pensado para usarse más
-      // adelante (estadísticas, analítica, etc.).,
-      arrowLog: {
-        // Tamaño de cada "andanada" (grupo de flechas) para el conteo de
-        // sessionArrowLog. Coincide por defecto con
-        // arrowLimit.countBeforeCooldown porque conceptualmente es el mismo
-        // grupo de 6, pero se deja como valor propio por si se quisiera
-        // contar andanadas de un tamaño distinto al del cooldown del
-        // carcaj.
-        arrowsPerAndanada: 6
-      },
-  
-      // -------------------------------------------------------------------
-      // Puntaje total de la andanada (v1.5) y premio por tanda perfecta
-      // (v1.6). Al completarse cada tanda de CONFIG.arrowLimit
-      // .countBeforeCooldown flechas, además del globo de puntaje de cada
-      // flecha individual (getDialogue('score_N')), se narra la SUMA de esa tanda
-      // con un globo propio (ver narrateAndanadaTotal(), llamado desde el
-      // mismo lugar que startArrowCooldown()) — o, si la tanda fue
-      // perfecta y CONFIG.andanada.promo.enabled, el globo del premio (ver
-      // promo más abajo) en vez del texto de puntaje. Ese globo se muestra
-      // recién después de que se apaga el de la última flecha (mismo delay
-      // que 2800), y el aviso de recalibración de la mira
-      // se corre a su vez para aparecer justo cuando ESTE globo se apaga
-      // (ver scheduleCalibrationMessage()) — sin importar si duró
-      // 2800 (puntaje normal) o CONFIG.andanada.promo
-      // .displayMs (premio, bastante más largo).,
-      andanada: {
-        // Umbral (inclusive) de puntos totales de la tanda a partir del cual
-        // Raúl vuelve a pose03 (idle) como pose de reposo entre disparos;
-        // por debajo de este umbral, en cambio, la pose de reposo pasa a
-        // ser pose04 (fail) hasta que se complete la próxima tanda — ver
-        // defaultIdlePoseKey. Pedido original: "por debajo de 35" -> pose04,
-        // "36 o más" -> pose03; el valor 35 en sí no se especificó, así que
-        // se resuelve igual que el resto de los valores por debajo de 36
-        // (pose04), para no dejar un puntaje sin regla. Ajustar acá si se
-        // quiere mover el corte.
-        lowScorePoseThreshold: 36,
-        // Plantilla del globo con la suma de la tanda. "{puntos}" se
-        // reemplaza por el total (0..puntaje máximo posible de la tanda).
-        // No se usa cuando la tanda es perfecta y CONFIG.andanada.promo
-        // está habilitado (ver promo.bubbleHtml más abajo, que reemplaza a
-        // perfectMessage en ese caso). Texto real en
-        // getDialogue('andanada_score') — ver narrateAndanadaTotal().
-        // Null para permitir sobreescritura puntual.
-        message: null,
-        // Plantilla especial cuando la tanda entera dio el puntaje máximo
-        // posible (CONFIG.arrowLimit.countBeforeCooldown flechas, cada una
-        // en el aro de mayor valor de CONFIG.rings — con los valores por
-        // defecto, 6 × 10 = 60). Sirve de respaldo si CONFIG.andanada
-        // .promo.enabled se pone en false más adelante. Texto real en
-        // getDialogue('andanada_perfect').
-        perfectMessage: null,
-  
-        // -----------------------------------------------------------------
-        // Premio por tanda perfecta (v1.6). Cuando la tanda da el puntaje
-        // máximo posible (ver perfectMessage arriba) Y esto está habilitado,
-        // en vez de perfectMessage se muestra bubbleHtml: un globo con un
-        // link a WhatsApp que arma un mensaje de reclamo con un código
-        // corto (ver buildPromoCode()/buildWhatsAppLink() más abajo).
-        //
-        // Supuesto documentado (no especificado en el pedido original): el
-        // "código de premio" es un hash MD5 (calculado con una
-        // implementación propia en JS puro — el juego no usa frameworks ni
-        // Web Crypto, que además no soporta MD5) de `Date.now()` + un
-        // componente aleatorio, en el instante exacto en que se completa la
-        // tanda perfecta, recortado a los primeros 6 caracteres hex. Como
-        // el juego es 100% cliente (sin backend), este código NO es
-        // verificable del lado del servidor — funciona como un
-        // comprobante liviano que el staff de arbat puede mirar a simple
-        // vista, no como una prueba criptográfica. Si arbat necesita
-        // validarlo contra algo (por ejemplo, un secreto compartido o un
-        // registro propio), hay que ajustar buildPromoCode().
-        promo: {
-          enabled: true,
-          whatsappNumber: '59170885758',
-          // "{hash}" se reemplaza por el código de 6 caracteres.
-          whatsappMessage: '¡Hola arbat! acabo de lograr hacer 60 puntos en la página web y me he ganado un 2x1, aquí está mi código de premio: {hash}',
-          // Texto del globo dentro del juego (HTML — ver buddy_says
-          // con opts.html). "{link}" se reemplaza por el link de WhatsApp ya
-          // armado (wa.me + el mensaje de arriba, URL-encodeado). Texto real
-          // en getDialogue('andanada_promo_reward') — ver uso en
-          // narrateAndanadaTotal(). Null para permitir sobreescritura puntual.
-          bubbleHtml: null,
-          // Bastante más que 2800: hay mucho más texto
-          // para leer y, a diferencia de los demás globos, éste tiene un
-          // link que hay que llegar a tocar.
-          displayMs: 12000
-        }
-      },
-  
-      // -------------------------------------------------------------------
-      // Blanco / puntería. El logo real de arbat (esquina superior izquierda
-      // de la página) sirve de diana. El juego usa su posición y tamaño
-      // reales (getBoundingClientRect) para calcular los aros — nunca lo
-      // muestra, oculta, mueve ni redimensiona: es contenido de la página
-      // (fuera del control de raulito.js), sólo se LEE su posición.
-      // '.site-header .site-logo img' es el <img> real dentro de
-      // `<a class="site-logo">` en el layout del sitio (ver
-      // .site-header .site-logo img en style.css: height:30px, width:auto).
-      // Si no se encuentra ningún elemento con ese selector (p. ej. al
-      // probar este script aislado, fuera del sitio real), el script dibuja
-      // su propia copia de `targetImage` en la esquina superior izquierda,
-      // solo para poder probar la puntería sin la página real.,
-      targetSelector: '.site-header .site-logo img',
-      targetImage: 'diana.png',
-      targetMarginPx: 16,
-  
-      // Anillos de puntería, medidos directamente sobre diana.png (el círculo
-      // dentro de la "a" de arbat: negro / blanco / naranja / blanco / negro).
-      // outerPercent = fracción del RADIO del logo renderizado (0 a 1) hasta
-      // donde llega cada zona, medida desde el centro. Las primeras cinco
-      // fracciones salen de examinar los píxeles reales de diana.png; la
-      // última (5 puntos, "espacio blanco externo") no está delimitada por el
-      // arte del logo en sí —es un supuesto documentado en raulito.md—, así
-      // que es la más fácil de mover si hace falta agrandar o achicar la zona
-      // de 5 puntos.,
-      rings: [
-        { points: 10, outerPercent: 0.14 }, // círculo negro interno
-        { points: 9,  outerPercent: 0.27 }, // aro blanco
-        { points: 8,  outerPercent: 0.45 }, // aro naranja
-        { points: 7,  outerPercent: 0.61 }, // espacio blanco
-        { points: 6,  outerPercent: 0.81 }, // aro negro externo
-        { points: 5,  outerPercent: 1.05 }  // espacio blanco externo (supuesto)
-      ],
-  
-      // Triple click de prueba para invocar/ocultar a Raulito. Cambiar
-      // clicksToTrigger o windowMs si genera falsos positivos/negativos.
-
-      testTrigger: {
-        clicksToTrigger: 3,
-        windowMs: 500
-      },
-      miraMarginPx: 16,
-  
-      // -------------------------------------------------------------------
-      // Zona de "sabiduría": si al apuntar la mira cae en el cuarto inferior
-      // de la VENTANA VISIBLE (viewport) — equivalente a apuntar hacia abajo,
-      // al suelo, en vez de hacia el blanco — Raúl decide directamente no
-      // disparar. A diferencia de las otras reglas de validez (mitad de
-      // pantalla), esto NO es un fallo: no pasa por pose04/MISS, vuelve
-      // derecho a pose03 con un mensaje propio (ver clave "arm_lowered_early" y la regla
-      // en onPointerMoveWhileAiming).,
-      wisdomZone: {
-        // Fracción (0..1) del alto de la ventana visible que cuenta como
-        // "cuarto inferior", medida desde abajo. 0.25 = el 25% más bajo del
-        // viewport.
-        bottomFraction: 0.25
-      },
-  
-      // Panel de depuración visible mientras se prueba el prototipo. Poner en
-      // false (o borrar el bloque marcado como DEBUG) para producción.,
-      debug: false
-    };
+  var CONFIG = window.BuddyArcheryConfig;
+  if (!CONFIG) {
+    throw new Error('Buddy Archery: no se encontró window.BuddyArcheryConfig. Carga modules/archery/config.js antes de buddy_archery.js.');
+  }
 
   // ---------------------------------------------------------------------
     // Estado interno
@@ -553,7 +23,7 @@
     var state = 'hidden'; // hidden | idle | pending | aiming | resolved | exhausted
     var charEl = null;
     var miraEl = null;
-    var targetEl = null;  // copia de repuesto del logo (solo si no hay selector real)
+    var targetEl = null;  // fallback gráfico; puede no existir si target está disabled
     var debugEl = null;
   
     var activePointerId = null;
@@ -762,11 +232,245 @@ function pickRandom(variants, memoKey) {
     return variants[index];
   }
 
+function getResourceMode(resourceName) {
+    var resource = CONFIG.resources && CONFIG.resources[resourceName];
+    return resource && resource.mode ? resource.mode : 'auto';
+  }
+
+function getModuleImage(key) {
+    var meta = CONFIG.images && CONFIG.images[key];
+    var asset = window.Buddy.resolveAssetDefault('archery', 'images', key);
+    if (!asset || !asset.archivo) return null;
+    if (!meta) return asset;
+    return {
+      archivo: asset.archivo,
+      ancho: meta.ancho,
+      alto: meta.alto,
+      escala: meta.escala,
+      anclas: meta.anclas
+    };
+  }
+
+function resolveArcheryImage(resourceName, key) {
+    var mode = getResourceMode(resourceName);
+    if (mode === 'disabled') return null;
+    if (mode === 'module') return getModuleImage(key);
+    return window.Buddy.resolveAsset('archery', 'images', key);
+  }
+
+function targetMode() {
+    return getResourceMode('target');
+  }
+
+function targetDisabled() {
+    return targetMode() === 'disabled';
+  }
+
+function getConfiguredTargetDom() {
+    var target = CONFIG.target || {};
+    if (target.type !== 'dom' || !target.selector) return null;
+    return document.querySelector(target.selector);
+  }
+
+function getDefaultTargetConfig() {
+    return CONFIG.defaultTarget || {};
+  }
+
+function normalizeTargetRings(rings) {
+    return Array.isArray(rings) ? rings : [];
+  }
+
+function getDefaultTargetRings() {
+    return normalizeTargetRings(getDefaultTargetConfig().rings);
+  }
+
+function getCharacterTargetAsset() {
+    if (typeof window.Buddy.hasAssetOverride !== 'function' ||
+        !window.Buddy.hasAssetOverride('archery', 'images', 'diana')) {
+      return null;
+    }
+    return window.Buddy.resolveAsset('archery', 'images', 'diana');
+  }
+
+function getDefaultTargetAsset() {
+    var defaultConfig = getDefaultTargetConfig();
+    var imageName = defaultConfig.image || 'diana.png';
+    var key = imageName.replace(/\.[^.]+$/, '');
+    var asset = getModuleImage(key);
+    if (!asset) return null;
+
+    return {
+      archivo: asset.archivo,
+      ancho: asset.ancho,
+      alto: asset.alto,
+      escala: typeof defaultConfig.scale === 'number' ? defaultConfig.scale : asset.escala,
+      anclas: asset.anclas,
+      rings: defaultConfig.rings
+    };
+  }
+
+function getPageFallbackTargetAsset() {
+    var target = CONFIG.target || {};
+    var fallback = target.fallback || {};
+    var image = fallback.image;
+    if (!image) return null;
+
+    // Los fallbacks declarados con un nombre simple (p. ej. diana.png) se
+    // resuelven como imágenes del módulo Archery. Se aceptan además URLs o
+    // rutas explícitas para no limitar la configuración de una página.
+    if (/^(?:https?:|data:|blob:|\/)/i.test(image) || image.indexOf('/') !== -1) {
+      return {
+        archivo: image,
+        escala: typeof target.scale === 'number' ? target.scale : CONFIG.scales.target,
+        rings: target.rings
+      };
+    }
+
+    var key = image.replace(/\.[^.]+$/, '');
+    var asset = getModuleImage(key);
+    if (!asset) return null;
+    return {
+      archivo: asset.archivo,
+      ancho: asset.ancho,
+      alto: asset.alto,
+      escala: typeof target.scale === 'number' ? target.scale : asset.escala,
+      anclas: asset.anclas,
+      rings: target.rings
+    };
+  }
+
+function getTargetResolution() {
+    if (targetDisabled()) return null;
+
+    // PRIORIDAD 1: diana específica de la página.
+    // Si el DOM configurado existe, se usa directamente. Si no existe y la
+    // configuración ofrece fallback, ese fallback sigue perteneciendo a la
+    // diana de página y conserva su misma geometría (rings).
+    if (CONFIG.target && CONFIG.target.type === 'dom' && CONFIG.target.selector) {
+      var pageTarget = getConfiguredTargetDom();
+      if (pageTarget) {
+        return {
+          source: 'page',
+          element: pageTarget,
+          asset: null,
+          rings: normalizeTargetRings(CONFIG.target.rings).length
+            ? CONFIG.target.rings
+            : getDefaultTargetRings(),
+          scale: typeof CONFIG.target.scale === 'number' ? CONFIG.target.scale : CONFIG.scales.target,
+          marginPx: typeof CONFIG.target.marginPx === 'number' ? CONFIG.target.marginPx : 16
+        };
+      }
+
+      if (CONFIG.target.fallback && CONFIG.target.fallback.enabled) {
+        var pageFallbackAsset = getPageFallbackTargetAsset();
+        if (pageFallbackAsset) {
+          return {
+            source: 'page-fallback',
+            element: targetEl,
+            asset: pageFallbackAsset,
+            rings: normalizeTargetRings(CONFIG.target.rings).length
+              ? CONFIG.target.rings
+              : getDefaultTargetRings(),
+            scale: typeof CONFIG.target.scale === 'number' ? CONFIG.target.scale : CONFIG.scales.target,
+            marginPx: typeof CONFIG.target.marginPx === 'number' ? CONFIG.target.marginPx : 16
+          };
+        }
+      }
+    }
+
+    // PRIORIDAD 2: diana declarada por el personaje.
+    var characterAsset = getCharacterTargetAsset();
+    if (characterAsset && characterAsset.archivo) {
+      return {
+        source: 'character',
+        element: targetEl,
+        asset: characterAsset,
+        rings: normalizeTargetRings(characterAsset.rings).length
+          ? characterAsset.rings
+          : getDefaultTargetRings(),
+        scale: assetScale(characterAsset, CONFIG.scales.target),
+        marginPx: 16
+      };
+    }
+
+    // PRIORIDAD 3: diana por defecto del módulo /archery.
+    var defaultAsset = getDefaultTargetAsset();
+    if (!defaultAsset || !defaultAsset.archivo) return null;
+    return {
+      source: 'module',
+      element: targetEl,
+      asset: defaultAsset,
+      rings: getDefaultTargetRings(),
+      scale: assetScale(defaultAsset, CONFIG.scales.target),
+      marginPx: 16
+    };
+  }
+
+function targetTargetPx(targetInfo) {
+    var info = targetInfo || getTargetResolution();
+    var targetScale = info && typeof info.scale === 'number' ? info.scale : CONFIG.scales.target;
+    return CONFIG.targetLongSidePercent * viewportLongSide() * targetScale;
+  }
+
+function getTargetEl() {
+    var resolution = getTargetResolution();
+    return resolution ? resolution.element : null;
+  }
+
+function updateTargetVisibility() {
+    if (!targetEl) return;
+
+    var resolution = getTargetResolution();
+    if (!resolution) {
+      targetEl.style.display = 'none';
+      return;
+    }
+
+    if (resolution.element !== targetEl) {
+      targetEl.style.display = 'none';
+      return;
+    }
+
+    targetEl.style.display = 'block';
+    if (resolution.asset && resolution.asset.archivo && targetEl.getAttribute('src') !== resolution.asset.archivo) {
+      targetEl.src = resolution.asset.archivo;
+    }
+    targetEl.style.left = resolution.marginPx + 'px';
+    targetEl.style.top = resolution.marginPx + 'px';
+  }
+
+function computeScore(x, y, rect) {
+    var resolution = getTargetResolution();
+    if (!resolution) return null;
+
+    var el = resolution.element;
+    if (!rect) {
+      if (!el) return null;
+      rect = el.getBoundingClientRect();
+    }
+    if (!rect.width || !rect.height) return null;
+
+    var rings = normalizeTargetRings(resolution.rings);
+    if (!rings.length) return null;
+
+    var cx = rect.left + rect.width / 2;
+    var cy = rect.top + rect.height / 2;
+    var maxRadius = Math.min(rect.width, rect.height) / 2;
+    var dist = Math.sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy));
+
+    for (var i = 0; i < rings.length; i++) {
+      var ring = rings[i];
+      if (dist <= ring.outerPercent * maxRadius) return ring.points;
+    }
+    return null;
+  }
+
 function preloadAssets() {
     var imageKeys = ['mira', 'diana', 'flecha01', 'flecha02', 'flecha03', 'flecha04'];
 
     imageKeys.forEach(function (key) {
-      var datos = window.Buddy.resolveAsset('archery', 'images', key);
+      var resourceName = key === 'mira' ? 'mira' : (key.indexOf('flecha') === 0 ? 'arrows' : 'target');
+      var datos = resolveArcheryImage(resourceName, key);
       if (!datos || !datos.archivo) return;
 
       var img = new Image();
@@ -846,53 +550,18 @@ function arrowTargetPx(asset) {
     return CONFIG.arrowLongSidePercent * viewportLongSide() * assetScale(asset, CONFIG.scales.arrow);
   }
 
-function targetTargetPx() {
-    return CONFIG.targetLongSidePercent * viewportLongSide() * CONFIG.scales.target;
-  }
-
-function getTargetEl() {
-    if (CONFIG.targetSelector) {
-      var real = document.querySelector(CONFIG.targetSelector);
-      if (real) return real;
-    }
-    return targetEl;
-  }
-
-function updateTargetVisibility() {
-    if (!targetEl) return;
-    var usingRealLogo = !!(CONFIG.targetSelector && document.querySelector(CONFIG.targetSelector));
-    targetEl.style.display = usingRealLogo ? 'none' : 'block';
-  }
-
-function computeScore(x, y, rect) {
-    if (!rect) {
-      var el = getTargetEl();
-      if (!el) return null;
-      rect = el.getBoundingClientRect();
-    }
-    if (!rect.width || !rect.height) return null;
-
-    var cx = rect.left + rect.width / 2;
-    var cy = rect.top + rect.height / 2;
-    var maxRadius = Math.min(rect.width, rect.height) / 2;
-    var dist = Math.sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy));
-
-    for (var i = 0; i < CONFIG.rings.length; i++) {
-      var ring = CONFIG.rings[i];
-      if (dist <= ring.outerPercent * maxRadius) return ring.points;
-    }
-    return null;
-  }
-
 function pickRandomArrowName() {
+    if (getResourceMode('arrows') === 'disabled') return null;
     var list = CONFIG.arrowImages;
     return list[Math.floor(Math.random() * list.length)];
   }
 
 function stickArrowAt(x, y, score, targetRect) {
     var name = pickRandomArrowName();
+    if (!name) return null;
     var arrowKey = name.replace('.png', '');
-    var arrowAsset = window.Buddy.resolveAsset('archery', 'images', arrowKey);
+    var arrowAsset = resolveArcheryImage('arrows', arrowKey);
+    if (!arrowAsset || !arrowAsset.archivo) return null;
     var arrowEl = document.createElement('img');
     arrowEl.alt = '';
     arrowEl.draggable = false;
@@ -994,8 +663,10 @@ function resetArrows() {
 
 function maxSingleArrowScore() {
     var max = 0;
-    for (var i = 0; i < CONFIG.rings.length; i++) {
-      if (CONFIG.rings[i].points > max) max = CONFIG.rings[i].points;
+    var resolution = getTargetResolution();
+    var rings = resolution ? normalizeTargetRings(resolution.rings) : [];
+    for (var i = 0; i < rings.length; i++) {
+      if (rings[i].points > max) max = rings[i].points;
     }
     return max;
   }
@@ -1290,7 +961,8 @@ function ensureElements() {
     charEl = document.getElementById('buddy-character');
 
     if (!miraEl) {
-      miraEl = document.createElement('img');
+      var miraMode = getResourceMode('mira');
+      miraEl = document.createElement(miraMode === 'disabled' ? 'div' : 'img');
       miraEl.id = 'buddy-mira';
       miraEl.alt = '';
       miraEl.draggable = false;
@@ -1305,25 +977,31 @@ function ensureElements() {
         visibility: 'hidden',
         willChange: 'transform'
       });
-      miraEl.addEventListener('load', function () {
-        var miraAsset = window.Buddy.resolveAsset('archery', 'images', 'mira');
-        fitLongSide(miraEl, miraTargetPx(miraAsset));
-        miraEl.style.visibility = 'visible';
-      });
-      var miraAsset = window.Buddy.resolveAsset('archery', 'images', 'mira');
-      if (miraAsset && miraAsset.archivo) miraEl.src = miraAsset.archivo;
+      if (miraMode === 'disabled') {
+        miraEl.style.width = '1px';
+        miraEl.style.height = '1px';
+        miraEl.style.visibility = 'hidden';
+      } else {
+        miraEl.addEventListener('load', function () {
+          var miraAsset = resolveArcheryImage('mira', 'mira');
+          fitLongSide(miraEl, miraTargetPx(miraAsset));
+          miraEl.style.visibility = 'visible';
+        });
+        var miraAsset = resolveArcheryImage('mira', 'mira');
+        if (miraAsset && miraAsset.archivo) miraEl.src = miraAsset.archivo;
+      }
       document.body.appendChild(miraEl);
     }
 
-    if (!targetEl) {
+    if (!targetEl && !targetDisabled()) {
       targetEl = document.createElement('img');
       targetEl.id = 'buddy-target';
       targetEl.alt = '';
       targetEl.draggable = false;
       Object.assign(targetEl.style, {
         position: 'fixed',
-        left: CONFIG.targetMarginPx + 'px',
-        top: CONFIG.targetMarginPx + 'px',
+        left: '16px',
+        top: '16px',
         zIndex: '1',
         pointerEvents: 'none',
         userSelect: 'none',
@@ -1332,8 +1010,14 @@ function ensureElements() {
       targetEl.addEventListener('load', function () {
         fitLongSide(targetEl, targetTargetPx());
       });
-      var diana = window.Buddy.resolveAsset('archery', 'images', 'diana');
-      if (diana && diana.archivo) targetEl.src = diana.archivo;
+
+      // La imagen del fallback se resuelve con la misma precedencia que la
+      // diana: página -> personaje -> módulo. Si existe una diana DOM de
+      // página, este elemento queda oculto pero listo como respaldo.
+      var initialResolution = getTargetResolution();
+      if (initialResolution && initialResolution.asset && initialResolution.asset.archivo) {
+        targetEl.src = initialResolution.asset.archivo;
+      }
       document.body.appendChild(targetEl);
     }
 
@@ -1363,7 +1047,7 @@ function ensureElements() {
 
 function onResize() {
     if (miraEl && miraEl.style.display !== 'none') {
-      fitLongSide(miraEl, miraTargetPx(window.Buddy.resolveAsset('archery', 'images', 'mira')));
+      fitLongSide(miraEl, miraTargetPx(resolveArcheryImage('mira', 'mira')));
     }
     if (targetEl && targetEl.style.display !== 'none') {
       fitLongSide(targetEl, targetTargetPx());
@@ -1404,9 +1088,9 @@ function showPose(key) {
     if (key === 'idle') {
       datosImagen = window.Buddy.resolveExpression('sereno');
     } else if (key === 'aim') {
-      datosImagen = window.Buddy.resolveAsset('archery', 'images', 'apuntar');
+      datosImagen = resolveArcheryImage('aim', 'apuntar');
     } else if (key === 'fire') {
-      datosImagen = window.Buddy.resolveAsset('archery', 'images', 'liberar_flecha');
+      datosImagen = resolveArcheryImage('fire', 'liberar_flecha');
     } else {
       datosImagen = window.Buddy.resolveExpressionByCategory('negativo');
     }
@@ -1427,10 +1111,20 @@ function showPose(key) {
     charEl.addEventListener('contextmenu', function (e) { e.preventDefault(); });
   }
 
-function showCharacter() {
+function showCharacter(preserveCurrentPose) {
     state = 'idle';
-    showPose(defaultIdlePoseKey);
     ensureElements();
+
+    // Cuando Says hace visible al personaje para mostrar una expresión,
+    // Archery recibe el evento buddy:character-visible. En ese caso NO debe
+    // imponer su pose idle (sereno), porque eso sobrescribiría inmediatamente
+    // la expresión solicitada por Says.
+    if (!preserveCurrentPose) {
+      showPose(defaultIdlePoseKey);
+    } else if (charEl) {
+      bindCharacterEvents();
+    }
+
     if (charEl) charEl.style.display = 'block';
     updateTargetVisibility();
     setDebug(idleDebugMessage());
@@ -1579,11 +1273,28 @@ function enterAimState() {
     state = 'aiming';
     aimStartedAt = performance.now();
 
+    // Desde este instante Buddy está ocupado: ningún mensaje automático de
+    // Says puede aparecer mientras se apunta. Si había un mensaje de Says
+    // visible justo antes de que comenzara la interacción, se cancela ahora
+    // para que tampoco permanezca sobre la pose 'apuntar'. Los diálogos que
+    // Archery genera mediante say() siguen permitidos porque forman parte de
+    // la propia interacción del minijuego.
+    if (window.Buddy && window.Buddy.says &&
+        typeof window.Buddy.says.cancelarMensajeActual === 'function') {
+      window.Buddy.says.cancelarMensajeActual();
+    }
+
     showPose('aim');
     playTensSound();
     miraEl.style.display = 'block';
-    if (miraEl.complete && miraEl.naturalWidth) {
-      fitLongSide(miraEl, miraTargetPx(window.Buddy.resolveAsset('archery', 'images', 'mira')));
+    if (getResourceMode('mira') === 'disabled') {
+      // La mira visual está bloqueada por Archery, pero mantenemos un punto
+      // virtual de 1x1 px para que la mecánica de puntería siga teniendo un
+      // centro geométrico y pueda calcular el impacto sin cargar ninguna
+      // imagen del personaje ni del módulo.
+      miraEl.style.visibility = 'hidden';
+    } else if (miraEl.complete && miraEl.naturalWidth) {
+      fitLongSide(miraEl, miraTargetPx(resolveArcheryImage('mira', 'mira')));
       miraEl.style.visibility = 'visible';
     } else {
       miraEl.style.visibility = 'hidden';
@@ -1591,7 +1302,9 @@ function enterAimState() {
     miraBaseDx = 0;
     miraBaseDy = 0;
     miraEl.style.transform = 'translate(0px, 0px)';
-    fitLongSide(miraEl, miraTargetPx(window.Buddy.resolveAsset('archery', 'images', 'mira')));
+    if (getResourceMode('mira') !== 'disabled') {
+      fitLongSide(miraEl, miraTargetPx(resolveArcheryImage('mira', 'mira')));
+    }
 
     // Arranca el pulso de latido (v0.4) en reposo: sin intensidad hasta que
     // el primer pointermove aporte una velocidad real que medir. El
@@ -2107,6 +1820,17 @@ function onTestTriggerClick(e) {
     // Si está visible o en una partida en curso, el triple click no hace nada.
   }
 
+function registerBusyProvider() {
+    if (!window.Buddy || typeof window.Buddy.registerBusyProvider !== 'function') {
+      return false;
+    }
+
+    window.Buddy.registerBusyProvider('archery', function () {
+      return state !== 'idle' && state !== 'hidden';
+    });
+    return true;
+  }
+
 function init() {
     var missing = [];
     if (!window.Buddy || typeof window.Buddy.resolveAsset !== 'function') missing.push('window.Buddy.resolveAsset');
@@ -2120,6 +1844,13 @@ function init() {
       return;
     }
 
+    // Registrar el proveedor de ocupado desde init(), cuando Buddy ya está
+    // disponible. Esto evita depender del orden en que el navegador cargue
+    // buddy.js y este módulo. Mientras el estado sea pending/aiming/resolved/
+    // exhausted, las fuentes automáticas de Says deben considerar ocupado a
+    // Buddy.
+    registerBusyProvider();
+
     preloadAssets();
     ensureElements();
     bindArrowRepositioning();
@@ -2131,7 +1862,10 @@ function init() {
     // inmediato si está habilitado, sin exigir triple click.
     window.addEventListener('buddy:character-visible', function () {
       if (state === 'hidden') {
-        showCharacter();
+        // La visibilidad fue provocada por otro módulo (por ejemplo Says).
+        // Activamos Archery sin cambiar la expresión que acaba de solicitar
+        // el módulo que hizo visible al personaje.
+        showCharacter(true);
       }
     });
 
@@ -2141,7 +1875,7 @@ function init() {
     // Archery debe quedar activo inmediatamente.
     if (window.Buddy && typeof window.Buddy.isCharacterVisible === 'function' &&
         window.Buddy.isCharacterVisible() && state === 'hidden') {
-      showCharacter();
+      showCharacter(true);
     }
 
     // El triple click queda únicamente como mecanismo de INVOCACIÓN cuando
@@ -2155,9 +1889,37 @@ function init() {
   // API pública del módulo
   // ---------------------------------------------------------------------
   window.Buddy = window.Buddy || {};
+  // Restaura la pose que corresponde al estado REAL de la partida.
+  // Says puede cambiar temporalmente la imagen para acompañar un mensaje,
+  // pero no debe dejar a Archery en sereno si el jugador sigue apuntando o
+  // si la flecha todavía está en vuelo.
+  function restoreCurrentPose() {
+    if (state === 'hidden') return;
+
+    if (state === 'aiming') {
+      showPose('aim');
+      return;
+    }
+
+    if (state === 'resolved' && currentCharPoseKey === 'fire') {
+      showPose('fire');
+      return;
+    }
+
+    if (state === 'exhausted') {
+      showPose('fail');
+      return;
+    }
+
+    // pending/idle: no hay una pose interactiva activa. En ese caso se
+    // respeta la pose de reposo calculada por Archery.
+    showPose(defaultIdlePoseKey);
+  }
+
   window.Buddy.archery = {
     show: showCharacter,
     hide: hideCharacter,
+    restoreCurrentPose: restoreCurrentPose,
     resetArrows: resetArrows,
     computeScore: computeScore,
     getArrowLog: function () {
@@ -2179,14 +1941,12 @@ function init() {
     }
   };
 
-  // Fase 10: registrar la condición de ocupado en la política común de Buddy.
-  // Se conserva esta API pública porque otros consumidores pueden seguir
-  // consultando Buddy.archery.estaOcupado(), pero says ya no depende de ella.
-  if (window.Buddy && typeof window.Buddy.registerBusyProvider === 'function') {
-    window.Buddy.registerBusyProvider('archery', function () {
-      return window.Buddy.archery.estaOcupado();
-    });
-  }
+  // Fase 10: la política común se registra desde init(), cuando Buddy ya
+  // existe. Dejamos este intento defensivo por compatibilidad con cargas
+  // no estándar en las que init() pueda ejecutarse antes de que Buddy quede
+  // disponible; en ese caso el evento buddy:ready volverá a intentarlo.
+  registerBusyProvider();
+  window.addEventListener('buddy:ready', registerBusyProvider);
 
 
   if (document.readyState === 'loading') {

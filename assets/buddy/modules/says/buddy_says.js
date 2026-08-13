@@ -45,6 +45,9 @@ window.Buddy = window.Buddy || {};
   if (!window.Buddy || typeof window.Buddy.resolveExpressionByCategory !== 'function') {
     faltantes.push('window.Buddy.resolveExpressionByCategory');
   }
+  if (!window.Buddy || typeof window.Buddy.resolveExpressionExact !== 'function') {
+    faltantes.push('window.Buddy.resolveExpressionExact');
+  }
   if (faltantes.length) {
     console.error(
       '[buddy_says] No se pudo inicializar: faltan APIs de la Fase 3 (buddy.js): ' +
@@ -77,7 +80,7 @@ window.Buddy = window.Buddy || {};
     bubbleGapPx: 50,
     // Corrimiento del CUERPO del globo hacia la izquierda del punto de
     // cabeza_superior (la colita se queda apuntando cerca del punto real).
-    bubbleLeftShiftPx: 50,
+    bubbleLeftShiftPx: 20,
     // Debe coincidir con la colita del globo (::after en ensureBubbleStyles:
     // "right:28px;width:14px" -> el centro de la colita queda a
     // 28+14/2=35px del borde derecho del globo).
@@ -88,10 +91,9 @@ window.Buddy = window.Buddy || {};
     // un mensaje.
     expresionPorDefecto: 'sereno',
 
-    // Fallback si una expresión todavía no declara anclas.cabeza_superior
-    // (dato marcado TODO en planBuddy_v5.md hasta medirse a mano). Evita
-    // que el globo se posicione en (0,0) mientras se completa esa medición.
-    cabezaSuperiorFallback: { x: 0.4, y: 0.05 }
+    // Fallback expresado también en píxeles absolutos del archivo original.
+    // Se usa únicamente si una expresión no declara cabeza_superior.
+    cabezaSuperiorFallback: { x: 90, y: 59 }
   };
 
   // -------------------------------------------------------------------
@@ -161,13 +163,31 @@ window.Buddy = window.Buddy || {};
 
     var cabezaSuperior = datosExpresion && datosExpresion.anclas &&
       datosExpresion.anclas.cabeza_superior;
-    var anchorX = cabezaSuperior && typeof cabezaSuperior.x === 'number' ?
-      cabezaSuperior.x : CONFIG.cabezaSuperiorFallback.x;
-    var anchorY = cabezaSuperior && typeof cabezaSuperior.y === 'number' ?
-      cabezaSuperior.y : CONFIG.cabezaSuperiorFallback.y;
 
-    var faceX = rect.left + rect.width * anchorX;
-    var faceY = rect.top + rect.height * anchorY;
+    // Las anclas de las expresiones ahora son coordenadas ABSOLUTAS en
+    // píxeles dentro de la imagen original, igual que las anclas del
+    // personaje y de Archery. No se pueden multiplicar directamente por
+    // rect.width/height: primero hay que convertirlas a la escala renderizada.
+    var sourceWidth = Number(datosExpresion && datosExpresion.ancho);
+    var sourceHeight = Number(datosExpresion && datosExpresion.alto);
+    var anchorX = cabezaSuperior && typeof cabezaSuperior.x === 'number'
+      ? cabezaSuperior.x
+      : CONFIG.cabezaSuperiorFallback.x;
+    var anchorY = cabezaSuperior && typeof cabezaSuperior.y === 'number'
+      ? cabezaSuperior.y
+      : CONFIG.cabezaSuperiorFallback.y;
+
+    if (!sourceWidth || !sourceHeight ||
+        !isFinite(sourceWidth) || !isFinite(sourceHeight)) {
+      console.warn('[buddy_says] La expresión no tiene ancho/alto válidos; no se puede convertir cabeza_superior a píxeles renderizados.');
+      return;
+    }
+
+    var renderedAnchorX = anchorX * rect.width / sourceWidth;
+    var renderedAnchorY = anchorY * rect.height / sourceHeight;
+
+    var faceX = rect.left + renderedAnchorX;
+    var faceY = rect.top + renderedAnchorY;
 
     // La colita (bubbleTailOffsetPx) apunta cerca de faceX; el cuerpo del
     // globo se corre bubbleLeftShiftPx más a la izquierda de eso.
@@ -210,35 +230,20 @@ window.Buddy = window.Buddy || {};
   // -------------------------------------------------------------------
   // Resolución de emocion -> datosExpresion.
   //
-  // fase04.md pide esta prioridad: 1) categoría del diccionario
-  // (Buddy.resolveExpressionByCategory), 2) id directo de expresión
-  // (Buddy.resolveExpression), 3) fallback 'sereno'. buddy.js (Fase 3) no
-  // expone una forma de preguntar "¿esta clave es una categoría?" o
-  // "¿esta expresión existe?" por separado: tanto resolveExpression como
-  // resolveExpressionByCategory siempre devuelven algo, cayendo en
-  // 'sereno' si no encuentran nada (falla "silenciosa" por diseño de la
-  // Fase 3). Por eso la detección se hace comparando el archivo resuelto
-  // contra el de 'sereno': si la categoría o el id directo devuelven un
-  // archivo DISTINTO al de 'sereno', hubo una coincidencia real. Si
-  // ambos coinciden con 'sereno', no había ni categoría ni expresión
-  // válida y corresponde el fallback (que, si algún día una categoría
-  // legítima apunta a 'sereno' — como diccionarioExpresiones.negativo
-  // hoy — da el mismo resultado visual de todas formas).
+  // La prioridad es: 1) categoría del diccionario, 2) expresión exacta,
+  // 3) expresión por defecto. Las APIs Exact permiten saber si realmente
+  // hubo una coincidencia, sin comparar rutas de archivos contra sereno.
   // -------------------------------------------------------------------
   function resolveExpresionParaEmocion(emocion) {
     if (!emocion) emocion = CONFIG.expresionPorDefecto;
 
-    var serenoBase = window.Buddy.resolveExpression(CONFIG.expresionPorDefecto);
     var porCategoria = window.Buddy.resolveExpressionByCategory(emocion);
-    var directa = window.Buddy.resolveExpression(emocion);
+    if (porCategoria) return porCategoria;
 
-    if (porCategoria && serenoBase && porCategoria.archivo !== serenoBase.archivo) {
-      return porCategoria;
-    }
-    if (directa && serenoBase && directa.archivo !== serenoBase.archivo) {
-      return directa;
-    }
-    return serenoBase;
+    var directa = window.Buddy.resolveExpressionExact(emocion);
+    if (directa) return directa;
+
+    return window.Buddy.resolveExpression(CONFIG.expresionPorDefecto);
   }
 
   // -------------------------------------------------------------------
@@ -288,10 +293,12 @@ window.Buddy = window.Buddy || {};
         CONFIG.expresionPorDefecto + "'). Revisar el archivo de datos del " +
         'personaje activo (window.BuddyChars).'
       );
-      return;
+      return false;
     }
 
-    // 1) cambia la cara mientras dura el mensaje.
+    // 1) cambia la cara mientras dura el mensaje. showCharacterImage()
+    // también hace visible al personaje y notifica a los módulos para que
+    // puedan salir de su estado interno 'hidden'.
     window.Buddy.showCharacterImage(datosExpresion);
     // 2) muestra el globo, anclado a cabeza_superior de esa expresión.
     showBubble(texto, opciones, datosExpresion);
@@ -310,11 +317,24 @@ window.Buddy = window.Buddy || {};
 
       hideBubble();
 
-      var serenoData = window.Buddy.resolveExpression(CONFIG.expresionPorDefecto);
-      if (serenoData) {
-        window.Buddy.showCharacterImage(serenoData);
+      // Si un módulo interactivo mantiene el control de la pose (por ejemplo
+      // Archery mientras se apunta o mientras la flecha está en vuelo), no
+      // debemos imponer sereno al terminar el mensaje. El módulo activo es
+      // quien conoce cuál debe ser la pose en ese instante.
+      if (window.Buddy && window.Buddy.archery &&
+          typeof window.Buddy.archery.restoreCurrentPose === 'function' &&
+          typeof window.Buddy.archery.estaOcupado === 'function' &&
+          window.Buddy.archery.estaOcupado()) {
+        window.Buddy.archery.restoreCurrentPose();
+      } else {
+        var serenoData = window.Buddy.resolveExpression(CONFIG.expresionPorDefecto);
+        if (serenoData) {
+          window.Buddy.showCharacterImage(serenoData);
+        }
       }
     }, durationMs);
+
+    return true;
   }
 
 
@@ -322,73 +342,73 @@ window.Buddy = window.Buddy || {};
   // Fase 8 — motor de fuentes
   // -------------------------------------------------------------------
   var SOURCES = window.BuddyInformSources = window.BuddyInformSources || {};
+  var SOURCE_STORAGE_KEY = 'buddySaysV1';
+  var sourceStates = {};
+  var sourceEngineStarted = false;
+  var sourceEngineTimer = null;
+  var sourceQueue = [];
+  var queueIndex = 0;
+  var lastDeliveryDate = 0;
 
-  // La configuración de qué fuentes participan pertenece a /says/config.js.
-  // No se fija aquí para que el sitio pueda activar/desactivar fuentes y
-  // cambiar su estrategia sin modificar el motor.
   var configuredSources = window.BuddySaysConfig && Array.isArray(window.BuddySaysConfig.sources) ?
     window.BuddySaysConfig.sources : [];
 
   var SOURCES_CONFIG = configuredSources.filter(function (item) {
-    return item && item.enabled !== false && item.id;
+    return item && item.enabled === true && item.id;
   }).map(function (item) {
     return {
       id: String(item.id),
-      recurrencia: item.recurrencia != null ? item.recurrencia : (item.recurrence != null ? item.recurrence : 1),
-      frecuencia: item.frecuencia || item.frequency || { min: 0, max: 0 },
-      seleccion: item.seleccion || item.selection || 'sequential'
+      recurrence: item.recurrence != null ? Number(item.recurrence) : Number(item.recurrencia || 1),
+      frequency: item.frequency || item.frecuencia || { min: 0, max: 0 },
+      selection: String(item.selection || item.seleccion || 'sequential').toLowerCase(),
+      primero: item.primero === true
     };
   });
 
-  var sourceStates = {};
-  var sourceEngineStarted = false;
-  var sourceEngineTimer = null;
-  var SOURCE_STORAGE_KEY = 'buddy.says.fase08.recurrencia.v1';
-
   function debugSource() {
-    if (window.BUDDY_SAYS_DEBUG && window.console && console.log) {
-      console.log.apply(console, arguments);
+    if (window.BUDDY_SAYS_DEBUG && window.console && window.console.log) {
+      window.console.log.apply(window.console, arguments);
     }
   }
 
   function warnSource() {
-    if (window.console && console.warn) {
-      console.warn.apply(console, arguments);
+    if (window.console && window.console.warn) {
+      window.console.warn.apply(window.console, arguments);
     }
   }
 
-  function todayKey() {
-    var now = new Date();
-    return now.getFullYear() + '-' +
-      ('0' + (now.getMonth() + 1)).slice(-2) + '-' +
-      ('0' + now.getDate()).slice(-2);
+  function todayKey(timestamp) {
+    var date = new Date(timestamp == null ? Date.now() : timestamp);
+    return date.getFullYear() + '-' +
+      ('0' + (date.getMonth() + 1)).slice(-2) + '-' +
+      ('0' + date.getDate()).slice(-2);
   }
 
-  function readRecurrenceStore() {
-    var empty = { fecha: todayKey(), mensajes: {} };
+  function isToday(timestamp) {
+    return Number(timestamp) > 0 && todayKey(timestamp) === todayKey();
+  }
+
+  function readStore() {
     try {
       var raw = window.localStorage.getItem(SOURCE_STORAGE_KEY);
-      if (!raw) return empty;
-      var parsed = JSON.parse(raw);
-      if (!parsed || parsed.fecha !== todayKey() || !parsed.mensajes ||
-          typeof parsed.mensajes !== 'object') {
-        return empty;
-      }
-      return parsed;
+      var parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
     } catch (e) {
-      return empty;
+      return [];
     }
   }
 
-  function writeRecurrenceStore(store) {
+  function writeStore() {
     try {
-      window.localStorage.setItem(SOURCE_STORAGE_KEY, JSON.stringify(store));
+      window.localStorage.setItem(SOURCE_STORAGE_KEY, JSON.stringify(sourceStore));
     } catch (e) {
-      // localStorage puede estar bloqueado; la sesión sigue funcionando.
+      warnSource('[buddy_says] No se pudo guardar buddySaysV1:', e);
     }
   }
 
-  var recurrenceStore = readRecurrenceStore();
+  var sourceStore = readStore().filter(function (message) {
+    return !Number(message && message.date) || isToday(message.date);
+  });
 
   function stableHash(text) {
     var hash = 2166136261;
@@ -407,12 +427,8 @@ window.Buddy = window.Buddy || {};
     return '';
   }
 
-  function getMessageId(sourceId, message) {
-    if (message && typeof message === 'object' && message.id !== undefined &&
-        message.id !== null && String(message.id).trim() !== '') {
-      return sourceId + ':' + String(message.id).trim();
-    }
-    return sourceId + ':' + stableHash(getMessageText(message));
+  function getMessageId(message) {
+    return stableHash(getMessageText(message));
   }
 
   function getMessageEmotion(message) {
@@ -424,103 +440,66 @@ window.Buddy = window.Buddy || {};
 
   function normalizeMessages(sourceId, messages) {
     if (!Array.isArray(messages)) return [];
-    return messages.map(function (message) {
+    return messages.map(function (message, index) {
       var texto = getMessageText(message);
       if (!texto) return null;
       return {
-        id: getMessageId(sourceId, message),
+        id: getMessageId(message),
         texto: texto,
         emocion: getMessageEmotion(message),
+        source: sourceId,
+        sourceIndex: index,
         original: message
       };
     }).filter(Boolean);
   }
 
-  function randomIntInclusive(min, max) {
-    min = Math.ceil(min);
-    max = Math.floor(max);
-    if (max <= min) return min;
-    return Math.floor(Math.random() * (max - min + 1)) + min;
+  function randomNumberInclusive(min, max) {
+    min = Math.max(0, Number(min) || 0);
+    max = Math.max(min, Number(max) || min);
+    return min + Math.random() * (max - min);
   }
 
-  function intervalMs(config) {
-    var min = Math.max(0, Number(config.frecuencia.min) || 0);
-    var max = Math.max(min, Number(config.frecuencia.max) || min);
-    var minutes = randomIntInclusive(min, max);
-    return minutes * 60 * 1000;
+  function getWaitMinutes(config) {
+    var min = Math.max(0, Number(config.frequency && config.frequency.min) || 0);
+    var max = Math.max(min, Number(config.frequency && config.frequency.max) || min);
+    return randomNumberInclusive(min, max);
   }
 
-  function isBubbleVisible() {
-    return !!(bubbleEl && bubbleEl.classList.contains('is-visible'));
-  }
-
-  function isSystemBusy() {
-    if (window.Buddy && typeof window.Buddy.isBusy === 'function') {
-      try {
-        return !!window.Buddy.isBusy();
-      } catch (e) {
-        // Buddy.isBusy() ya aplica una política conservadora internamente.
-        // Si la API falla por completo, tampoco interrumpimos al usuario.
-        warnSource('[buddy_says] Buddy.isBusy() lanzó una excepción; se considera ocupado.');
-        return true;
-      }
+  function getStoredMessage(id) {
+    for (var i = 0; i < sourceStore.length; i++) {
+      if (sourceStore[i].id === id) return sourceStore[i];
     }
-
-    // Compatibilidad defensiva durante cargas anómalas: si la API común aún
-    // no existe, no se permite una interrupción automática. No se conoce
-    // ningún módulo concreto aquí (archery, u otro futuro).
-    return true;
-  }
-
-  function canSpeakPolitely() {
-    return !isBubbleVisible() && !isSystemBusy();
-  }
-
-  function recurrenceCount(messageId) {
-    return Number(recurrenceStore.mensajes[messageId] || 0);
-  }
-
-  function canUseMessage(state, message) {
-    var max = Math.max(1, Number(state.config.recurrencia) || 1);
-    return recurrenceCount(message.id) < max;
-  }
-
-  function markMessageUsed(message) {
-    recurrenceStore.mensajes[message.id] = recurrenceCount(message.id) + 1;
-    writeRecurrenceStore(recurrenceStore);
-  }
-
-  function selectMessage(state) {
-    var available = state.messages.filter(function (message) {
-      return canUseMessage(state, message);
-    });
-
-    if (!available.length) return null;
-
-    var selectionMode = String(state.config.seleccion || 'sequential').toLowerCase();
-    if (selectionMode === 'aleatoria' || selectionMode === 'aleatorio' ||
-        selectionMode === 'shuffle' || selectionMode === 'random') {
-      // Evita repetir inmediatamente cuando hay más de una opción.
-      var pool = available;
-      if (pool.length > 1 && state.lastMessageId) {
-        pool = pool.filter(function (message) {
-          return message.id !== state.lastMessageId;
-        });
-        if (!pool.length) pool = available;
-      }
-      return pool[Math.floor(Math.random() * pool.length)];
-    }
-
-    for (var i = 0; i < state.messages.length; i++) {
-      var index = (state.nextIndex + i) % state.messages.length;
-      var candidate = state.messages[index];
-      if (canUseMessage(state, candidate)) {
-        state.nextIndex = (index + 1) % state.messages.length;
-        return candidate;
-      }
-    }
-
     return null;
+  }
+
+  function ensureStoredMessage(message, config) {
+    var stored = getStoredMessage(message.id);
+    var recurrence = Math.max(0, Number(config.recurrence) || 0);
+
+    if (!stored) {
+      stored = {
+        id: message.id,
+        texto: message.texto,
+        emocion: message.emocion,
+        source: message.source,
+        date: 0,
+        recurrence: recurrence,
+        espera: getWaitMinutes(config)
+      };
+      sourceStore.push(stored);
+      return stored;
+    }
+
+    // El texto/emoción/fuente se actualizan con la fuente actual, pero
+    // recurrence, espera y date pertenecen al estado persistente del mensaje.
+    stored.texto = message.texto;
+    stored.emocion = message.emocion;
+    stored.source = message.source;
+    stored.recurrence = Math.max(0, Number(stored.recurrence) || 0);
+    stored.espera = Math.max(0, Number(stored.espera) || 0);
+    stored.date = Number(stored.date) || 0;
+    return stored;
   }
 
   function loadSource(state) {
@@ -533,16 +512,15 @@ window.Buddy = window.Buddy || {};
 
     state.loading = true;
     return Promise.resolve().then(function () {
-      // Una fuente puede ser un array directo o un proveedor con
-      // obtenerMensajes(). Los dos formatos son deliberadamente válidos.
       if (Array.isArray(source)) return source;
-      if (typeof source.obtenerMensajes === 'function') {
-        return source.obtenerMensajes();
-      }
+      if (typeof source.obtenerMensajes === 'function') return source.obtenerMensajes();
       throw new Error('Formato de fuente no válido: ' + state.config.id);
     }).then(function (messages) {
       state.messages = normalizeMessages(state.config.id, messages);
       state.error = null;
+      state.messages.forEach(function (message) {
+        message.stored = ensureStoredMessage(message, state.config);
+      });
       debugSource('[BUDDY SAYS] mensajes cargados:', state.config.id, '=', state.messages.length);
       return true;
     }).catch(function (error) {
@@ -556,76 +534,249 @@ window.Buddy = window.Buddy || {};
     });
   }
 
-  function scheduleState(state, delay) {
-    state.nextAt = Date.now() + Math.max(0, delay);
+  function shuffleArray(list) {
+    var result = list.slice();
+    for (var i = result.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var tmp = result[i];
+      result[i] = result[j];
+      result[j] = tmp;
+    }
+    return result;
   }
 
-  function getNextDelay() {
-    var now = Date.now();
-    var delay = 60 * 1000;
-    Object.keys(sourceStates).forEach(function (id) {
-      var state = sourceStates[id];
-      if (!state.nextAt) return;
-      delay = Math.min(delay, Math.max(0, state.nextAt - now));
+  function getAvailableMessages(config) {
+    var state = sourceStates[config.id];
+    if (!state || !state.messages.length) return [];
+
+    var available = state.messages.filter(function (message) {
+      return message.stored && Number(message.stored.recurrence) > 0;
     });
-    return Math.max(250, delay);
+
+    if (config.selection === 'shuffle' || config.selection === 'random' ||
+        config.selection === 'aleatorio' || config.selection === 'aleatoria') {
+      available = shuffleArray(available);
+    }
+
+    return available;
   }
 
-  function scheduleEngine() {
+  function interleaveSources(sourceLists) {
+    var queue = [];
+    var active = sourceLists.filter(function (item) { return item.messages.length > 0; });
+    var emitted = active.map(function () { return 0; });
+    var total = active.map(function (item) { return item.messages.length; });
+    var remaining = active.reduce(function (sum, item) { return sum + item.messages.length; }, 0);
+
+    while (remaining > 0) {
+      var selected = -1;
+      var bestRatio = Infinity;
+
+      active.forEach(function (item, index) {
+        if (emitted[index] >= total[index]) return;
+        var ratio = emitted[index] / total[index];
+        if (ratio < bestRatio) {
+          bestRatio = ratio;
+          selected = index;
+        }
+      });
+
+      if (selected < 0) break;
+      queue.push(active[selected].messages[emitted[selected]]);
+      emitted[selected]++;
+      remaining--;
+    }
+
+    return queue;
+  }
+
+  function buildCycleQueue() {
+    var first = [];
+    var normal = [];
+
+    SOURCES_CONFIG.forEach(function (config) {
+      var messages = getAvailableMessages(config);
+      if (!messages.length) return;
+      if (config.primero) {
+        first = first.concat(messages);
+        return;
+      }
+      normal.push({ config: config, messages: messages });
+    });
+
+    return first.concat(interleaveSources(normal));
+  }
+
+  function getLastDeliveryDate() {
+    var latest = Number(lastDeliveryDate) || 0;
+    sourceStore.forEach(function (message) {
+      var date = Number(message && message.date) || 0;
+      if (date > latest && isToday(date)) latest = date;
+    });
+    lastDeliveryDate = latest;
+    return latest;
+  }
+
+  // Si localStorage conserva al menos un mensaje pendiente por entregar
+  // (recurrence > 0) y el personaje está oculto después de una recarga,
+  // hacemos visible al personaje para que el motor de Says pueda entregar
+  // ese mensaje. No consumimos recurrencias ni creamos una entrega aquí.
+  function restoreCharacterVisibilityIfNeeded() {
+    if (!window.Buddy || typeof window.Buddy.isCharacterVisible !== 'function' ||
+        typeof window.Buddy.showCharacterImage !== 'function') return;
+
+    if (window.Buddy.isCharacterVisible()) return;
+
+    var pending = sourceStore.some(function (message) {
+      return Number(message && message.recurrence) > 0;
+    });
+
+    if (!pending) return;
+
+    var serenoData = resolveExpresionParaEmocion(CONFIG.expresionPorDefecto);
+    if (serenoData && serenoData.archivo) {
+      debugSource('[BUDDY SAYS] hay mensajes pendientes tras recarga; mostrando el personaje para poder entregarlos.');
+      window.Buddy.showCharacterImage(serenoData);
+    }
+  }
+
+  function getWaitRemainingMs(message) {
+    var previous = getLastDeliveryDate();
+    if (!previous) return 0;
+    var espera = Math.max(0, Number(message.stored.espera) || 0);
+    var dueAt = previous + espera * 60 * 1000;
+    return Math.max(0, dueAt - Date.now());
+  }
+
+  function isBubbleVisible() {
+    return !!(bubbleEl && bubbleEl.classList.contains('is-visible'));
+  }
+
+  function isSystemBusy() {
+    if (window.Buddy && typeof window.Buddy.isBusy === 'function') {
+      try {
+        return !!window.Buddy.isBusy();
+      } catch (e) {
+        warnSource('[buddy_says] Buddy.isBusy() lanzó una excepción; se considera ocupado.');
+        return true;
+      }
+    }
+    return true;
+  }
+
+  function canSpeakPolitely() {
+    // Archery tiene prioridad durante una interacción. En particular, desde
+    // que comienza 'aiming' hasta que termina la resolución del disparo, no
+    // deben aparecer mensajes automáticos de las fuentes. Se consulta
+    // directamente además de Buddy.isBusy() para que la protección siga
+    // funcionando incluso si el proveedor común todavía no fue registrado
+    // por un orden de carga atípico.
+    if (window.Buddy && window.Buddy.archery &&
+        typeof window.Buddy.archery.estaOcupado === 'function') {
+      try {
+        if (window.Buddy.archery.estaOcupado()) return false;
+      } catch (e) {
+        warnSource('[buddy_says] Archery no pudo informar su estado; se considera ocupado.');
+        return false;
+      }
+    }
+
+    return !isBubbleVisible() && !isSystemBusy();
+  }
+
+  function hasPendingMessages() {
+    return sourceStore.some(function (message) {
+      return Number(message && message.recurrence) > 0 &&
+        sourceStates[message.source] &&
+        sourceStates[message.source].messages.some(function (item) {
+          return item.id === message.id;
+        });
+    });
+  }
+
+  function deliverMessage(message) {
+    if (!message || !message.stored) return false;
+
+    // La entrega sólo se considera realizada si Says pudo resolver la
+    // expresión y hacer visible al personaje. Esto evita consumir una
+    // recurrencia persistente cuando la capa visual todavía no está lista.
+    if (!buddySays(message.texto, {
+      emocion: message.emocion
+    })) {
+      return false;
+    }
+
+    var now = Date.now();
+    message.stored.date = now;
+    message.stored.recurrence = Math.max(0, Number(message.stored.recurrence) - 1);
+    lastDeliveryDate = now;
+    writeStore();
+
+    debugSource('[BUDDY SAYS] mensaje mostrado:', message.source, message.id,
+      'recurrence=', message.stored.recurrence, 'espera=', message.stored.espera);
+    return true;
+  }
+
+  function scheduleEngine(delay) {
     if (!sourceEngineStarted) return;
     if (sourceEngineTimer) clearTimeout(sourceEngineTimer);
-    sourceEngineTimer = setTimeout(runSourceEngine, getNextDelay());
-  }
-
-  function attemptSource(state) {
-    if (state.loading || !state.messages.length) {
-      scheduleState(state, intervalMs(state.config));
-      return;
-    }
-
-    if (!canSpeakPolitely()) {
-      // El mensaje no se consume ni se marca como usado. Se reintenta
-      // pronto, sin crear un busy-loop y sin interferir con archery.
-      state.pending = true;
-      scheduleState(state, 30 * 1000);
-      debugSource('[BUDDY SAYS] mensaje aplazado:', state.config.id);
-      return;
-    }
-
-    var message = selectMessage(state);
-    if (!message) {
-      // Todos los mensajes alcanzaron la recurrencia diaria.
-      state.pending = false;
-      scheduleState(state, 60 * 60 * 1000);
-      return;
-    }
-
-    state.pending = false;
-    state.lastMessageId = message.id;
-    markMessageUsed(message);
-
-    buddySays(message.texto, {
-      emocion: message.emocion,
-      // Sin durationMs: el núcleo calcula automáticamente el tiempo según
-      // el largo del mensaje.
-    });
-
-    debugSource('[BUDDY SAYS] mensaje mostrado:', state.config.id, message.id);
-    scheduleState(state, intervalMs(state.config));
+    sourceEngineTimer = setTimeout(runSourceEngine, Math.max(250, delay || 0));
   }
 
   function runSourceEngine() {
     sourceEngineTimer = null;
     if (!sourceEngineStarted) return;
 
-    Object.keys(sourceStates).forEach(function (id) {
-      var state = sourceStates[id];
-      if (state.nextAt && Date.now() >= state.nextAt) {
-        attemptSource(state);
-      }
-    });
+    if (!sourceQueue.length || queueIndex >= sourceQueue.length) {
+      sourceQueue = buildCycleQueue();
+      queueIndex = 0;
 
-    scheduleEngine();
+      if (!sourceQueue.length) {
+        debugSource('[BUDDY SAYS] ciclo finalizado: no quedan mensajes con recurrence > 0.');
+        return;
+      }
+    }
+
+    var message = sourceQueue[queueIndex];
+    if (!message || !message.stored || Number(message.stored.recurrence) <= 0) {
+      queueIndex++;
+      scheduleEngine(0);
+      return;
+    }
+
+    var remaining = getWaitRemainingMs(message);
+    if (remaining > 0) {
+      scheduleEngine(remaining);
+      return;
+    }
+
+    if (!canSpeakPolitely()) {
+      // Si el mensaje ya está vencido pero Buddy está ocupado, no debemos
+      // perderlo ni dormir durante 30 s. Reintentamos pronto y dejamos que
+      // visibilitychange/focus también despierte el motor inmediatamente.
+      scheduleEngine(1000);
+      return;
+    }
+
+    if (deliverMessage(message)) {
+      queueIndex++;
+    }
+
+    scheduleEngine(0);
+  }
+
+  function wakeSourceEngine() {
+    if (!sourceEngineStarted) return;
+    scheduleEngine(0);
+  }
+
+  // Al recuperar foco/visibilidad no esperamos el timeout que estaba
+  // pendiente: el motor comprueba inmediatamente si ya corresponde hablar.
+  if (typeof document !== 'undefined') {
+    document.addEventListener('visibilitychange', wakeSourceEngine);
+  }
+  if (typeof window !== 'undefined') {
+    window.addEventListener('focus', wakeSourceEngine);
   }
 
   function initializeSourceEngine() {
@@ -636,67 +787,35 @@ window.Buddy = window.Buddy || {};
       sourceStates[config.id] = {
         config: config,
         messages: [],
-        nextIndex: 0,
-        // El primer mensaje no espera el intervalo de frecuencia:
-        // al cargar Buddy, si alguna fuente tiene algo elegible que decir,
-        // debe hablar inmediatamente.
-        nextAt: 0,
-        lastMessageId: null,
-        pending: false,
         loading: false,
         error: null
       };
     });
 
-    var loads = Object.keys(sourceStates).map(function (id) {
-      return loadSource(sourceStates[id]);
+    var loads = SOURCES_CONFIG.map(function (config) {
+      return loadSource(sourceStates[config.id]);
     });
 
     Promise.all(loads).then(function () {
-      var spokeImmediately = false;
+      writeStore();
+      getLastDeliveryDate();
 
-      // Se respeta el orden declarado en /says/config.js: la primera fuente
-      // que tenga un mensaje elegible gana el primer turno de Buddy.
-      Object.keys(sourceStates).some(function (id) {
-        var state = sourceStates[id];
-        if (!state.messages.length || !canSpeakPolitely()) return false;
+      // Si localStorage conserva al menos un mensaje pendiente y el personaje
+      // está oculto, lo hacemos visible para que el motor pueda entregar ese
+      // mensaje tras la recarga.
+      restoreCharacterVisibilityIfNeeded();
 
-        var message = selectMessage(state);
-        if (!message) return false;
+      sourceQueue = buildCycleQueue();
+      queueIndex = 0;
 
-        state.pending = false;
-        state.lastMessageId = message.id;
-        markMessageUsed(message);
+      if (!sourceQueue.length) {
+        debugSource('[BUDDY SAYS] no hay mensajes pendientes para hoy.');
+        return;
+      }
 
-        buddySays(message.texto, {
-          emocion: message.emocion
-        });
-
-        debugSource('[BUDDY SAYS] mensaje inicial mostrado:', state.config.id, message.id);
-
-        // Este medio vuelve a entrar en su frecuencia normal después del
-        // mensaje inicial. Las demás fuentes conservan su primer intento
-        // para después, evitando dos globos simultáneos al cargar.
-        scheduleState(state, intervalMs(state.config));
-        spokeImmediately = true;
-        return true;
-      });
-
-      // Si ninguna fuente tuvo nada que decir al cargar, no se fuerza ningún
-      // globo. El usuario puede invocar a Buddy mediante el triple click del
-      // módulo que lo tenga habilitado.
-      Object.keys(sourceStates).forEach(function (id) {
-        var state = sourceStates[id];
-        if (!state.nextAt) {
-          scheduleState(state, intervalMs(state.config));
-        } else if (spokeImmediately && !state.lastMessageId) {
-          // Las fuentes que no ganaron el turno inicial conservan su
-          // frecuencia normal desde la carga.
-          scheduleState(state, intervalMs(state.config));
-        }
-      });
-
-      scheduleEngine();
+      // El primer mensaje del día se entrega inmediatamente. Los siguientes
+      // respetan la espera fija del mensaje seleccionado desde la última entrega.
+      scheduleEngine(0);
     });
   }
 
@@ -709,9 +828,19 @@ window.Buddy = window.Buddy || {};
     return true;
   }
 
+  function cancelarMensajeActual() {
+    callToken++;
+    if (bubbleTimer) {
+      clearTimeout(bubbleTimer);
+      bubbleTimer = null;
+    }
+    hideBubble();
+  }
+
   window.Buddy.says = {
     config: SOURCES_CONFIG,
     decirSiLibre: decirSiLibre,
+    cancelarMensajeActual: cancelarMensajeActual,
     estaOcupado: isSystemBusy,
     iniciarFuentes: initializeSourceEngine,
     _sources: SOURCES,
@@ -721,7 +850,7 @@ window.Buddy = window.Buddy || {};
       return Object.keys(sourceStates).some(function (id) {
         var state = sourceStates[id];
         return !!(state && state.messages && state.messages.some(function (message) {
-          return canUseMessage(state, message);
+          return !!(message && message.stored && Number(message.stored.recurrence) > 0);
         }));
       });
     }

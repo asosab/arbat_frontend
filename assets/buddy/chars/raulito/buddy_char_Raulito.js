@@ -21,52 +21,57 @@ window.BuddyChars.raulito = {
   // raulito.js no tiene fuente para sus dimensiones/anclas.
   expresiones: {
     sereno: {
-      archivo: 'sereno.png', // = CONFIG.poses.idle (pose03.png)
-      ancho: 372,  // pose03/pose04 miden 372×1195 (raulito.js, comentario scales.character)
+      archivo: 'sereno.png',
+      ancho: 372,
       alto: 1195,
-      escala: 1,   // = CONFIG.scales.character.idle
+      escala: 1,
       anclas: {
-        // TODO: medir sobre sereno.png la esquina superior izquierda real de la cabeza.
-        cabeza_superior: { x: 'TODO', y: 'TODO' },
-        // TODO: medir ojos sobre el PNG cuando se disponga del arte definitivo.
-        ojo_izquierdo: { x: 'TODO', y: 'TODO' },
-        ojo_derecho: { x: 'TODO', y: 'TODO' },
-        // = CONFIG.characterAnchorXRatio.idle / CONFIG.characterWaistRatio.idle
-        cintura: { x: 0.48, y: 0.52 },
-        // TODO: medir pies sobre el PNG cuando se disponga del arte definitivo.
-        pie_izquierdo: { x: 'TODO', y: 'TODO' },
-        pie_derecho: { x: 'TODO', y: 'TODO' }
+        // esquina superior izquierda real de la cabeza (bounding box del bucket hat)
+        cabeza_superior: { x: 90, y: 59 },
+        // ojos del personaje (perspectiva del personaje)
+        ojo_izquierdo: { x: 228, y: 182 },  // lado derecho de la imagen
+        ojo_derecho:   { x: 158, y: 187 },  // lado izquierdo de la imagen
+        // verificado con el borde superior de los shorts
+        cintura: { x: 179, y: 621 },
+        // punto más bajo de cada pie (para la línea de piso)
+        pie_izquierdo: { x: 296, y: 1165 }, // pie izquierdo del personaje
+        pie_derecho:   { x: 71,  y: 1171 }  // pie derecho del personaje
       }
     },
     sonriendo: {
-      archivo: 'sonriendo.png', // nueva expresión, sin equivalente en raulito.js
-      // Dimensiones verificadas sobre el PNG entregado en esta ejecución.
-      // La escala sigue sin fuente de verdad en raulito.js y se conserva como TODO.
+      archivo: 'sonriendo.png',
       ancho: 372,
       alto: 1195,
-      escala: 'TODO',
+      escala: 1,
       anclas: {
-        cabeza_superior: { x: 'TODO', y: 'TODO' }, // TODO: medir sobre sonriendo.png.
-        ojo_izquierdo: { x: 'TODO', y: 'TODO' },
-        ojo_derecho: { x: 'TODO', y: 'TODO' },
-        cintura: { x: 'TODO', y: 'TODO' },
-        pie_izquierdo: { x: 'TODO', y: 'TODO' },
-        pie_derecho: { x: 'TODO', y: 'TODO' }
+        // esquina superior izquierda real de la cabeza (bounding box del bucket hat)
+        cabeza_superior: { x: 90, y: 59 },
+        // ojos del personaje (perspectiva del personaje)
+        ojo_izquierdo: { x: 228, y: 180 }, // lado derecho de la imagen
+        ojo_derecho:   { x: 158, y: 182 }, // lado izquierdo de la imagen
+        cintura: { x: 179, y: 622 },
+        // borde inferior de cada pie
+        pie_izquierdo: { x: 296, y: 1165 }, // pie izquierdo del personaje
+        pie_derecho:   { x: 71,  y: 1171 }  // pie derecho del personaje
       }
     },
     guinio: {
-      archivo: 'guinio.png', // reservada: aún no la usa ningún módulo
-      // TODO: no hay dato de origen en raulito.js para ancho/alto/escala de guinio.png.
-      ancho: 'TODO',
-      alto: 'TODO',
-      escala: 'TODO',
+      archivo: 'guinio.png',
+      ancho: 369,
+      alto: 1195,
+      escala: 1,
       anclas: {
-        cabeza_superior: { x: 'TODO', y: 'TODO' }, // TODO: medir sobre guinio.png.
-        ojo_izquierdo: { x: 'TODO', y: 'TODO' },
-        ojo_derecho: { x: 'TODO', y: 'TODO' },
-        cintura: { x: 'TODO', y: 'TODO' },
-        pie_izquierdo: { x: 'TODO', y: 'TODO' },
-        pie_derecho: { x: 'TODO', y: 'TODO' }
+        // esquina superior izquierda real de la cabeza (bounding box del bucket hat)
+        cabeza_superior: { x: 90, y: 59 },
+        // ojos del personaje (perspectiva del personaje)
+        // ojo_izquierdo = cerrado (guiño), lado derecho de la imagen
+        ojo_izquierdo: { x: 228, y: 178 },
+        // ojo_derecho = abierto, lado izquierdo de la imagen
+        ojo_derecho:   { x: 160, y: 178 },
+        cintura: { x: 181, y: 622 },
+        // borde inferior de cada pie (puntos más bajos detectados)
+        pie_izquierdo: { x: 293, y: 1194 }, // pie izquierdo del personaje
+        pie_derecho:   { x: 72,  y: 1194 }  // pie derecho del personaje
       }
     }
     // Expresiones negativas futuras (pesar, dolor, melancolia...) se agregan
@@ -95,33 +100,33 @@ window.BuddyChars.raulito = {
     archery: {
       images: {
         apuntar: {
-          archivo: 'apuntar.png', // = CONFIG.poses.aim (pose01.png)
-          ancho: 848,  // pose01/pose02 miden 848×1264 (raulito.js, comentario scales.character)
+          archivo: 'apuntar.png',
+          ancho: 848,
           alto: 1264,
-          escala: 1.1, // = CONFIG.scales.character.aim
+          escala: 1.1,
           anclas: {
-            // = CONFIG.characterAnchorXRatio.aim / CONFIG.characterWaistRatio.aim
-            cintura: { x: 0.57, y: 0.58 },
-            cabeza_superior: { x: 'TODO', y: 'TODO' }, // TODO: medir sobre apuntar.png.
-            ojo_izquierdo: { x: 'TODO', y: 'TODO' },
-            ojo_derecho: { x: 'TODO', y: 'TODO' },
-            pie_izquierdo: { x: 'TODO', y: 'TODO' },
-            pie_derecho: { x: 'TODO', y: 'TODO' }
+            // esquina superior izquierda del bucket hat (vista de espalda)
+            cabeza_superior: { x: 479, y: 290 },
+            // centro aproximado del torso a la altura del borde superior de los shorts
+            cintura: { x: 512, y: 737 },
+            // borde inferior de cada pie (vista de espalda)
+            pie_izquierdo: { x: 610, y: 1239 }, // pie izquierdo del personaje (lado derecho de la imagen)
+            pie_derecho:   { x: 408, y: 1231 }  // pie derecho del personaje (lado izquierdo de la imagen)
           }
         },
         liberar_flecha: {
-          archivo: 'liberar_flecha.png', // = CONFIG.poses.fire (pose02.png)
-          ancho: 848,  // mismo encuadre que pose01 (raulito.js, comentario scales.character)
+          archivo: 'liberar_flecha.png',
+          ancho: 848,
           alto: 1264,
-          escala: 1.1, // = CONFIG.scales.character.fire
+          escala: 1.1,
           anclas: {
-            // = CONFIG.characterAnchorXRatio.fire / CONFIG.characterWaistRatio.fire
-            cintura: { x: 0.57, y: 0.58 },
-            cabeza_superior: { x: 'TODO', y: 'TODO' }, // TODO: medir sobre liberar_flecha.png.
-            ojo_izquierdo: { x: 'TODO', y: 'TODO' },
-            ojo_derecho: { x: 'TODO', y: 'TODO' },
-            pie_izquierdo: { x: 'TODO', y: 'TODO' },
-            pie_derecho: { x: 'TODO', y: 'TODO' }
+            // esquina superior izquierda del bucket hat (vista de espalda)
+            cabeza_superior: { x: 479, y: 298 },
+            // borde superior de los shorts (centro del torso)
+            cintura: { x: 512, y: 736 },
+            // borde inferior de cada pie (vista de espalda)
+            pie_izquierdo: { x: 610, y: 1239 }, // pie izquierdo del personaje (lado derecho de la imagen)
+            pie_derecho:   { x: 417, y: 1231 }  // pie derecho del personaje (lado izquierdo de la imagen)
           }
         },
         // Son los mismos archivos genéricos de archery, pero Raulito los
@@ -130,7 +135,19 @@ window.BuddyChars.raulito = {
         // mira = 1, arrow = 1, target = 1.
         diana: {
           archivo: 'diana.png',
-          escala: 0.375
+          escala: 1, //0.375
+          rings: [
+            { points: 10, outerPercent: 0.10 },
+            { points: 9,  outerPercent: 0.20 },
+            { points: 8,  outerPercent: 0.30 },
+            { points: 7,  outerPercent: 0.40 },
+            { points: 6,  outerPercent: 0.50 },
+            { points: 5,  outerPercent: 0.60 },
+            { points: 4,  outerPercent: 0.70 },
+            { points: 3,  outerPercent: 0.80 },
+            { points: 2,  outerPercent: 0.90 },
+            { points: 1,  outerPercent: 1.00 }
+          ]
         },
         mira: {
           archivo: 'mira.png',

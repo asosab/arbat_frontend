@@ -24,29 +24,25 @@ window.BuddySaysConfig.display = {
 
 window.BuddySaysConfig.sources = [
   {
-    id: 'agenda',
+    id: 'iniciales',
     enabled: true,
     selection: 'sequential',
-    recurrence: 1,
-    frequency: { min: 1, max: 4 }
-  },
-  {
-    id: 'consejos',
-    enabled: true,
-    selection: 'shuffle',
-    recurrence: 2,
-    frequency: { min: 1, max: 1 }
-  }
+    primero: true, // estos mensajes se entregan antes que cualquier otra fuente
+    recurrence: 2, // cuantas veces se muestra al día
+    frequency: { min: 0.3, max: 0.5 } //cada cuantos minutos se entregan mensajes de esta lista
+  },  
+  {id: 'agenda',    enabled: true, selection: 'sequential',   recurrence: 1, frequency: { min: 0.5, max: 1 }},
+  {id: 'consejos',  enabled: true, selection: 'shuffle',      recurrence: 2, frequency: { min: 0.5, max: 1 }}
 ];
 
-// Configuración de la fuente agenda. La API key se deja vacía para que el
-// sitio anfitrión la complete.
 window.BuddyAgendaConfig = Object.assign({
   calendarId: 'arbat.archery@gmail.com',
   timezone: 'America/La_Paz',
   apiKey: 'AIzaSyDnoPb09RbigaWadj1ssOLYN-7IL5WSIgg',
   horizonteDias: 31,
   capacidadPorTurno: 8,
+  // Disponibilidad estructural de la agenda de citas. Las reservas reales se
+  // obtienen de Google Calendar mediante el título automático "Agenda tu entrenamiento".
   horarios: [
     {
       dias: 'Lunes, miércoles y viernes',
