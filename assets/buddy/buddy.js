@@ -33,6 +33,33 @@ window.Buddy = window.Buddy || {};
   // window.RAULITO_ASSET_BASE en raulito.js).
   // -------------------------------------------------------------------
   var entryScript = getEntryScript();
+
+  // Cache-busting: la versión se toma del propio buddy.js que invoca la página.
+  // Ejemplo: buddy.js?v=3 -> todos los .js cargados dinámicamente usan ?v=3.
+  // Así no es necesario modificar este archivo en cada versión de prueba.
+  var BUDDY_VERSION = (function () {
+    if (!entryScript || !entryScript.src) return '';
+
+    try {
+      return new URL(entryScript.src, document.baseURI).searchParams.get('v') || '';
+    } catch (err) {
+      return '';
+    }
+  })();
+
+  function withBuddyVersion(url) {
+    if (!BUDDY_VERSION) return url;
+
+    try {
+      var parsed = new URL(url, document.baseURI);
+      parsed.searchParams.set('v', BUDDY_VERSION);
+      return parsed.href;
+    } catch (err) {
+      var separator = url.indexOf('?') === -1 ? '?' : '&';
+      return url + separator + 'v=' + encodeURIComponent(BUDDY_VERSION);
+    }
+  }
+
   var ASSET_BASE = (function () {
     // Si se define explícitamente, respetarlo. Puede ser absoluto o
     // relativo al documento que contiene Buddy.
@@ -401,6 +428,10 @@ window.Buddy = window.Buddy || {};
 
   function loadScript(url) {
     return new Promise(function (resolve, reject) {
+      // La versión del script de entrada se propaga a cada JS dinámico antes
+      // de comparar/cargar, para que cada versión sea una identidad distinta.
+      url = withBuddyVersion(url);
+
       // Evita cargar dos veces el mismo recurso si el layout ya lo incluyera
       // accidentalmente durante una transición.
       var existing = null;
