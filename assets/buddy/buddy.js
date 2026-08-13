@@ -32,7 +32,24 @@ window.Buddy = window.Buddy || {};
   // script definiendo window.BUDDY_ASSET_BASE (mismo criterio que
   // window.RAULITO_ASSET_BASE en raulito.js).
   // -------------------------------------------------------------------
-  var ASSET_BASE = window.BUDDY_ASSET_BASE || '/arbat_frontend/assets/buddy/';
+  var entryScript = getEntryScript();
+  var ASSET_BASE = (function () {
+    // Si se define explícitamente, respetarlo. Puede ser absoluto o
+    // relativo al documento que contiene Buddy.
+    if (window.BUDDY_ASSET_BASE) {
+      var base = new URL(window.BUDDY_ASSET_BASE, document.baseURI).href;
+      return base.charAt(base.length - 1) === '/' ? base : base + '/';
+    }
+
+    // Por defecto, Buddy se auto-localiza a partir de la URL de buddy.js.
+    // Esto permite instalarlo bajo /arbat_frontend/, en otro subdirectorio
+    // o en otro sitio sin cambiar las rutas de sus módulos/assets.
+    if (entryScript && entryScript.src) {
+      return new URL('./', entryScript.src).href;
+    }
+
+    throw new Error('[BUDDY] No se pudo determinar la ubicación de buddy.js');
+  })();
 
   // Reglas de tamaño/posición del personaje en pantalla. Valores tomados
   // sin modificar de raulito.js (CONFIG.characterLongSidePercent,
