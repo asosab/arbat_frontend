@@ -57,13 +57,17 @@
     </section>
   </main>
 
-  <!-- Configuración requerida por el módulo de agenda -->
+  <!-- Configuración de agenda de Buddy -->
   <script>
-    window.ARBAT_AGENDA_API_KEY = 'AIzaSyDnoPb09RbigaWadj1ssOLYN-7IL5WSIgg';
+    window.BuddyAgendaConfig = {
+      calendarId: 'arbat.archery@gmail.com',
+      timezone: 'America/La_Paz',
+      apiKey: 'AIzaSyDnoPb09RbigaWadj1ssOLYN-7IL5WSIgg'
+    };
   </script>
 
   <script
-    src="https://asosab.github.io/arbat_frontend/assets/buddy/buddy.js?v=3"
+    src="buddy.js?v=4"
     data-buddy-character="raulito"
     data-buddy-abilities="archery"
     defer>

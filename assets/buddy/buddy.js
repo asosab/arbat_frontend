@@ -6,8 +6,8 @@
  * Fase 6: además de los resolutores y el render centralizado del personaje,
  * este archivo actúa como punto único de entrada: lee data-buddy-character /
  * data-buddy-abilities, carga personaje, says y módulos en orden, y expone el
- * estado de inicialización. El motor de fuentes de says y el busy global siguen
- * reservados para fases posteriores.
+ * estado de inicialización. En Fase 8 carga además las fuentes registradas
+ * de says; el busy global común sigue reservado para la Fase 10.
  *
  * Fuente de la matemática de encuadre: raulito.js (screenLongSide,
  * applyLongSideFit, fitLongSide, characterTargetPx, characterBottomOffsetPx,
@@ -484,6 +484,19 @@ window.Buddy = window.Buddy || {};
     return ASSET_BASE + 'modules/says/' + locale + '/buddy_says_' + style + '.js';
   }
 
+  function scriptUrlForSaysSource(sourceId) {
+    return ASSET_BASE + 'modules/says/sources/' + sourceId + '.js';
+  }
+
+  function loadSaysSources() {
+    var sources = ['agenda', 'consejos_arch'];
+    return sources.reduce(function (chain, sourceId) {
+      return chain.then(function () {
+        return loadScript(scriptUrlForSaysSource(sourceId));
+      });
+    }, Promise.resolve());
+  }
+
   function scriptUrlForModule(moduleId) {
     return ASSET_BASE + 'modules/' + moduleId + '/buddy_' + moduleId + '.js';
   }
@@ -603,6 +616,14 @@ window.Buddy = window.Buddy || {};
       })
       .then(function () {
         return loadScript(ASSET_BASE + 'modules/says/buddy_says.js');
+      })
+      .then(function () {
+        return loadSaysSources();
+      })
+      .then(function () {
+        if (window.Buddy.says && typeof window.Buddy.says.iniciarFuentes === 'function') {
+          window.Buddy.says.iniciarFuentes();
+        }
       })
       .then(function () {
         var charData = getCharData();

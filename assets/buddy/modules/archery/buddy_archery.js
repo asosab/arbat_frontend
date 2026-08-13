@@ -22,6 +22,12 @@
         arrow: 1,
         target: 1
       },
+
+      // Tamaño base de los elementos propios del módulo, medido sobre el
+      // lado largo del viewport. Valores heredados de raulito.js.
+      arrowLongSidePercent: 0.1,
+      miraLongSidePercent: 0.20,
+      targetLongSidePercent: 0.09,
       longPressThresholdMs: 350,
   
       // Ventana de disparo: soltar antes de esto = pose02 (disparó bien).
@@ -588,6 +594,7 @@
     // entrada es { el, x, y, score }. Se acumulan entre disparos; no se
     // limpian solas (salvo por el cooldown de v0.4, ver más abajo).
     var stuckArrows = [];
+    var repositionArrowsRAF = null; // id de requestAnimationFrame para reposicionar flechas clavadas
   
     // -------------------------------------------------------------------
     // Temblor de la mira mientras se apunta: latidos (v0.4) + cansancio
@@ -827,12 +834,16 @@ function stopTensSound() {
     try { tensAudio.pause(); tensAudio.currentTime = 0; } catch (err) { /* noop */ }
   }
 
-function miraTargetPx() {
-    return CONFIG.miraLongSidePercent * viewportLongSide() * CONFIG.scales.mira;
+function assetScale(asset, fallbackScale) {
+    return asset && typeof asset.escala === 'number' ? asset.escala : fallbackScale;
   }
 
-function arrowTargetPx() {
-    return CONFIG.arrowLongSidePercent * viewportLongSide() * CONFIG.scales.arrow;
+function miraTargetPx(asset) {
+    return CONFIG.miraLongSidePercent * viewportLongSide() * assetScale(asset, CONFIG.scales.mira);
+  }
+
+function arrowTargetPx(asset) {
+    return CONFIG.arrowLongSidePercent * viewportLongSide() * assetScale(asset, CONFIG.scales.arrow);
   }
 
 function targetTargetPx() {
@@ -880,6 +891,8 @@ function pickRandomArrowName() {
 
 function stickArrowAt(x, y, score, targetRect) {
     var name = pickRandomArrowName();
+    var arrowKey = name.replace('.png', '');
+    var arrowAsset = window.Buddy.resolveAsset('archery', 'images', arrowKey);
     var arrowEl = document.createElement('img');
     arrowEl.alt = '';
     arrowEl.draggable = false;
@@ -890,25 +903,28 @@ function stickArrowAt(x, y, score, targetRect) {
       zIndex: '9990',
       pointerEvents: 'none',
       userSelect: 'none',
-      // Arranca totalmente opaca y sin transición; fadeOutArrows (v0.4)
-      // le agrega la transición recién cuando hace falta desvanecerla.
+      // No permitir ni un frame en tamaño natural: la flecha queda invisible
+      // hasta que conocemos sus dimensiones y aplicamos la escala del asset
+      // resuelto (override del personaje o default del módulo).
+      visibility: 'hidden',
       opacity: '1',
       transition: 'none'
     });
 
+    function applyArrowSize(width, height) {
+      assetDimsCache[name] = { width: width, height: height };
+      applyLongSideFit(arrowEl, width, height, arrowTargetPx(arrowAsset));
+      arrowEl.style.visibility = 'visible';
+    }
+
     var cached = assetDimsCache[name];
     if (cached) {
-      applyLongSideFit(arrowEl, cached.width, cached.height, arrowTargetPx());
+      applyArrowSize(cached.width, cached.height);
     } else {
-      // La precarga todavía no terminó de resolver este archivo puntual:
-      // se ajusta en cuanto cargue.
       arrowEl.addEventListener('load', function () {
-        assetDimsCache[name] = { width: arrowEl.naturalWidth, height: arrowEl.naturalHeight };
-        applyLongSideFit(arrowEl, arrowEl.naturalWidth, arrowEl.naturalHeight, arrowTargetPx());
+        applyArrowSize(arrowEl.naturalWidth, arrowEl.naturalHeight);
       });
     }
-    var arrowKey = name.replace('.png', '');
-    var arrowAsset = window.Buddy.resolveAsset('archery', 'images', arrowKey);
     arrowEl.src = arrowAsset && arrowAsset.archivo ? arrowAsset.archivo : '';
 
     document.body.appendChild(arrowEl);
@@ -1286,11 +1302,16 @@ function ensureElements() {
         pointerEvents: 'none',
         userSelect: 'none',
         display: 'none',
+        visibility: 'hidden',
         willChange: 'transform'
       });
       miraEl.addEventListener('load', function () {
-        fitLongSide(miraEl, miraTargetPx());
+        var miraAsset = window.Buddy.resolveAsset('archery', 'images', 'mira');
+        fitLongSide(miraEl, miraTargetPx(miraAsset));
+        miraEl.style.visibility = 'visible';
       });
+      var miraAsset = window.Buddy.resolveAsset('archery', 'images', 'mira');
+      if (miraAsset && miraAsset.archivo) miraEl.src = miraAsset.archivo;
       document.body.appendChild(miraEl);
     }
 
@@ -1342,7 +1363,7 @@ function ensureElements() {
 
 function onResize() {
     if (miraEl && miraEl.style.display !== 'none') {
-      fitLongSide(miraEl, miraTargetPx());
+      fitLongSide(miraEl, miraTargetPx(window.Buddy.resolveAsset('archery', 'images', 'mira')));
     }
     if (targetEl && targetEl.style.display !== 'none') {
       fitLongSide(targetEl, targetTargetPx());
@@ -1443,7 +1464,7 @@ function hideCharacter() {
     lastShotAt = 0;
     state = 'hidden';
 
-    if (miraEl) miraEl.style.display = 'none';
+    if (miraEl) { miraEl.style.display = 'none'; miraEl.style.visibility = 'hidden'; }
     if (targetEl) targetEl.style.display = 'none';
     setDebug('');
   }
@@ -1547,7 +1568,7 @@ function onPointerCancel() {
     if (state !== 'hidden') {
       state = 'idle';
       showPose(defaultIdlePoseKey); // v1.5: ver defaultIdlePoseKey
-      if (miraEl) miraEl.style.display = 'none';
+      if (miraEl) { miraEl.style.display = 'none'; miraEl.style.visibility = 'hidden'; }
       setDebug(idleDebugMessage());
     }
   }
@@ -1561,10 +1582,16 @@ function enterAimState() {
     showPose('aim');
     playTensSound();
     miraEl.style.display = 'block';
+    if (miraEl.complete && miraEl.naturalWidth) {
+      fitLongSide(miraEl, miraTargetPx(window.Buddy.resolveAsset('archery', 'images', 'mira')));
+      miraEl.style.visibility = 'visible';
+    } else {
+      miraEl.style.visibility = 'hidden';
+    }
     miraBaseDx = 0;
     miraBaseDy = 0;
     miraEl.style.transform = 'translate(0px, 0px)';
-    fitLongSide(miraEl, miraTargetPx());
+    fitLongSide(miraEl, miraTargetPx(window.Buddy.resolveAsset('archery', 'images', 'mira')));
 
     // Arranca el pulso de latido (v0.4) en reposo: sin intensidad hasta que
     // el primer pointermove aporte una velocidad real que medir. El

@@ -124,16 +124,25 @@ window.BuddyChars.raulito = {
             pie_derecho: { x: 'TODO', y: 'TODO' }
           }
         },
-        // Sin "diana": raulito.js no identifica un asset de diana propio de
-        // Raulito dentro del mapeo obligatorio de la Fase 1 (CONFIG.targetImage
-        // = 'logo.png' es un logo genérico de repuesto, no está en la tabla
-        // de mapeo de la sección 4.1). Sin archivo propio, este módulo cae en
-        // el default de archery (regla de override, decisión D del plan).
-        mira: {
-          archivo: 'mira.png' // = CONFIG.miraImage
+        // Son los mismos archivos genéricos de archery, pero Raulito los
+        // declara explícitamente para que el perfil sea la fuente de sus
+        // metadatos. Las escalas coinciden con CONFIG.scales del módulo:
+        // mira = 1, arrow = 1, target = 1.
+        diana: {
+          archivo: 'diana.png',
+          escala: 0.375
         },
-        // = CONFIG.arrowImages, renombrado según Fase 0 (f0N.png -> flechaN.png)
-        flechas: ['flecha01.png', 'flecha02.png', 'flecha03.png', 'flecha04.png']
+        mira: {
+          archivo: 'mira.png',
+          escala: 1
+        },
+        // Se conserva la colección para la compatibilidad existente y se
+        // declaran además las cuatro claves individuales con su escala.
+        flechas: ['flecha01.png', 'flecha02.png', 'flecha03.png', 'flecha04.png'],
+        flecha01: { archivo: 'flecha01.png', escala: 0.5 },
+        flecha02: { archivo: 'flecha02.png', escala: 0.5 },
+        flecha03: { archivo: 'flecha03.png', escala: 0.5 },
+        flecha04: { archivo: 'flecha04.png', escala: 0.5 }
       },
       sounds: {
         disparar: 'disparar.mp3', // = CONFIG.shotSound ('disparo.mp3'), renombrado según Fase 0

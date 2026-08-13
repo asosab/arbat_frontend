@@ -4,11 +4,10 @@
  * Fase 4 del plan de separación de raulito.js (ver planBuddy_v5.md, sección
  * 4.4 y 4.4.1; prompt de ejecución en fase04.md).
  *
- * Esta es una versión PARCIAL de buddy_says.js: solo el NÚCLEO de
- * comunicación por globo (bubble + cambio de expresión). NO incluye
- * todavía el motor de fuentes (recurrencia, frecuencia, medios registrados
- * en modules/says/sources/, window.Buddy.says, decirSiLibre/estaOcupado) —
- * eso corresponde a la Fase 8.
+ * Fase 8: además del NÚCLEO de comunicación por globo, este archivo
+ * incorpora el motor de fuentes automáticas (recurrencia, frecuencia,
+ * medios registrados en modules/says/sources/, selección aleatoria/secuencial,
+ * persistencia diaria y variante cortés que nunca interrumpe una actividad ocupada).
  *
  * Fuente del mecanismo: raulito.js (ensureBubbleStyles, positionBubble,
  * showSpeechBubble, hideSpeechBubble, CONFIG.bubbleGapPx/bubbleLeftShiftPx/
@@ -281,6 +280,363 @@ window.Buddy = window.Buddy || {};
       }
     }, durationMs);
   }
+
+
+  // -------------------------------------------------------------------
+  // Fase 8 — motor de fuentes
+  // -------------------------------------------------------------------
+  var SOURCES = window.BuddyInformSources = window.BuddyInformSources || {};
+
+  var SOURCES_CONFIG = [
+    {
+      id: 'agenda',
+      recurrencia: 1,
+      frecuencia: { min: 1, max: 4 },
+      seleccion: 'secuencial'
+    },
+    {
+      id: 'consejos_arch',
+      recurrencia: 2,
+      frecuencia: { min: 5, max: 12 },
+      seleccion: 'aleatoria'
+    }
+  ];
+
+  var sourceStates = {};
+  var sourceEngineStarted = false;
+  var sourceEngineTimer = null;
+  var SOURCE_STORAGE_KEY = 'buddy.says.fase08.recurrencia.v1';
+
+  function debugSource() {
+    if (window.BUDDY_SAYS_DEBUG && window.console && console.log) {
+      console.log.apply(console, arguments);
+    }
+  }
+
+  function warnSource() {
+    if (window.console && console.warn) {
+      console.warn.apply(console, arguments);
+    }
+  }
+
+  function todayKey() {
+    var now = new Date();
+    return now.getFullYear() + '-' +
+      ('0' + (now.getMonth() + 1)).slice(-2) + '-' +
+      ('0' + now.getDate()).slice(-2);
+  }
+
+  function readRecurrenceStore() {
+    var empty = { fecha: todayKey(), mensajes: {} };
+    try {
+      var raw = window.localStorage.getItem(SOURCE_STORAGE_KEY);
+      if (!raw) return empty;
+      var parsed = JSON.parse(raw);
+      if (!parsed || parsed.fecha !== todayKey() || !parsed.mensajes ||
+          typeof parsed.mensajes !== 'object') {
+        return empty;
+      }
+      return parsed;
+    } catch (e) {
+      return empty;
+    }
+  }
+
+  function writeRecurrenceStore(store) {
+    try {
+      window.localStorage.setItem(SOURCE_STORAGE_KEY, JSON.stringify(store));
+    } catch (e) {
+      // localStorage puede estar bloqueado; la sesión sigue funcionando.
+    }
+  }
+
+  var recurrenceStore = readRecurrenceStore();
+
+  function stableHash(text) {
+    var hash = 2166136261;
+    for (var i = 0; i < text.length; i++) {
+      hash ^= text.charCodeAt(i);
+      hash += (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24);
+    }
+    return ('00000000' + (hash >>> 0).toString(16)).slice(-8);
+  }
+
+  function getMessageText(message) {
+    if (typeof message === 'string') return message.trim();
+    if (message && typeof message.texto === 'string') return message.texto.trim();
+    if (message && typeof message.mensaje === 'string') return message.mensaje.trim();
+    if (message && typeof message.text === 'string') return message.text.trim();
+    return '';
+  }
+
+  function getMessageId(sourceId, message) {
+    if (message && typeof message === 'object' && message.id !== undefined &&
+        message.id !== null && String(message.id).trim() !== '') {
+      return sourceId + ':' + String(message.id).trim();
+    }
+    return sourceId + ':' + stableHash(getMessageText(message));
+  }
+
+  function getMessageEmotion(message) {
+    if (message && typeof message === 'object' && typeof message.emocion === 'string') {
+      return message.emocion;
+    }
+    return CONFIG.expresionPorDefecto;
+  }
+
+  function normalizeMessages(sourceId, messages) {
+    if (!Array.isArray(messages)) return [];
+    return messages.map(function (message) {
+      var texto = getMessageText(message);
+      if (!texto) return null;
+      return {
+        id: getMessageId(sourceId, message),
+        texto: texto,
+        emocion: getMessageEmotion(message),
+        original: message
+      };
+    }).filter(Boolean);
+  }
+
+  function randomIntInclusive(min, max) {
+    min = Math.ceil(min);
+    max = Math.floor(max);
+    if (max <= min) return min;
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+  }
+
+  function intervalMs(config) {
+    var min = Math.max(0, Number(config.frecuencia.min) || 0);
+    var max = Math.max(min, Number(config.frecuencia.max) || min);
+    var minutes = randomIntInclusive(min, max);
+    return minutes * 60 * 1000;
+  }
+
+  function isBubbleVisible() {
+    return !!(bubbleEl && bubbleEl.classList.contains('is-visible'));
+  }
+
+  function isSystemBusy() {
+    if (window.Buddy && typeof window.Buddy.isBusy === 'function') {
+      try {
+        return !!window.Buddy.isBusy();
+      } catch (e) {
+        warnSource('[buddy_says] Buddy.isBusy() lanzó una excepción; se usa fallback.');
+      }
+    }
+
+    if (window.Buddy && window.Buddy.archery &&
+        typeof window.Buddy.archery.estaOcupado === 'function') {
+      try {
+        return !!window.Buddy.archery.estaOcupado();
+      } catch (e2) {
+        warnSource('[buddy_says] archery.estaOcupado() lanzó una excepción.');
+      }
+    }
+
+    return false;
+  }
+
+  function canSpeakPolitely() {
+    return !isBubbleVisible() && !isSystemBusy();
+  }
+
+  function recurrenceCount(messageId) {
+    return Number(recurrenceStore.mensajes[messageId] || 0);
+  }
+
+  function canUseMessage(state, message) {
+    var max = Math.max(1, Number(state.config.recurrencia) || 1);
+    return recurrenceCount(message.id) < max;
+  }
+
+  function markMessageUsed(message) {
+    recurrenceStore.mensajes[message.id] = recurrenceCount(message.id) + 1;
+    writeRecurrenceStore(recurrenceStore);
+  }
+
+  function selectMessage(state) {
+    var available = state.messages.filter(function (message) {
+      return canUseMessage(state, message);
+    });
+
+    if (!available.length) return null;
+
+    if (state.config.seleccion === 'aleatoria') {
+      // Evita repetir inmediatamente cuando hay más de una opción.
+      var pool = available;
+      if (pool.length > 1 && state.lastMessageId) {
+        pool = pool.filter(function (message) {
+          return message.id !== state.lastMessageId;
+        });
+        if (!pool.length) pool = available;
+      }
+      return pool[Math.floor(Math.random() * pool.length)];
+    }
+
+    for (var i = 0; i < state.messages.length; i++) {
+      var index = (state.nextIndex + i) % state.messages.length;
+      var candidate = state.messages[index];
+      if (canUseMessage(state, candidate)) {
+        state.nextIndex = (index + 1) % state.messages.length;
+        return candidate;
+      }
+    }
+
+    return null;
+  }
+
+  function loadSource(state) {
+    var source = SOURCES[state.config.id];
+    if (!source || typeof source.obtenerMensajes !== 'function') {
+      state.error = new Error('Fuente no registrada: ' + state.config.id);
+      warnSource('[buddy_says] ' + state.error.message);
+      return Promise.resolve(false);
+    }
+
+    state.loading = true;
+    return Promise.resolve().then(function () {
+      return source.obtenerMensajes();
+    }).then(function (messages) {
+      state.messages = normalizeMessages(state.config.id, messages);
+      state.error = null;
+      debugSource('[BUDDY SAYS] mensajes cargados:', state.config.id, '=', state.messages.length);
+      return true;
+    }).catch(function (error) {
+      state.messages = [];
+      state.error = error;
+      warnSource('[buddy_says] Error en fuente ' + state.config.id + ':', error);
+      return false;
+    }).then(function (ok) {
+      state.loading = false;
+      return ok;
+    });
+  }
+
+  function scheduleState(state, delay) {
+    state.nextAt = Date.now() + Math.max(0, delay);
+  }
+
+  function getNextDelay() {
+    var now = Date.now();
+    var delay = 60 * 1000;
+    Object.keys(sourceStates).forEach(function (id) {
+      var state = sourceStates[id];
+      if (!state.nextAt) return;
+      delay = Math.min(delay, Math.max(0, state.nextAt - now));
+    });
+    return Math.max(250, delay);
+  }
+
+  function scheduleEngine() {
+    if (!sourceEngineStarted) return;
+    if (sourceEngineTimer) clearTimeout(sourceEngineTimer);
+    sourceEngineTimer = setTimeout(runSourceEngine, getNextDelay());
+  }
+
+  function attemptSource(state) {
+    if (state.loading || !state.messages.length) {
+      scheduleState(state, intervalMs(state.config));
+      return;
+    }
+
+    if (!canSpeakPolitely()) {
+      // El mensaje no se consume ni se marca como usado. Se reintenta
+      // pronto, sin crear un busy-loop y sin interferir con archery.
+      state.pending = true;
+      scheduleState(state, 30 * 1000);
+      debugSource('[BUDDY SAYS] mensaje aplazado:', state.config.id);
+      return;
+    }
+
+    var message = selectMessage(state);
+    if (!message) {
+      // Todos los mensajes alcanzaron la recurrencia diaria.
+      state.pending = false;
+      scheduleState(state, 60 * 60 * 1000);
+      return;
+    }
+
+    state.pending = false;
+    state.lastMessageId = message.id;
+    markMessageUsed(message);
+
+    buddySays(message.texto, {
+      emocion: message.emocion,
+      durationMs: CONFIG.bubbleDisplayMs
+    });
+
+    debugSource('[BUDDY SAYS] mensaje mostrado:', state.config.id, message.id);
+    scheduleState(state, intervalMs(state.config));
+  }
+
+  function runSourceEngine() {
+    sourceEngineTimer = null;
+    if (!sourceEngineStarted) return;
+
+    Object.keys(sourceStates).forEach(function (id) {
+      var state = sourceStates[id];
+      if (state.nextAt && Date.now() >= state.nextAt) {
+        attemptSource(state);
+      }
+    });
+
+    scheduleEngine();
+  }
+
+  function initializeSourceEngine() {
+    if (sourceEngineStarted) return;
+    sourceEngineStarted = true;
+
+    SOURCES_CONFIG.forEach(function (config) {
+      sourceStates[config.id] = {
+        config: config,
+        messages: [],
+        nextIndex: 0,
+        nextAt: Date.now() + intervalMs(config),
+        lastMessageId: null,
+        pending: false,
+        loading: false,
+        error: null
+      };
+    });
+
+    var loads = Object.keys(sourceStates).map(function (id) {
+      return loadSource(sourceStates[id]);
+    });
+
+    Promise.all(loads).then(function () {
+      Object.keys(sourceStates).forEach(function (id) {
+        var state = sourceStates[id];
+        // El primer turno se cuenta desde la inicialización, no desde la
+        // finalización de un fetch lento.
+        if (!state.nextAt) state.nextAt = Date.now() + intervalMs(state.config);
+      });
+      scheduleEngine();
+    });
+  }
+
+  // -------------------------------------------------------------------
+  // Variante cortés y API pública del motor.
+  // -------------------------------------------------------------------
+  function decirSiLibre(texto, opciones) {
+    if (!canSpeakPolitely()) return false;
+    buddySays(texto, opciones || {});
+    return true;
+  }
+
+  window.Buddy.says = {
+    config: SOURCES_CONFIG,
+    decirSiLibre: decirSiLibre,
+    estaOcupado: isSystemBusy,
+    iniciarFuentes: initializeSourceEngine,
+    _sources: SOURCES,
+    _state: sourceStates,
+    _recurrenceKey: SOURCE_STORAGE_KEY
+  };
+
+  // buddy.js llama a iniciarFuentes() después de registrar todas las fuentes.
+
 
   // ---------------------------------------------------------------------
   // API pública
