@@ -17,7 +17,11 @@ window.Buddy = window.Buddy || {};
   var CONFIG = window.BuddyChatConfig || {};
   var state = {
     open: false,
-    initialized: false
+    initialized: false,
+    longPressTimer: null,
+    longPressActive: false,
+    longPressStartX: 0,
+    longPressStartY: 0
   };
   var elements = {};
 
@@ -166,6 +170,71 @@ window.Buddy = window.Buddy || {};
       !event.ctrlKey && !event.altKey && !event.shiftKey && !event.metaKey;
   }
 
+  var LONG_PRESS_MS = 4000;
+  var LONG_PRESS_MOVE_TOLERANCE = 18;
+
+  function clearLongPressTimer() {
+    if (state.longPressTimer !== null) {
+      window.clearTimeout(state.longPressTimer);
+      state.longPressTimer = null;
+    }
+  }
+
+  function cancelLongPress() {
+    clearLongPressTimer();
+    state.longPressActive = false;
+  }
+
+  function handleTouchStart(event) {
+    if (CONFIG.enabled === false || state.open) return;
+    if (!event.touches || event.touches.length !== 1) {
+      cancelLongPress();
+      return;
+    }
+
+    var touch = event.touches[0];
+    state.longPressStartX = touch.clientX;
+    state.longPressStartY = touch.clientY;
+    state.longPressActive = false;
+    clearLongPressTimer();
+
+    state.longPressTimer = window.setTimeout(function () {
+      state.longPressTimer = null;
+      state.longPressActive = true;
+      openChat();
+    }, LONG_PRESS_MS);
+  }
+
+  function handleTouchMove(event) {
+    if (state.longPressTimer === null || !event.touches || !event.touches.length) return;
+
+    var touch = event.touches[0];
+    var dx = touch.clientX - state.longPressStartX;
+    var dy = touch.clientY - state.longPressStartY;
+    if (Math.sqrt(dx * dx + dy * dy) > LONG_PRESS_MOVE_TOLERANCE) {
+      cancelLongPress();
+    }
+  }
+
+  function handleTouchEnd() {
+    if (state.longPressActive) {
+      // El Chat ya se abrió; no necesitamos dejar ningún temporizador activo.
+      cancelLongPress();
+      return;
+    }
+    cancelLongPress();
+  }
+
+  function handleTouchCancel() {
+    cancelLongPress();
+  }
+
+  function handleLongPressContextMenu(event) {
+    if (state.longPressTimer !== null || state.longPressActive) {
+      event.preventDefault();
+    }
+  }
+
   function handleGlobalKeydown(event) {
     if (event.key === 'Escape') {
       if (state.open) {
@@ -261,6 +330,15 @@ window.Buddy = window.Buddy || {};
     if (state.initialized || CONFIG.enabled === false) return;
     state.initialized = true;
     document.addEventListener('keydown', handleGlobalKeydown, true);
+
+    // En dispositivos táctiles, una pulsación continua de 4 segundos sobre
+    // la pantalla abre Chat. Un movimiento apreciable cancela la pulsación.
+    document.addEventListener('touchstart', handleTouchStart, { capture: true, passive: true });
+    document.addEventListener('touchmove', handleTouchMove, { capture: true, passive: true });
+    document.addEventListener('touchend', handleTouchEnd, { capture: true, passive: true });
+    document.addEventListener('touchcancel', handleTouchCancel, { capture: true, passive: true });
+    document.addEventListener('contextmenu', handleLongPressContextMenu, true);
+
     // Crear la interfaz después de que exista body.
     if (document.body) ensureUI();
     handleUrlInvocation();
