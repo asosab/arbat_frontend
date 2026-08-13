@@ -80,11 +80,11 @@ window.Buddy = window.Buddy || {};
     bubbleGapPx: 50,
     // Corrimiento del CUERPO del globo hacia la izquierda del punto de
     // cabeza_superior (la colita se queda apuntando cerca del punto real).
-    bubbleLeftShiftPx: 20,
+    bubbleLeftShiftPx: 17,
     // Debe coincidir con la colita del globo (::after en ensureBubbleStyles:
     // "right:28px;width:14px" -> el centro de la colita queda a
     // 28+14/2=35px del borde derecho del globo).
-    bubbleTailOffsetPx: 35,
+    bubbleTailOffsetPx: 17,
 
     // Expresión de reposo — obligatoria en cualquier personaje (ver
     // buddy.js, EXPRESION_OBLIGATORIA), a la que se vuelve al terminar
