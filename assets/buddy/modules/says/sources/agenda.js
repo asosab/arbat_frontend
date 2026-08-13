@@ -36,6 +36,8 @@
   // Configuración
   // ---------------------------------------------------------------------
   var CONFIG = {
+    enabled: true,
+
     // Calendario público configurado para Buddy: tanto las citas reservadas (turnos ocupados) como los
     // eventos especiales (torneos, clínicas) viven en un único calendario.
     calendarId: "arbat.archery@gmail.com",
@@ -71,6 +73,7 @@
   // La API key la proporciona el sitio anfitrión. Los demás valores proceden
   // de la configuración real migrada desde la agenda original.
   if (window.BuddyAgendaConfig) {
+    if (window.BuddyAgendaConfig.enabled !== undefined) CONFIG.enabled = window.BuddyAgendaConfig.enabled !== false;
     if (window.BuddyAgendaConfig.apiKey !== undefined) CONFIG.apiKey = window.BuddyAgendaConfig.apiKey;
     if (window.BuddyAgendaConfig.calendarId) CONFIG.calendarId = window.BuddyAgendaConfig.calendarId;
     if (window.BuddyAgendaConfig.timezone) CONFIG.timezone = window.BuddyAgendaConfig.timezone;
@@ -84,6 +87,7 @@
   function sincronizarConfiguracionBuddy() {
     var externa = window.BuddyAgendaConfig;
     if (!externa) return;
+    if (externa.enabled !== undefined) CONFIG.enabled = externa.enabled !== false;
     if (externa.apiKey !== undefined) CONFIG.apiKey = externa.apiKey || '';
     if (externa.calendarId) CONFIG.calendarId = externa.calendarId;
     if (externa.timezone) CONFIG.timezone = externa.timezone;
@@ -391,6 +395,205 @@
   }
 
   // ---------------------------------------------------------------------
+  // Consulta pública de reservas
+  // ---------------------------------------------------------------------
+  // Convierte componentes de una fecha en la zona horaria configurada a un
+  // Date/UTC real. Se calcula el offset con Intl para no depender de la zona
+  // horaria del navegador que visita la página.
+  function fechaZonificadaAUTC(anio, mes, dia, hora, minuto) {
+    var aproximada = new Date(Date.UTC(anio, mes - 1, dia, hora || 0, minuto || 0, 0));
+    var partes = partesBolivia(aproximada);
+    var comoLocal = Date.UTC(partes.anio, partes.mes - 1, partes.dia, partes.hora, partes.minuto, 0);
+    var deseada = Date.UTC(anio, mes - 1, dia, hora || 0, minuto || 0, 0);
+    return new Date(aproximada.getTime() + (deseada - comoLocal));
+  }
+
+  function sumarDiasCalendario(anio, mes, dia, cantidad) {
+    var d = new Date(Date.UTC(anio, mes - 1, dia + cantidad, 12, 0, 0));
+    return { anio: d.getUTCFullYear(), mes: d.getUTCMonth() + 1, dia: d.getUTCDate() };
+  }
+
+  function parseFechaInicial(valor) {
+    if (valor instanceof Date && !isNaN(valor.getTime())) {
+      var partes = partesBolivia(valor);
+      return {
+        fecha: partes,
+        instante: valor,
+        tieneHora: true
+      };
+    }
+
+    if (typeof valor !== 'string' || !valor.trim()) return null;
+    var texto = valor.trim();
+    var soloFecha = /^(\d{4})-(\d{2})-(\d{2})$/.exec(texto);
+    if (soloFecha) {
+      var f = { anio: Number(soloFecha[1]), mes: Number(soloFecha[2]), dia: Number(soloFecha[3]) };
+      if (!isFinite(f.anio) || !isFinite(f.mes) || !isFinite(f.dia)) return null;
+      return {
+        fecha: f,
+        instante: fechaZonificadaAUTC(f.anio, f.mes, f.dia, 0, 0),
+        tieneHora: false
+      };
+    }
+
+    var fechaISO = new Date(texto);
+    if (isNaN(fechaISO.getTime())) return null;
+    var partesISO = partesBolivia(fechaISO);
+    return {
+      fecha: partesISO,
+      instante: fechaISO,
+      tieneHora: true
+    };
+  }
+
+  function construirRangoReservas(fechaInicial, dias) {
+    var inicio = parseFechaInicial(fechaInicial);
+    var cantidadDias = Number(dias);
+    if (!inicio || !isFinite(cantidadDias) || cantidadDias < 1) return null;
+    cantidadDias = Math.floor(cantidadDias);
+
+    var finFecha = sumarDiasCalendario(inicio.fecha.anio, inicio.fecha.mes, inicio.fecha.dia, cantidadDias);
+    var finUTC = fechaZonificadaAUTC(finFecha.anio, finFecha.mes, finFecha.dia, 0, 0);
+
+    return {
+      inicio: inicio,
+      finFecha: finFecha,
+      finUTC: finUTC,
+      dias: cantidadDias
+    };
+  }
+
+  function construirUrlEventosRango(inicio, fin, pageToken) {
+    var base = 'https://www.googleapis.com/calendar/v3/calendars/' +
+      encodeURIComponent(CONFIG.calendarId) + '/events';
+    var params = [
+      'key=' + encodeURIComponent(CONFIG.apiKey),
+      'timeMin=' + encodeURIComponent(inicio.toISOString()),
+      'timeMax=' + encodeURIComponent(fin.toISOString()),
+      'singleEvents=true',
+      'orderBy=startTime',
+      'maxResults=250'
+    ];
+    if (pageToken) params.push('pageToken=' + encodeURIComponent(pageToken));
+    return base + '?' + params.join('&');
+  }
+
+  function obtenerEventosRango(inicio, fin) {
+    sincronizarConfiguracionBuddy();
+    if (CONFIG.enabled === false || !CONFIG.apiKey || !CONFIG.calendarId) {
+      return Promise.resolve(null);
+    }
+
+    function pagina(pageToken, acumulados) {
+      return fetch(construirUrlEventosRango(inicio, fin, pageToken))
+        .then(function (respuesta) {
+          if (!respuesta.ok) return null;
+          return respuesta.json();
+        })
+        .then(function (datos) {
+          if (!datos) return null;
+          var items = (datos.items || []).filter(function (evento) {
+            return evento.status !== 'cancelled';
+          });
+          var todos = acumulados.concat(items);
+          if (datos.nextPageToken) return pagina(datos.nextPageToken, todos);
+          return todos;
+        })
+        .catch(function (error) {
+          if (window.console) console.warn('[Buddy Agenda] No se pudo consultar el rango de reservas.', error);
+          return null;
+        });
+    }
+
+    return pagina('', []);
+  }
+
+  function fechaEvento(evento) {
+    var inicio = evento && evento.start;
+    if (!inicio) return null;
+    if (inicio.dateTime) return partesBolivia(new Date(inicio.dateTime));
+    if (inicio.date) {
+      var p = /^(\d{4})-(\d{2})-(\d{2})$/.exec(inicio.date);
+      if (p) return { anio: Number(p[1]), mes: Number(p[2]), dia: Number(p[3]) };
+    }
+    return null;
+  }
+
+  function fechaEnRango(partes, inicio, finFecha) {
+    if (!partes) return false;
+    var clave = partes.anio * 10000 + partes.mes * 100 + partes.dia;
+    var claveInicio = inicio.fecha.anio * 10000 + inicio.fecha.mes * 100 + inicio.fecha.dia;
+    var claveFin = finFecha.anio * 10000 + finFecha.mes * 100 + finFecha.dia;
+    return clave >= claveInicio && clave < claveFin;
+  }
+
+  function emitirAgendaDesactivada() {
+    var mensaje = 'La agenda está desactivada para esta página o aún no ha sido configurada';
+    if (typeof window.buddy_says === 'function') {
+      window.buddy_says(mensaje, { emocion: 'sereno' });
+    } else if (window.console) {
+      console.warn('[Buddy Agenda] ' + mensaje);
+    }
+  }
+
+  function consultarReservas(opciones, diasDirectos) {
+    // API admite ambas formas para facilitar su consumo desde otros módulos:
+    // consultarReservas({ fechaInicial: 'YYYY-MM-DD', dias: 3 })
+    // consultarReservas('YYYY-MM-DD', 3)
+    if (opciones instanceof Date || typeof opciones === 'string') {
+      opciones = { fechaInicial: opciones, dias: diasDirectos };
+    } else {
+      opciones = opciones || {};
+    }
+    sincronizarConfiguracionBuddy();
+
+    if (CONFIG.enabled === false || !CONFIG.apiKey || !CONFIG.calendarId) {
+      emitirAgendaDesactivada();
+      return Promise.resolve(null);
+    }
+
+    var rango = construirRangoReservas(opciones.fechaInicial, opciones.dias);
+    if (!rango) {
+      return Promise.reject(new TypeError('BuddyAgenda.consultarReservas requiere fechaInicial válida y dias >= 1.'));
+    }
+
+    // Si se pasa un datetime, el primer día comienza exactamente en ese
+    // instante. Si se pasa YYYY-MM-DD, comienza a medianoche de Bolivia.
+    var inicioUTC = rango.inicio.tieneHora ? rango.inicio.instante : fechaZonificadaAUTC(
+      rango.inicio.fecha.anio, rango.inicio.fecha.mes, rango.inicio.fecha.dia, 0, 0
+    );
+
+    return obtenerEventosRango(inicioUTC, rango.finUTC).then(function (eventos) {
+      if (eventos === null) {
+        emitirAgendaDesactivada();
+        return null;
+      }
+
+      var reservas = eventos.filter(esReserva);
+      var porDia = [];
+      for (var i = 0; i < rango.dias; i++) {
+        var fechaDia = sumarDiasCalendario(rango.inicio.fecha.anio, rango.inicio.fecha.mes, rango.inicio.fecha.dia, i);
+        var totalDia = reservas.filter(function (evento) {
+          var fecha = fechaEvento(evento);
+          if (!fecha || fecha.anio !== fechaDia.anio || fecha.mes !== fechaDia.mes || fecha.dia !== fechaDia.dia) return false;
+          if (i === 0 && rango.inicio.tieneHora && evento.start && evento.start.dateTime) {
+            return new Date(evento.start.dateTime).getTime() >= rango.inicio.instante.getTime();
+          }
+          return true;
+        }).length;
+        porDia.push({ fecha: fechaDia, total: totalDia });
+      }
+
+      return {
+        total: porDia.reduce(function (sum, item) { return sum + item.total; }, 0),
+        porDia: porDia,
+        fechaInicial: rango.inicio.fecha,
+        dias: rango.dias
+      };
+    });
+  }
+
+  // ---------------------------------------------------------------------
   // API pública
   // ---------------------------------------------------------------------
   // Devuelve una Promise que resuelve a un array de strings (los mensajes),
@@ -420,8 +623,13 @@
 
   window.BuddyInformSources = window.BuddyInformSources || {};
 
+  window.BuddyAgenda = window.BuddyAgenda || {};
+  window.BuddyAgenda.consultarReservas = consultarReservas;
+  window.BuddyAgenda.config = CONFIG;
+
   window.BuddyInformSources['agenda'] = {
     obtenerMensajes: getMensajes,
+    consultarReservas: consultarReservas,
     _CONFIG: CONFIG
   };
 })(window, document);

@@ -36,6 +36,7 @@ window.BuddySaysConfig.sources = [
 ];
 
 window.BuddyAgendaConfig = Object.assign({
+  enabled: true,
   calendarId: 'arbat.archery@gmail.com',
   timezone: 'America/La_Paz',
   apiKey: 'AIzaSyDnoPb09RbigaWadj1ssOLYN-7IL5WSIgg',

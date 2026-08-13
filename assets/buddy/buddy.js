@@ -696,7 +696,14 @@ window.Buddy = window.Buddy || {};
 
     return sources.reduce(function (chain, sourceId) {
       return chain.then(function () {
-        return loadScript(scriptUrlForSaysSource(sourceId));
+        return loadScript(scriptUrlForSaysSource(sourceId)).catch(function (error) {
+          // Una fuente opcional no debe impedir que Says, Chat u otros
+          // módulos se inicialicen. La propia fuente puede exponer su API
+          // pública cuando está disponible; si no existe, Chat podrá
+          // detectar esa ausencia y responder con el mensaje de agenda
+          // desactivada/no configurada.
+          console.warn('[BUDDY] No se pudo cargar la fuente de says "' + sourceId + '". Se continuará sin ella.', error);
+        });
       });
     }, Promise.resolve());
   }
@@ -715,6 +722,19 @@ window.Buddy = window.Buddy || {};
   function scriptUrlForModuleText(moduleId, locale, style) {
     return ASSET_BASE + 'modules/' + moduleId + '/' + locale +
       '/buddy_' + moduleId + '_' + style + '.js';
+  }
+
+  // Chat es un módulo global de entrada (teclado, URL y API), por lo que no
+  // depende de data-buddy-abilities. Su propio config.js decide si queda
+  // habilitado para esta página.
+  function loadChatModule() {
+    return loadScript(ASSET_BASE + 'modules/chat/config.js')
+      .then(function () {
+        if (!window.BuddyChatConfig || window.BuddyChatConfig.enabled === false) {
+          return undefined;
+        }
+        return loadScript(ASSET_BASE + 'modules/chat/buddy_chat.js');
+      });
   }
 
   function preloadImage(url) {
@@ -844,6 +864,9 @@ window.Buddy = window.Buddy || {};
             '" no define perfil.idioma/perfil.estilo.');
         }
         return loadScript(scriptUrlForSays(locale, style));
+      })
+      .then(function () {
+        return loadChatModule();
       })
       .then(function () {
         return abilities.reduce(function (chain, moduleId) {
