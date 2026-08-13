@@ -5,12 +5,8 @@
  * y genera, en memoria, un arreglo de mensajes (strings) para que el futuro
  * sistema de mensajería del sitio se los muestre a los visitantes.
  *
- * No requiere frameworks. Pensado para incluirse con:
- *   <script src="/Buddy/modules/says/sources/agenda.js" defer></script>
- * en cualquier página del sitio Jekyll (arbat_frontend) que necesite estos
- * mensajes. No se agrega a _layouts/default.html: no tiene sentido pedirle
- * la agenda a Google en cada página hasta que exista un componente que
- * muestre los mensajes; agregar el <script> donde ese componente viva.
+ * No requiere frameworks. Fuente autónoma del módulo /says. Buddy decide si se carga mediante
+ * modules/says/config.js; esta fuente no conoce el sitio anfitrión.
  *
  * IMPORTANTE — por qué esto NO lee el .ics público directamente:
  * El feed .ics de Google Calendar (el feed .ics público)
@@ -40,8 +36,7 @@
   // Configuración
   // ---------------------------------------------------------------------
   var CONFIG = {
-    // Mismo calendario público que ya usan calendar-eventos-embed.html y
-    // calendar_citas: tanto las citas reservadas (turnos ocupados) como los
+    // Calendario público configurado para Buddy: tanto las citas reservadas (turnos ocupados) como los
     // eventos especiales (torneos, clínicas) viven en un único calendario.
     calendarId: "arbat.archery@gmail.com",
 
@@ -51,22 +46,17 @@
     // Debe estar restringida por referrer HTTP a los dominios del sitio.
     // Sin key configurada, getMensajes() resuelve un
     // array vacío y avisa por consola — no rompe la página.
-    apiKey: (window.BuddyAgendaConfig && window.BuddyAgendaConfig.apiKey) || '',
+    apiKey: '',
 
     timezone: "America/La_Paz",
 
     // Cuántos días hacia adelante se consultan en cada llamada a la API.
     horizonteDias: 31,
 
-    // SUPUESTO SIN CONFIRMAR: no hay un cupo máximo por turno documentado
-    // en ningún lado del proyecto. Se puso 8 como placeholder (2 arqueros
-    // por cada uno de los 4 campos de tiro). Ajustar a la cifra real antes
-    // de usar esto en producción.
+    // Capacidad por turno configurada para la agenda de Buddy.
     capacidadPorTurno: 8,
 
-    // Misma fuente que horarios.md e index.md (BuddyAgendaConfig.horarios en
-    // la configuración interna de Buddy) — un solo lugar donde editar los horarios reales, este
-    // script los reutiliza en vez de duplicarlos.
+    // Horarios configurados en window.BuddyAgendaConfig.horarios.
     horarios: [{"dias":"Lunes, miércoles y viernes","turnos":["16:00","18:00"],"duracion":"2 horas"},{"dias":"Sábados","turnos":["09:00–12:00","14:30–17:00"]}],
 
     // Un evento del calendario se trata como "evento especial" (mensaje
@@ -88,6 +78,19 @@
     if (window.BuddyAgendaConfig.capacidadPorTurno != null) CONFIG.capacidadPorTurno = window.BuddyAgendaConfig.capacidadPorTurno;
     if (window.BuddyAgendaConfig.horarios) CONFIG.horarios = window.BuddyAgendaConfig.horarios;
     if (window.BuddyAgendaConfig.palabrasClaveEventoEspecial) CONFIG.palabrasClaveEventoEspecial = window.BuddyAgendaConfig.palabrasClaveEventoEspecial;
+  }
+
+
+  function sincronizarConfiguracionBuddy() {
+    var externa = window.BuddyAgendaConfig;
+    if (!externa) return;
+    if (externa.apiKey !== undefined) CONFIG.apiKey = externa.apiKey || '';
+    if (externa.calendarId) CONFIG.calendarId = externa.calendarId;
+    if (externa.timezone) CONFIG.timezone = externa.timezone;
+    if (externa.horizonteDias != null) CONFIG.horizonteDias = externa.horizonteDias;
+    if (externa.capacidadPorTurno != null) CONFIG.capacidadPorTurno = externa.capacidadPorTurno;
+    if (externa.horarios) CONFIG.horarios = externa.horarios;
+    if (externa.palabrasClaveEventoEspecial) CONFIG.palabrasClaveEventoEspecial = externa.palabrasClaveEventoEspecial;
   }
 
 
@@ -227,10 +230,11 @@
   // disponibilidad, en vez de asumir que no hay reservas y afirmar algo que
   // no se pudo confirmar.
   function obtenerEventos(ahora) {
+    sincronizarConfiguracionBuddy();
     if (!CONFIG.apiKey || CONFIG.apiKey === '') {
       if (window.console) {
         console.warn(
-          '[ArbatAgenda] Falta configurar window.BuddyAgendaConfig.apiKey (API key ' +
+          '[Buddy Agenda] Falta configurar window.BuddyAgendaConfig.apiKey (API key ' +
           'de Google Calendar). No se generarán mensajes de agenda.'
         );
       }
@@ -241,7 +245,7 @@
       .then(function (respuesta) {
         if (!respuesta.ok) {
           if (window.console) {
-            console.warn('[ArbatAgenda] Google Calendar API respondió ' + respuesta.status + '.');
+            console.warn('[Buddy Agenda] Google Calendar API respondió ' + respuesta.status + '.');
           }
           return null;
         }
@@ -255,7 +259,7 @@
       })
       .catch(function (error) {
         if (window.console) {
-          console.warn('[ArbatAgenda] No se pudo leer la agenda de Google Calendar.', error);
+          console.warn('[Buddy Agenda] No se pudo leer la agenda de Google Calendar.', error);
         }
         return null;
       });

@@ -100,6 +100,65 @@ window.Buddy = window.Buddy || {};
   var ready = false;
   var readyPromise = null;
 
+  // -------------------------------------------------------------------
+  // Política común de ocupado (Fase 10).
+  // Cada módulo puede registrar un proveedor propio; Buddy combina todos
+  // los proveedores con el estado de visibilidad del documento/ventana.
+  // Ante cualquier duda o error se adopta el comportamiento conservador:
+  // considerar ocupado para no interrumpir al usuario.
+  // -------------------------------------------------------------------
+  var busyProviders = {};
+
+  function registerBusyProvider(modulo, provider) {
+    var id = String(modulo || '').trim();
+    if (!id || typeof provider !== 'function') {
+      throw new TypeError('[BUDDY] registerBusyProvider requiere un modulo y una función.');
+    }
+    busyProviders[id] = provider;
+  }
+
+  function isVisibilityBusy() {
+    try {
+      if (typeof document === 'undefined') return true;
+
+      // Si el documento no está visible, el usuario no puede recibir de forma
+      // efectiva un mensaje dirigido al buddy.
+      if (document.visibilityState && document.visibilityState !== 'visible') {
+        return true;
+      }
+      if (document.hidden === true) return true;
+
+      // hasFocus() es la señal estándar disponible para saber si la ventana
+      // que contiene el documento está activa. También cubre, de forma
+      // conservadora, una ventana que perdió el foco (incluida una posible
+      // minimización). El navegador no ofrece una API web universal que
+      // permita distinguir con certeza "minimizada" de "sin foco".
+      if (typeof document.hasFocus === 'function' && !document.hasFocus()) {
+        return true;
+      }
+    } catch (err) {
+      return true;
+    }
+
+    return false;
+  }
+
+  function isBusy() {
+    if (isVisibilityBusy()) return true;
+
+    var ids = Object.keys(busyProviders);
+    for (var i = 0; i < ids.length; i += 1) {
+      try {
+        if (busyProviders[ids[i]]()) return true;
+      } catch (err) {
+        console.warn('[BUDDY] El proveedor de ocupado "' + ids[i] + '" lanzó una excepción; se considera ocupado.', err);
+        return true;
+      }
+    }
+
+    return false;
+  }
+
   function getCharData() {
     return (window.BuddyChars && window.BuddyChars[personajeActivo]) || null;
   }
@@ -387,8 +446,24 @@ window.Buddy = window.Buddy || {};
 
     ensureCharacterElement();
     lastDatosImagen = datosImagen;
+    var wasHidden = charEl.style.display === 'none';
     charEl.style.display = 'block';
     charEl.src = datosImagen.archivo;
+
+    // Una vez que cualquier parte de Buddy hace visible al personaje,
+    // todos los módulos activos deben considerarlo visible/activo.
+    // Los módulos se suscriben a este evento sin que el núcleo tenga que
+    // conocer implementaciones concretas como archery.
+    if (wasHidden) {
+      try {
+        window.dispatchEvent(new CustomEvent('buddy:character-visible', {
+          detail: { character: personajeActivo, abilities: modulosActivos.slice() }
+        }));
+      } catch (e) {
+        // Compatibilidad con entornos antiguos: la visibilidad del personaje
+        // no debe fallar por un problema al emitir el evento.
+      }
+    }
 
     // Si la imagen ya estaba cargada (misma src), 'load' no vuelve a
     // disparar — se fuerza el ajuste igual, mismo criterio que
@@ -489,7 +564,14 @@ window.Buddy = window.Buddy || {};
   }
 
   function loadSaysSources() {
-    var sources = ['agenda', 'consejos_arch'];
+    var configured = window.BuddySaysConfig && Array.isArray(window.BuddySaysConfig.sources) ?
+      window.BuddySaysConfig.sources : [];
+    var sources = configured.filter(function (item) {
+      return item && item.enabled !== false && item.id;
+    }).map(function (item) {
+      return String(item.id);
+    });
+
     return sources.reduce(function (chain, sourceId) {
       return chain.then(function () {
         return loadScript(scriptUrlForSaysSource(sourceId));
@@ -606,6 +688,10 @@ window.Buddy = window.Buddy || {};
 
     return loadScript(scriptUrlForCharacter(characterId))
       .then(function () {
+        // /says/config.js es el punto de configuración del módulo /says.
+        return loadScript(ASSET_BASE + 'modules/says/config.js');
+      })
+      .then(function () {
         var charData = getCharData();
         if (!charData) {
           throw new Error('[BUDDY] El personaje "' + characterId +
@@ -619,11 +705,6 @@ window.Buddy = window.Buddy || {};
       })
       .then(function () {
         return loadSaysSources();
-      })
-      .then(function () {
-        if (window.Buddy.says && typeof window.Buddy.says.iniciarFuentes === 'function') {
-          window.Buddy.says.iniciarFuentes();
-        }
       })
       .then(function () {
         var charData = getCharData();
@@ -647,6 +728,15 @@ window.Buddy = window.Buddy || {};
         }, Promise.resolve());
       })
       .then(function () {
+        // Todos los módulos activos deben estar inicializados ANTES de que
+        // Says pueda mostrar su primer mensaje. Así un mensaje automático
+        // que hace visible al personaje no puede adelantarse a Archery (u
+        // otro módulo) y dejarlo sin sus listeners de interacción.
+        if (window.Buddy.says && typeof window.Buddy.says.iniciarFuentes === 'function') {
+          window.Buddy.says.iniciarFuentes();
+        }
+      })
+      .then(function () {
         ready = true;
         window.Buddy.ready = true;
         window.Buddy.readyPromise = readyPromise;
@@ -659,11 +749,16 @@ window.Buddy = window.Buddy || {};
   // ---------------------------------------------------------------------
   // API pública
   // ---------------------------------------------------------------------
+  window.Buddy.registerBusyProvider = registerBusyProvider;
+  window.Buddy.isBusy = isBusy;
   window.Buddy.resolveAsset = resolveAsset;
   window.Buddy.resolveExpression = resolveExpression;
   window.Buddy.resolveExpressionByCategory = resolveExpressionByCategory;
   window.Buddy.resolveScenario = resolveScenario;
   window.Buddy.showCharacterImage = showCharacterImage;
+  window.Buddy.isCharacterVisible = function () {
+    return !!(charEl && charEl.style.display !== 'none');
+  };
   window.Buddy.getCharacter = getCharData;
   window.Buddy.isReady = function () { return ready; };
   window.Buddy.preloadCharacterAssets = preloadCharacterAssets;

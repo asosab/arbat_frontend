@@ -2098,13 +2098,13 @@ function onTestTriggerClick(e) {
     clearTimeout(testTriggerClickTimer);
     testTriggerClickTimer = null;
 
+    // El triple click solo invoca al personaje cuando está oculto.
+    // No se utiliza para desactivar un personaje que ya fue mostrado por
+    // Says u otro módulo activo.
     if (state === 'hidden') {
       showCharacter();
-    } else if (state === 'idle') {
-      hideCharacter();
     }
-    // Si está en 'pending' / 'aiming' / 'resolved' se ignora el triple
-    // click para no interrumpir una prueba en curso.
+    // Si está visible o en una partida en curso, el triple click no hace nada.
   }
 
 function init() {
@@ -2125,6 +2125,28 @@ function init() {
     bindArrowRepositioning();
     window.addEventListener('resize', onResize);
     initCalibration();
+
+    // Buddy es quien decide cuándo el personaje está visible. Si cualquier
+    // módulo (por ejemplo Says) lo hace visible, Archery debe activarse de
+    // inmediato si está habilitado, sin exigir triple click.
+    window.addEventListener('buddy:character-visible', function () {
+      if (state === 'hidden') {
+        showCharacter();
+      }
+    });
+
+    // Si Buddy ya estaba visible antes de que este módulo terminara de
+    // inicializarse, el evento de visibilidad pudo haber ocurrido antes de
+    // registrar el listener. En ese caso no esperamos un nuevo triple click:
+    // Archery debe quedar activo inmediatamente.
+    if (window.Buddy && typeof window.Buddy.isCharacterVisible === 'function' &&
+        window.Buddy.isCharacterVisible() && state === 'hidden') {
+      showCharacter();
+    }
+
+    // El triple click queda únicamente como mecanismo de INVOCACIÓN cuando
+    // Buddy está oculto. Una vez visible, no debe desactivar Archery ni
+    // apagar el personaje que otro módulo acaba de activar.
     document.addEventListener('click', onTestTriggerClick);
   }
 
@@ -2150,9 +2172,21 @@ function init() {
       return Math.sqrt(calibOffsetX * calibOffsetX + calibOffsetY * calibOffsetY);
     },
     estaOcupado: function () {
-      return state !== 'idle';
+      // 'hidden' significa que el minijuego está oculto/inactivo, no que
+      // esté ocupando a Buddy. Solo los estados de una interacción en curso
+      // deben bloquear las fuentes automáticas de /says.
+      return state !== 'idle' && state !== 'hidden';
     }
   };
+
+  // Fase 10: registrar la condición de ocupado en la política común de Buddy.
+  // Se conserva esta API pública porque otros consumidores pueden seguir
+  // consultando Buddy.archery.estaOcupado(), pero says ya no depende de ella.
+  if (window.Buddy && typeof window.Buddy.registerBusyProvider === 'function') {
+    window.Buddy.registerBusyProvider('archery', function () {
+      return window.Buddy.archery.estaOcupado();
+    });
+  }
 
 
   if (document.readyState === 'loading') {

@@ -1,22 +1,61 @@
-# Fase 8 — fuentes de Buddy Says
+# Fuentes de Buddy Says
 
-Fuentes registradas:
-- `agenda.js` → fuente autónoma de Google Calendar; no depende de archivos ni de variables de Jekyll.
-- `consejos_arch.js` → carga `consejos_arch.json`.
+Las fuentes de `/says` son módulos independientes. Buddy las carga según
+`../config.js`.
 
-Configuración de agenda
+## Formatos admitidos
 
-Editar `buddy/modules/says/sources/agenda.js` en `BuddyAgendaConfig`, o definir `window.BuddyAgendaConfig` antes de cargar `buddy.js`.
+Una fuente puede registrar directamente un array:
 
-Valores por defecto solicitados:
-- `calendarId`: `arbat.archery@gmail.com`
-- `timezone`: `America/La_Paz`
-- `apiKey`: vacío; debe configurarse en el sitio anfitrión.
+```js
+window.BuddyInformSources.mi_fuente = [
+  'Mensaje 1',
+  'Mensaje 2'
+];
+```
 
-Los horarios (`horarios`) deben ser definidos por el sitio anfitrión porque Buddy es portable y no debe depender del `_config.yml` de ningún sitio.
+También puede registrar un proveedor para datos síncronos o asíncronos:
 
-Selección de mensajes:
-- `agenda`: secuencial.
-- `consejos_arch`: aleatoria.
+```js
+window.BuddyInformSources.mi_fuente = {
+  obtenerMensajes: function () {
+    return ['Mensaje 1', 'Mensaje 2'];
+  }
+};
+```
 
-El motor aplica frecuencia, recurrencia diaria, persistencia y la variante `Buddy.says.decirSiLibre()`.
+`obtenerMensajes()` también puede devolver una `Promise`.
+
+## Fuentes actuales
+
+- `consejos.js`: listado directo de consejos.
+- `agenda.js`: consulta la agenda pública de Google Calendar.
+
+## Configuración
+
+La activación y el comportamiento de cada fuente se define en:
+
+```text
+modules/says/config.js
+```
+
+Ejemplo:
+
+```js
+{
+  id: 'consejos',
+  enabled: true,
+  selection: 'shuffle',
+  recurrence: 2,
+  frequency: { min: 5, max: 12 }
+}
+```
+
+Para no cargar una fuente:
+
+```js
+enabled: false
+```
+
+No hay ninguna dependencia con un archivo de agenda externo, Jekyll ni con los
+módulos de habilidades.

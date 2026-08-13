@@ -63,6 +63,16 @@ window.Buddy = window.Buddy || {};
     // opciones.durationMs (= CONFIG.bubbleDisplayMs en raulito.js).
     bubbleDisplayMs: 2800,
 
+    // Duración adaptativa: los mensajes largos permanecen visibles el
+    // tiempo suficiente para poder leerlos. Los límites y la velocidad se
+    // pueden ajustar desde BuddySaysConfig.display.
+    bubbleDuration: {
+      minMs: 2800,
+      maxMs: 9000,
+      charsPerSecond: 14,
+      extraMs: 500
+    },
+
     // Separación vertical entre la base del globo y anclas.cabeza_superior.
     bubbleGapPx: 50,
     // Corrimiento del CUERPO del globo hacia la izquierda del punto de
@@ -240,10 +250,36 @@ window.Buddy = window.Buddy || {};
   var bubbleTimer = null;
   var callToken = 0;
 
+  function getBubbleDurationMs(texto, opciones) {
+    if (opciones && typeof opciones.durationMs === 'number') {
+      return Math.max(0, opciones.durationMs);
+    }
+
+    var settings = window.BuddySaysConfig && window.BuddySaysConfig.display || {};
+    var base = Number(settings.baseMs);
+    var minMs = Number(settings.minMs);
+    var maxMs = Number(settings.maxMs);
+    var charsPerSecond = Number(settings.charsPerSecond);
+    var extraMs = Number(settings.extraMs);
+
+    if (!isFinite(base) || base < 0) base = CONFIG.bubbleDisplayMs;
+    if (!isFinite(minMs) || minMs < 0) minMs = CONFIG.bubbleDuration.minMs;
+    if (!isFinite(maxMs) || maxMs < minMs) maxMs = CONFIG.bubbleDuration.maxMs;
+    if (!isFinite(charsPerSecond) || charsPerSecond <= 0) charsPerSecond = CONFIG.bubbleDuration.charsPerSecond;
+    if (!isFinite(extraMs) || extraMs < 0) extraMs = CONFIG.bubbleDuration.extraMs;
+
+    var plainText = String(texto == null ? '' : texto)
+      .replace(/<[^>]*>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    var chars = plainText.length;
+    var duration = base + (chars / charsPerSecond) * 1000 + (chars > 45 ? extraMs : 0);
+    return Math.round(Math.min(maxMs, Math.max(minMs, duration)));
+  }
+
   function buddySays(texto, opciones) {
     opciones = opciones || {};
-    var durationMs = typeof opciones.durationMs === 'number' ?
-      opciones.durationMs : CONFIG.bubbleDisplayMs;
+    var durationMs = getBubbleDurationMs(texto, opciones);
 
     var datosExpresion = resolveExpresionParaEmocion(opciones.emocion);
     if (!datosExpresion || !datosExpresion.archivo) {
@@ -287,20 +323,22 @@ window.Buddy = window.Buddy || {};
   // -------------------------------------------------------------------
   var SOURCES = window.BuddyInformSources = window.BuddyInformSources || {};
 
-  var SOURCES_CONFIG = [
-    {
-      id: 'agenda',
-      recurrencia: 1,
-      frecuencia: { min: 1, max: 4 },
-      seleccion: 'secuencial'
-    },
-    {
-      id: 'consejos_arch',
-      recurrencia: 2,
-      frecuencia: { min: 5, max: 12 },
-      seleccion: 'aleatoria'
-    }
-  ];
+  // La configuración de qué fuentes participan pertenece a /says/config.js.
+  // No se fija aquí para que el sitio pueda activar/desactivar fuentes y
+  // cambiar su estrategia sin modificar el motor.
+  var configuredSources = window.BuddySaysConfig && Array.isArray(window.BuddySaysConfig.sources) ?
+    window.BuddySaysConfig.sources : [];
+
+  var SOURCES_CONFIG = configuredSources.filter(function (item) {
+    return item && item.enabled !== false && item.id;
+  }).map(function (item) {
+    return {
+      id: String(item.id),
+      recurrencia: item.recurrencia != null ? item.recurrencia : (item.recurrence != null ? item.recurrence : 1),
+      frecuencia: item.frecuencia || item.frequency || { min: 0, max: 0 },
+      seleccion: item.seleccion || item.selection || 'sequential'
+    };
+  });
 
   var sourceStates = {};
   var sourceEngineStarted = false;
@@ -421,20 +459,17 @@ window.Buddy = window.Buddy || {};
       try {
         return !!window.Buddy.isBusy();
       } catch (e) {
-        warnSource('[buddy_says] Buddy.isBusy() lanzó una excepción; se usa fallback.');
+        // Buddy.isBusy() ya aplica una política conservadora internamente.
+        // Si la API falla por completo, tampoco interrumpimos al usuario.
+        warnSource('[buddy_says] Buddy.isBusy() lanzó una excepción; se considera ocupado.');
+        return true;
       }
     }
 
-    if (window.Buddy && window.Buddy.archery &&
-        typeof window.Buddy.archery.estaOcupado === 'function') {
-      try {
-        return !!window.Buddy.archery.estaOcupado();
-      } catch (e2) {
-        warnSource('[buddy_says] archery.estaOcupado() lanzó una excepción.');
-      }
-    }
-
-    return false;
+    // Compatibilidad defensiva durante cargas anómalas: si la API común aún
+    // no existe, no se permite una interrupción automática. No se conoce
+    // ningún módulo concreto aquí (archery, u otro futuro).
+    return true;
   }
 
   function canSpeakPolitely() {
@@ -462,7 +497,9 @@ window.Buddy = window.Buddy || {};
 
     if (!available.length) return null;
 
-    if (state.config.seleccion === 'aleatoria') {
+    var selectionMode = String(state.config.seleccion || 'sequential').toLowerCase();
+    if (selectionMode === 'aleatoria' || selectionMode === 'aleatorio' ||
+        selectionMode === 'shuffle' || selectionMode === 'random') {
       // Evita repetir inmediatamente cuando hay más de una opción.
       var pool = available;
       if (pool.length > 1 && state.lastMessageId) {
@@ -488,7 +525,7 @@ window.Buddy = window.Buddy || {};
 
   function loadSource(state) {
     var source = SOURCES[state.config.id];
-    if (!source || typeof source.obtenerMensajes !== 'function') {
+    if (source === undefined || source === null) {
       state.error = new Error('Fuente no registrada: ' + state.config.id);
       warnSource('[buddy_says] ' + state.error.message);
       return Promise.resolve(false);
@@ -496,7 +533,13 @@ window.Buddy = window.Buddy || {};
 
     state.loading = true;
     return Promise.resolve().then(function () {
-      return source.obtenerMensajes();
+      // Una fuente puede ser un array directo o un proveedor con
+      // obtenerMensajes(). Los dos formatos son deliberadamente válidos.
+      if (Array.isArray(source)) return source;
+      if (typeof source.obtenerMensajes === 'function') {
+        return source.obtenerMensajes();
+      }
+      throw new Error('Formato de fuente no válido: ' + state.config.id);
     }).then(function (messages) {
       state.messages = normalizeMessages(state.config.id, messages);
       state.error = null;
@@ -563,7 +606,8 @@ window.Buddy = window.Buddy || {};
 
     buddySays(message.texto, {
       emocion: message.emocion,
-      durationMs: CONFIG.bubbleDisplayMs
+      // Sin durationMs: el núcleo calcula automáticamente el tiempo según
+      // el largo del mensaje.
     });
 
     debugSource('[BUDDY SAYS] mensaje mostrado:', state.config.id, message.id);
@@ -593,7 +637,10 @@ window.Buddy = window.Buddy || {};
         config: config,
         messages: [],
         nextIndex: 0,
-        nextAt: Date.now() + intervalMs(config),
+        // El primer mensaje no espera el intervalo de frecuencia:
+        // al cargar Buddy, si alguna fuente tiene algo elegible que decir,
+        // debe hablar inmediatamente.
+        nextAt: 0,
         lastMessageId: null,
         pending: false,
         loading: false,
@@ -606,12 +653,49 @@ window.Buddy = window.Buddy || {};
     });
 
     Promise.all(loads).then(function () {
+      var spokeImmediately = false;
+
+      // Se respeta el orden declarado en /says/config.js: la primera fuente
+      // que tenga un mensaje elegible gana el primer turno de Buddy.
+      Object.keys(sourceStates).some(function (id) {
+        var state = sourceStates[id];
+        if (!state.messages.length || !canSpeakPolitely()) return false;
+
+        var message = selectMessage(state);
+        if (!message) return false;
+
+        state.pending = false;
+        state.lastMessageId = message.id;
+        markMessageUsed(message);
+
+        buddySays(message.texto, {
+          emocion: message.emocion
+        });
+
+        debugSource('[BUDDY SAYS] mensaje inicial mostrado:', state.config.id, message.id);
+
+        // Este medio vuelve a entrar en su frecuencia normal después del
+        // mensaje inicial. Las demás fuentes conservan su primer intento
+        // para después, evitando dos globos simultáneos al cargar.
+        scheduleState(state, intervalMs(state.config));
+        spokeImmediately = true;
+        return true;
+      });
+
+      // Si ninguna fuente tuvo nada que decir al cargar, no se fuerza ningún
+      // globo. El usuario puede invocar a Buddy mediante el triple click del
+      // módulo que lo tenga habilitado.
       Object.keys(sourceStates).forEach(function (id) {
         var state = sourceStates[id];
-        // El primer turno se cuenta desde la inicialización, no desde la
-        // finalización de un fetch lento.
-        if (!state.nextAt) state.nextAt = Date.now() + intervalMs(state.config);
+        if (!state.nextAt) {
+          scheduleState(state, intervalMs(state.config));
+        } else if (spokeImmediately && !state.lastMessageId) {
+          // Las fuentes que no ganaron el turno inicial conservan su
+          // frecuencia normal desde la carga.
+          scheduleState(state, intervalMs(state.config));
+        }
       });
+
       scheduleEngine();
     });
   }
@@ -632,7 +716,15 @@ window.Buddy = window.Buddy || {};
     iniciarFuentes: initializeSourceEngine,
     _sources: SOURCES,
     _state: sourceStates,
-    _recurrenceKey: SOURCE_STORAGE_KEY
+    _recurrenceKey: SOURCE_STORAGE_KEY,
+    tieneAlgoQueDecir: function () {
+      return Object.keys(sourceStates).some(function (id) {
+        var state = sourceStates[id];
+        return !!(state && state.messages && state.messages.some(function (message) {
+          return canUseMessage(state, message);
+        }));
+      });
+    }
   };
 
   // buddy.js llama a iniciarFuentes() después de registrar todas las fuentes.
