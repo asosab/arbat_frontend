@@ -569,6 +569,12 @@
     var pendingAimRequest = false;
     var pendingAimStartX = 0;
     var pendingAimStartY = 0;
+
+    // Triple-click de prueba para invocar/ocultar a Raulito.
+    // Mantener este estado privado dentro del módulo; no depende de variables
+    // globales del script original.
+    var testTriggerClickCount = 0;
+    var testTriggerClickTimer = null;
   
     // Precarga: dimensiones naturales cacheadas por nombre de archivo, para
     // poder posicionar/dimensionar una flecha clavada al instante, sin
