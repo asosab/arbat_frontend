@@ -7,7 +7,7 @@ description: "Clases individuales de tiro con arco en Santa Cruz de la Sierra, a
 Para quien quiere entrenar solo, a su ritmo, sin el grupo grande alrededor — el proceso se arma alrededor tuyo, no al revés.
 
 <div class="clase-imagen">
-  <img src="{{ '/assets/images/grupales/dos_arqueros.jpg' | relative_url }}" alt="CLases individuales" loading="lazy" style="width:100%;height:100%;object-fit:cover;object-position:center center;">
+  <img src="{{ '/assets/images/grupales/dos_arqueros_2.jpg' | relative_url }}" alt="CLases individuales" loading="lazy" style="width:100%;height:100%;object-fit:cover;object-position:center center;">
 </div>
 
 ## Qué aprenderás

@@ -46,7 +46,7 @@ hero_cta_secundario_url: "#clases"
         </div>
         {% elsif clase.url contains "individuales" %}
         <div class="card__media">
-          <img src="{{ '/assets/images/grupales/dos_arqueros.jpg' | relative_url }}" alt="CLases individuales" loading="lazy" style="width:100%;height:100%;object-fit:cover;object-position:center center;">
+          <img src="{{ '/assets/images/grupales/dos_arqueros_2.jpg' | relative_url }}" alt="CLases individuales" loading="lazy" style="width:100%;height:100%;object-fit:cover;object-position:center center;">
         </div>
         {% else %}
         <div class="card__media" aria-hidden="true"></div>
