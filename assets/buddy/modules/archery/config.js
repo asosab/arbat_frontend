@@ -607,6 +607,36 @@ window.BuddyArcheryConfig = window.BuddyArcheryConfig || {
         clicksToTrigger: 3,
         windowMs: 500
       },
+      // -------------------------------------------------------------------
+      // Efecto de concentración durante el apuntado.
+      //
+      // Cuando enabled=true, mientras state === 'aiming' se aplica una capa
+      // fija que desenfoca y oscurece la página, dejando una ventana nítida
+      // alrededor de la diana. La diana, la mira, el personaje y los misses
+      // cercanos se elevan a capas superiores.
+      //
+      // El efecto puede desactivarse por código con:
+      //   window.BuddyArchery.setAimBlurEnabled(false)
+      // y volver a activarse con true. Esto permite que otros módulos
+      // suspendan el blur temporalmente durante una acción especial.
+      // -------------------------------------------------------------------
+      aimFocus: {
+        enabled: true,
+        blurPx: 7,
+        darkness: 0.22,
+        targetFocusScale: 2.25,
+        targetFocusSoftness: 0.22,
+        nearMissMultiplier: 1.35,
+        transitionMs: 220,
+        overlayZIndex: 9000,
+        nearMissZIndex: 10000,
+        targetZIndex: 10005,
+        characterZIndex: 9999,
+        miraZIndex: 10020,
+        chatZIndex: 10030,
+        fallbackDarkness: 0.18
+      },
+
       miraMarginPx: 16,
   
       // -------------------------------------------------------------------

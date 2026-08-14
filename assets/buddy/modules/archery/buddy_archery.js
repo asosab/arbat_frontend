@@ -25,6 +25,11 @@
     var miraEl = null;
     var targetEl = null;  // fallback gráfico; puede no existir si target está disabled
     var debugEl = null;
+    var aimFocusEl = null;
+    var aimFocusActive = false;
+    var aimBlurRuntimeEnabled = true;
+    var aimFocusTargetEl = null;
+    var aimFocusTargetOriginalZ = null;
   
     var activePointerId = null;
     var startX = 0;
@@ -569,7 +574,7 @@ function stickArrowAt(x, y, score, targetRect) {
       position: 'fixed',
       left: x + 'px',
       top: y + 'px',
-      zIndex: '9990',
+      zIndex: String((state === 'aiming' && CONFIG.aimFocus && CONFIG.aimFocus.nearMissZIndex != null) ? CONFIG.aimFocus.nearMissZIndex : 9990),
       pointerEvents: 'none',
       userSelect: 'none',
       // No permitir ni un frame en tamaño natural: la flecha queda invisible
@@ -610,6 +615,7 @@ function stickArrowAt(x, y, score, targetRect) {
       hasAnchor: hasAnchor
     };
     stuckArrows.push(record);
+    if (aimFocusActive) updateAimFocusArrowLayers();
     return record;
   }
 
@@ -626,6 +632,7 @@ function repositionStuckArrows() {
       item.el.style.left = nx + 'px';
       item.el.style.top = ny + 'px';
     });
+    if (aimFocusActive) updateAimFocusArrowLayers();
   }
 
 function scheduleRepositionStuckArrows() {
@@ -970,7 +977,7 @@ function ensureElements() {
         position: 'fixed',
         left: CONFIG.miraMarginPx + 'px',
         top: CONFIG.miraMarginPx + 'px',
-        zIndex: '9998',
+        zIndex: String((CONFIG.aimFocus && CONFIG.aimFocus.miraZIndex != null) ? CONFIG.aimFocus.miraZIndex : 10020),
         pointerEvents: 'none',
         userSelect: 'none',
         display: 'none',
@@ -1002,7 +1009,7 @@ function ensureElements() {
         position: 'fixed',
         left: '16px',
         top: '16px',
-        zIndex: '1',
+        zIndex: String((CONFIG.aimFocus && CONFIG.aimFocus.targetZIndex != null) ? CONFIG.aimFocus.targetZIndex : 10005),
         pointerEvents: 'none',
         userSelect: 'none',
         display: 'none'
@@ -1045,7 +1052,256 @@ function ensureElements() {
     return !!charEl;
   }
 
+
+  // -------------------------------------------------------------------
+  // Efecto de concentración durante el apuntado.
+  //
+  // El overlay usa backdrop-filter para desenfocar/oscurecer la página.
+  // Una máscara radial deja una ventana nítida alrededor de la diana para
+  // conservar visibles la diana y los misses cercanos. La diana/mira/
+  // personaje/misses además se elevan explícitamente mediante z-index.
+  // -------------------------------------------------------------------
+  function aimFocusConfig() {
+    return CONFIG.aimFocus || {};
+  }
+
+  function isAimBlurEnabled() {
+    var cfg = aimFocusConfig();
+    return cfg.enabled !== false && aimBlurRuntimeEnabled !== false;
+  }
+
+  function ensureAimFocusElement() {
+    if (aimFocusEl) return aimFocusEl;
+
+    aimFocusEl = document.createElement('div');
+    aimFocusEl.id = 'buddy-aim-focus';
+    aimFocusEl.setAttribute('aria-hidden', 'true');
+    Object.assign(aimFocusEl.style, {
+      position: 'fixed',
+      left: '0',
+      top: '0',
+      width: '100vw',
+      height: '100vh',
+      margin: '0',
+      padding: '0',
+      pointerEvents: 'none',
+      userSelect: 'none',
+      display: 'none',
+      opacity: '0',
+      background: 'rgba(0,0,0,0)',
+      zIndex: String((aimFocusConfig().overlayZIndex != null) ? aimFocusConfig().overlayZIndex : 9000),
+      transition: 'opacity ' + ((aimFocusConfig().transitionMs != null) ? aimFocusConfig().transitionMs : 220) + 'ms ease'
+    });
+
+    document.body.appendChild(aimFocusEl);
+    return aimFocusEl;
+  }
+
+  function restoreAimFocusTargetZ() {
+    if (!aimFocusTargetEl || !aimFocusTargetEl.style) {
+      aimFocusTargetEl = null;
+      aimFocusTargetOriginalZ = null;
+      return;
+    }
+
+    if (aimFocusTargetOriginalZ !== null) {
+      aimFocusTargetEl.style.zIndex = aimFocusTargetOriginalZ;
+    }
+    aimFocusTargetEl = null;
+    aimFocusTargetOriginalZ = null;
+  }
+
+  function elevateAimFocusElements() {
+    var cfg = aimFocusConfig();
+
+    if (charEl && charEl.style) {
+      charEl.style.zIndex = String(cfg.characterZIndex != null ? cfg.characterZIndex : 9999);
+    }
+
+    if (miraEl && miraEl.style) {
+      miraEl.style.zIndex = String(cfg.miraZIndex != null ? cfg.miraZIndex : 10020);
+    }
+
+    var target = getTargetEl();
+    if (target && target.style) {
+      if (aimFocusTargetEl !== target) {
+        restoreAimFocusTargetZ();
+        aimFocusTargetEl = target;
+        aimFocusTargetOriginalZ = target.style.zIndex || '';
+      }
+      target.style.zIndex = String(cfg.targetZIndex != null ? cfg.targetZIndex : 10005);
+    }
+  }
+
+  function updateAimFocusGeometry() {
+    if (!aimFocusEl || !aimFocusActive) return;
+
+    var cfg = aimFocusConfig();
+    var target = getTargetEl();
+    if (!target) return;
+
+    var rect = target.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+
+    var scale = Number(cfg.targetFocusScale);
+    if (!isFinite(scale) || scale <= 0) scale = 2.25;
+
+    var softness = Number(cfg.targetFocusSoftness);
+    if (!isFinite(softness) || softness < 0) softness = 0.22;
+    if (softness > 0.49) softness = 0.49;
+
+    // La ventana nítida se basa en el mayor de los ejes para dar a la
+    // diana una zona de protección suficientemente amplia para los misses.
+    var rx = Math.max(rect.width, rect.height) * scale / 2;
+    var ry = Math.max(rect.width, rect.height) * scale / 2;
+
+    // El foco debe poder contener el blanco aunque sea rectangular.
+    rx = Math.max(rx, rect.width * scale / 2);
+    ry = Math.max(ry, rect.height * scale / 2);
+
+    var cx = rect.left + rect.width / 2;
+    var cy = rect.top + rect.height / 2;
+
+    aimFocusEl.style.setProperty('--buddy-aim-cx', cx + 'px');
+    aimFocusEl.style.setProperty('--buddy-aim-cy', cy + 'px');
+    aimFocusEl.style.setProperty('--buddy-aim-rx', rx + 'px');
+    aimFocusEl.style.setProperty('--buddy-aim-ry', ry + 'px');
+
+    // La máscara deja transparente el efecto en el centro y lo hace
+    // aparecer progresivamente hacia el borde. El overlay sigue cubriendo
+    // toda la pantalla, por lo que backdrop-filter funciona también sobre
+    // páginas que no comparten el mismo stacking context.
+    var transparentEnd = Math.max(0, 1 - softness);
+    var mask = 'radial-gradient(ellipse var(--buddy-aim-rx) var(--buddy-aim-ry) at var(--buddy-aim-cx) var(--buddy-aim-cy), transparent 0, transparent ' +
+      (transparentEnd * 100) + '%, black 100%)';
+
+    aimFocusEl.style.webkitMaskImage = mask;
+    aimFocusEl.style.maskImage = mask;
+    aimFocusEl.style.webkitMaskRepeat = 'no-repeat';
+    aimFocusEl.style.maskRepeat = 'no-repeat';
+  }
+
+  function updateAimFocusArrowLayers() {
+    if (!stuckArrows.length) return;
+
+    var cfg = aimFocusConfig();
+    var target = getTargetEl();
+    if (!target) return;
+
+    var rect = target.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+
+    var multiplier = Number(cfg.nearMissMultiplier);
+    if (!isFinite(multiplier) || multiplier <= 0) multiplier = 1.35;
+
+    var radius = Math.max(rect.width, rect.height) / 2 * multiplier;
+    var cx = rect.left + rect.width / 2;
+    var cy = rect.top + rect.height / 2;
+    var nearZ = cfg.nearMissZIndex != null ? cfg.nearMissZIndex : 10000;
+
+    stuckArrows.forEach(function (item) {
+      if (!item.el) return;
+      var x = item.x;
+      var y = item.y;
+
+      if (item.hasAnchor) {
+        x = rect.left + item.anchorDx;
+        y = rect.top + item.anchorDy;
+      }
+
+      var distance = Math.sqrt(Math.pow(x - cx, 2) + Math.pow(y - cy, 2));
+      item.el.style.zIndex = (aimFocusActive && distance <= radius)
+        ? String(nearZ)
+        : '9990';
+    });
+  }
+
+  function refreshAimFocus() {
+    if (!aimFocusActive) return;
+    elevateAimFocusElements();
+    updateAimFocusGeometry();
+    updateAimFocusArrowLayers();
+  }
+
+  function showAimFocus() {
+    if (!isAimBlurEnabled()) return;
+    var el = ensureAimFocusElement();
+    var cfg = aimFocusConfig();
+
+    aimFocusActive = true;
+    elevateAimFocusElements();
+    updateAimFocusGeometry();
+    updateAimFocusArrowLayers();
+
+    var blurPx = Number(cfg.blurPx);
+    if (!isFinite(blurPx) || blurPx < 0) blurPx = 7;
+
+    var darkness = Number(cfg.darkness);
+    if (!isFinite(darkness) || darkness < 0) darkness = 0.22;
+    if (darkness > 1) darkness = 1;
+
+    var fallbackDarkness = Number(cfg.fallbackDarkness);
+    if (!isFinite(fallbackDarkness) || fallbackDarkness < 0) fallbackDarkness = 0.18;
+    if (fallbackDarkness > 1) fallbackDarkness = 1;
+
+    el.style.backdropFilter = 'blur(' + blurPx + 'px)';
+    el.style.webkitBackdropFilter = 'blur(' + blurPx + 'px)';
+    el.style.background = 'rgba(0,0,0,' + darkness + ')';
+
+    if (window.CSS && CSS.supports &&
+        !(CSS.supports('backdrop-filter', 'blur(1px)') ||
+          CSS.supports('-webkit-backdrop-filter', 'blur(1px)'))) {
+      el.style.backdropFilter = 'none';
+      el.style.webkitBackdropFilter = 'none';
+      el.style.background = 'rgba(0,0,0,' + fallbackDarkness + ')';
+    }
+
+    el.style.display = 'block';
+    // Forzar el estado inicial para que la entrada tenga transición.
+    requestAnimationFrame(function () {
+      if (aimFocusEl && aimFocusActive) aimFocusEl.style.opacity = '1';
+    });
+  }
+
+  function hideAimFocus() {
+    if (!aimFocusEl) {
+      aimFocusActive = false;
+      restoreAimFocusTargetZ();
+      return;
+    }
+
+    aimFocusActive = false;
+    aimFocusEl.style.opacity = '0';
+    restoreAimFocusTargetZ();
+
+    var el = aimFocusEl;
+    var ms = Number(aimFocusConfig().transitionMs);
+    if (!isFinite(ms) || ms < 0) ms = 220;
+
+    setTimeout(function () {
+      if (!aimFocusActive && el === aimFocusEl) {
+        el.style.display = 'none';
+      }
+    }, ms);
+  }
+
+  function setAimBlurEnabled(enabled) {
+    aimBlurRuntimeEnabled = enabled !== false;
+    if (!aimBlurRuntimeEnabled) {
+      hideAimFocus();
+      return false;
+    }
+
+    if (state === 'aiming') showAimFocus();
+    return true;
+  }
+
+  function isAimBlurRuntimeEnabled() {
+    return isAimBlurEnabled();
+  }
+
 function onResize() {
+    if (aimFocusActive) refreshAimFocus();
     if (miraEl && miraEl.style.display !== 'none') {
       fitLongSide(miraEl, miraTargetPx(resolveArcheryImage('mira', 'mira')));
     }
@@ -1131,6 +1387,7 @@ function showCharacter(preserveCurrentPose) {
   }
 
 function hideCharacter() {
+    hideAimFocus();
     clearAllTimers();
     detachAimListeners();
     stopTensSound();
@@ -1305,6 +1562,10 @@ function enterAimState() {
     if (getResourceMode('mira') !== 'disabled') {
       fitLongSide(miraEl, miraTargetPx(resolveArcheryImage('mira', 'mira')));
     }
+
+    // Efecto de concentración: se activa al entrar en aiming, pero puede
+    // haber sido deshabilitado por CONFIG o por la API pública.
+    showAimFocus();
 
     // Arranca el pulso de latido (v0.4) en reposo: sin intensidad hasta que
     // el primer pointermove aporte una velocidad real que medir. El
@@ -1651,6 +1912,7 @@ function onPointerUpWhileAiming() {
   }
 
 function resolve(outcome, reasonLabel, failBubbleText) {
+    hideAimFocus();
     clearAllTimers();
     detachAimListeners();
     stopTensSound();
@@ -1938,8 +2200,16 @@ function init() {
       // esté ocupando a Buddy. Solo los estados de una interacción en curso
       // deben bloquear las fuentes automáticas de /says.
       return state !== 'idle' && state !== 'hidden';
-    }
+    },
+    setAimBlurEnabled: setAimBlurEnabled,
+    isAimBlurEnabled: isAimBlurRuntimeEnabled
   };
+
+  // API directa para otros módulos que prefieran consultar/controlar
+  // específicamente el efecto de concentración sin pasar por Buddy.
+  window.BuddyArchery = window.BuddyArchery || {};
+  window.BuddyArchery.setAimBlurEnabled = setAimBlurEnabled;
+  window.BuddyArchery.isAimBlurEnabled = isAimBlurRuntimeEnabled;
 
   // Fase 10: la política común se registra desde init(), cuando Buddy ya
   // existe. Dejamos este intento defensivo por compatibilidad con cargas

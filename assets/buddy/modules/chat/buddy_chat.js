@@ -44,7 +44,7 @@ window.Buddy = window.Buddy || {};
     var style = document.createElement('style');
     style.id = 'buddy-chat-style';
     style.textContent =
-      '.buddy-chat{position:fixed;left:0;right:0;bottom:0;z-index:10001;' +
+      '.buddy-chat{position:fixed;left:0;right:0;bottom:0;z-index:10030;' +
       'display:flex;align-items:center;gap:8px;padding:8px 10px;' +
       'box-sizing:border-box;background:rgba(255,255,255,.98);' +
       'border-top:1px solid rgba(0,0,0,.12);box-shadow:0 -4px 16px rgba(0,0,0,.12);' +
