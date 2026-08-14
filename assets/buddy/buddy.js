@@ -27,6 +27,13 @@ window.Buddy = window.Buddy || {};
 (function () {
   'use strict';
 
+  function debugLog() {
+    if (!window.BuddyConfig || window.BuddyConfig.debugMode !== true) return;
+    var args = Array.prototype.slice.call(arguments);
+    args.unshift('[Buddy]');
+    console.log.apply(console, args);
+  }
+
   // -------------------------------------------------------------------
   // Config de rutas base. Puede sobreescribirse antes de cargar este
   // script definiendo window.BUDDY_ASSET_BASE (mismo criterio que
@@ -668,6 +675,13 @@ window.Buddy = window.Buddy || {};
     });
   }
 
+  function loadOptionalScript(url) {
+    return loadScript(url).catch(function (error) {
+      debugLog('No se pudo cargar un módulo opcional:', url, error);
+      return undefined;
+    });
+  }
+
   function characterScriptName(characterId) {
     return characterId.charAt(0).toUpperCase() + characterId.slice(1);
   }
@@ -835,7 +849,17 @@ window.Buddy = window.Buddy || {};
     window.Buddy.characterId = characterId;
     window.Buddy.abilities = abilities.slice();
 
-    return loadScript(scriptUrlForCharacter(characterId))
+    return loadScript(ASSET_BASE + 'config.js')
+      .then(function () {
+        window.Buddy.config = window.BuddyConfig || {};
+        return loadOptionalScript(ASSET_BASE + 'modules/telemetry/config.js');
+      })
+      .then(function () {
+        return loadOptionalScript(ASSET_BASE + 'modules/telemetry/buddy_telemetry.js');
+      })
+      .then(function () {
+        return loadScript(scriptUrlForCharacter(characterId));
+      })
       .then(function () {
         // /says/config.js es el punto de configuración del módulo /says.
         return loadScript(ASSET_BASE + 'modules/says/config.js');
@@ -906,6 +930,12 @@ window.Buddy = window.Buddy || {};
   // ---------------------------------------------------------------------
   // API pública
   // ---------------------------------------------------------------------
+  window.Buddy.config = window.BuddyConfig || {};
+  window.Buddy.debugMode = function () {
+    return !!(window.BuddyConfig && window.BuddyConfig.debugMode === true);
+  };
+  window.Buddy.debugLog = debugLog;
+
   window.Buddy.registerBusyProvider = registerBusyProvider;
   window.Buddy.isBusy = isBusy;
   window.Buddy.resolveAsset = resolveAsset;

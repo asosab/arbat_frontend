@@ -109,7 +109,8 @@
     // -------------------------------------------------------------------
     // Límite de flechas / cooldown del carcaj (v0.4) — ver CONFIG.arrowLimit.
     // -------------------------------------------------------------------
-    var arrowsInBatch = 0;    // flechas clavadas desde el último cooldown
+    var arrowsInBatch = 0;    // flechas disparadas desde el último cooldown
+    var andanadaStartedAt = null; // timestamp del primer disparo de la andanada actual
     var cooldownUntil = 0;    // performance.now() hasta el que hay que esperar; 0 = sin cooldown
     var fadeTimer = null;     // dispara el desvanecimiento de la tanda actual
   
@@ -144,12 +145,9 @@
     // -------------------------------------------------------------------
     // Cada entrada: { index, timestamp, score, andanada }.
     //   - index: número de flecha dentro de la sesión (arranca en 1).
-    //   - timestamp: Date.now() (epoch ms) del impacto — se usa Date.now()
-    //     y no performance.now() a propósito, porque esto es para
-    //     consumirse después (estadísticas), y Date.now() tiene sentido
-    //     fuera de la vida de la página; performance.now() no.
-    //   - score: 5 a 10, o null si la flecha impactó fuera de todos los
-    //     aros ("miss").
+    //   - timestamp: Date.now() (epoch ms) del momento del disparo.
+    //   - score: 5 a 10, 0 si fue un miss.
+    //   - andanada: número de andanada a la que pertenece esta flecha.
     //   - andanada: número de andanada (grupo de arrowLog.arrowsPerAndanada
     //     flechas) a la que pertenece esta flecha, arranca en 1.
     // Vive sólo en memoria: "sesión del explorador" acá se interpreta como
@@ -663,6 +661,7 @@ function resetArrows() {
     // a que "desaparezcan" flechas que este reset ya borró.
     if (fadeTimer) { clearTimeout(fadeTimer); fadeTimer = null; }
     arrowsInBatch = 0;
+    andanadaStartedAt = null;
     batchScoreSum = 0; // v1.5: la tanda en curso queda incompleta, no se narra su suma
     cooldownUntil = 0;
     // Deliberadamente NO toca fatigueLevel/lateShotStreak/sessionArrowLog
@@ -896,11 +895,11 @@ function scheduleCalibrationMessage(afterMs) {
     }, afterMs);
   }
 
-function logArrowShot(score) {
+function logArrowShot(score, timestamp) {
     var entry = {
       index: sessionArrowLog.length + 1,
-      timestamp: Date.now(),
-      score: score, // 5-10, o null si fue miss
+      timestamp: timestamp || Date.now(),
+      score: score == null ? 0 : score,
       andanada: Math.floor(sessionArrowLog.length / CONFIG.arrowLog.arrowsPerAndanada) + 1
     };
     sessionArrowLog.push(entry);
@@ -909,7 +908,12 @@ function logArrowShot(score) {
 
 function recordArrowFired() {
     var now = performance.now();
+    var timestamp = Date.now();
     arrowsFiredTotal++;
+
+    if (arrowsInBatch === 0) {
+      andanadaStartedAt = timestamp;
+    }
 
     if (fatigueActiveNow()) {
       var elapsed = lastShotAt ? (now - lastShotAt) : Infinity;
@@ -935,6 +939,7 @@ function recordArrowFired() {
     }
 
     lastShotAt = now;
+    return timestamp;
   }
 
 function enterExhaustedIdle() {
@@ -1404,6 +1409,7 @@ function hideCharacter() {
     if (calibrationBubbleTimer) { clearTimeout(calibrationBubbleTimer); calibrationBubbleTimer = null; }
 
     arrowsInBatch = 0;
+    andanadaStartedAt = null;
     batchScoreSum = 0;
     cooldownUntil = 0;
     pendingAimRequest = false;
@@ -1917,6 +1923,33 @@ function onPointerUpWhileAiming() {
     }
   }
 
+function sendAndanadaTelemetry(andanada) {
+    var data = {
+      event: 'archery.andanada',
+      module: 'archery',
+      data: {
+        andanada: andanada
+      }
+    };
+
+    if (!window.Buddy || !window.Buddy.telemetry ||
+        typeof window.Buddy.telemetry.send !== 'function') {
+      if (window.BuddyConfig && window.BuddyConfig.debugMode === true) {
+        console.log('[Buddy] Telemetry no disponible para archery.andanada');
+      }
+      return false;
+    }
+
+    if (!window.Buddy.telemetry.config || window.Buddy.telemetry.config.enabled === false) {
+      if (window.BuddyConfig && window.BuddyConfig.debugMode === true) {
+        console.log('[Buddy] Telemetry deshabilitado para archery.andanada');
+      }
+      return false;
+    }
+
+    return window.Buddy.telemetry.send(data);
+  }
+
 function resolve(outcome, reasonLabel, failBubbleText) {
     hideAimFocus();
     clearAllTimers();
@@ -1947,7 +1980,7 @@ function resolve(outcome, reasonLabel, failBubbleText) {
       // fatigue).
       showPose('fire');
       playShotSound();
-      recordArrowFired();
+      var shotTimestamp = recordArrowFired();
       setDebug(
         'estado: resolved (fire) — ' + reasonLabel + ' — esperando impacto…'
       );
@@ -1975,7 +2008,7 @@ function resolve(outcome, reasonLabel, failBubbleText) {
         var score = computeScore(impactX, impactY, targetRect);
         stickArrowAt(impactX, impactY, score, targetRect);
         playHitSound();
-        logArrowShot(score); // v0.5: registro de la sesión (ver CONFIG.arrowLog)
+        logArrowShot(score, shotTimestamp); // v0.5: registro de la sesión
         var bubbleText = (score != null)
           ? (getDialogue('score_' + score) || ('¡Eso fue un ' + score + '!'))
           : getDialogue('miss');
@@ -1993,10 +2026,27 @@ function resolve(outcome, reasonLabel, failBubbleText) {
         arrowsInBatch++;
         batchScoreSum += (score != null ? score : 0);
         if (arrowsInBatch >= CONFIG.arrowLimit.countBeforeCooldown) {
+          var andanadaEntries = sessionArrowLog.slice(-arrowsInBatch);
+          var andanada = {
+            iniciada: andanadaStartedAt,
+            completada: Date.now(),
+            cantidad: andanadaEntries.length,
+            flechas: andanadaEntries.map(function (entry, index) {
+              return {
+                numero: index + 1,
+                valor: entry.score,
+                timestamp: entry.timestamp
+              };
+            }),
+            total: batchScoreSum
+          };
+
           startArrowCooldown();
           narrateAndanadaTotal(batchScoreSum);
+          sendAndanadaTelemetry(andanada);
           arrowsInBatch = 0;
           batchScoreSum = 0;
+          andanadaStartedAt = null;
         }
       }, CONFIG.hitDelayMs);
     } else if (outcome === 'wisdom') {
