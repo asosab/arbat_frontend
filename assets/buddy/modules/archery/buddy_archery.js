@@ -908,7 +908,7 @@ function logArrowShot(score, timestamp) {
 
 function recordArrowFired() {
     var now = performance.now();
-    var timestamp = Date.now();
+    var timestamp = new Date().toISOString();
     arrowsFiredTotal++;
 
     if (arrowsInBatch === 0) {
@@ -2029,7 +2029,7 @@ function resolve(outcome, reasonLabel, failBubbleText) {
           var andanadaEntries = sessionArrowLog.slice(-arrowsInBatch);
           var andanada = {
             iniciada: andanadaStartedAt,
-            completada: Date.now(),
+            completada: new Date().toISOString(),
             cantidad: andanadaEntries.length,
             flechas: andanadaEntries.map(function (entry, index) {
               return {
