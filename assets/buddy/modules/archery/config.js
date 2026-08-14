@@ -630,6 +630,7 @@ window.BuddyArcheryConfig = window.BuddyArcheryConfig || {
         transitionMs: 220,
         overlayZIndex: 9000,
         nearMissZIndex: 10010,
+        arrowZIndex: 10010,
         targetZIndex: 10000,
         characterZIndex: 9999,
         miraZIndex: 10020,

@@ -574,7 +574,11 @@ function stickArrowAt(x, y, score, targetRect) {
       position: 'fixed',
       left: x + 'px',
       top: y + 'px',
-      zIndex: String((state === 'aiming' && CONFIG.aimFocus && CONFIG.aimFocus.nearMissZIndex != null) ? CONFIG.aimFocus.nearMissZIndex : 9990),
+      zIndex: String((CONFIG.aimFocus && CONFIG.aimFocus.arrowZIndex != null)
+        ? CONFIG.aimFocus.arrowZIndex
+        : ((CONFIG.aimFocus && CONFIG.aimFocus.nearMissZIndex != null)
+          ? CONFIG.aimFocus.nearMissZIndex
+          : 9990)),
       pointerEvents: 'none',
       userSelect: 'none',
       // No permitir ni un frame en tamaño natural: la flecha queda invisible
@@ -1210,9 +1214,11 @@ function ensureElements() {
       }
 
       var distance = Math.sqrt(Math.pow(x - cx, 2) + Math.pow(y - cy, 2));
-      item.el.style.zIndex = (aimFocusActive && distance <= radius)
-        ? String(nearZ)
-        : '9990';
+      item.el.style.zIndex = String(
+        (cfg.arrowZIndex != null)
+          ? cfg.arrowZIndex
+          : (nearZ != null ? nearZ : 10010)
+      );
     });
   }
 
