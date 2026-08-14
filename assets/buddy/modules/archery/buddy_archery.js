@@ -1009,7 +1009,7 @@ function ensureElements() {
         position: 'fixed',
         left: '16px',
         top: '16px',
-        zIndex: String((CONFIG.aimFocus && CONFIG.aimFocus.targetZIndex != null) ? CONFIG.aimFocus.targetZIndex : 10005),
+        zIndex: String((CONFIG.aimFocus && CONFIG.aimFocus.targetZIndex != null) ? CONFIG.aimFocus.targetZIndex : 10000),
         pointerEvents: 'none',
         userSelect: 'none',
         display: 'none'
@@ -1129,7 +1129,7 @@ function ensureElements() {
         aimFocusTargetEl = target;
         aimFocusTargetOriginalZ = target.style.zIndex || '';
       }
-      target.style.zIndex = String(cfg.targetZIndex != null ? cfg.targetZIndex : 10005);
+      target.style.zIndex = String(cfg.targetZIndex != null ? cfg.targetZIndex : 10000);
     }
   }
 
@@ -1197,7 +1197,7 @@ function ensureElements() {
     var radius = Math.max(rect.width, rect.height) / 2 * multiplier;
     var cx = rect.left + rect.width / 2;
     var cy = rect.top + rect.height / 2;
-    var nearZ = cfg.nearMissZIndex != null ? cfg.nearMissZIndex : 10000;
+    var nearZ = cfg.nearMissZIndex != null ? cfg.nearMissZIndex : 10010;
 
     stuckArrows.forEach(function (item) {
       if (!item.el) return;
