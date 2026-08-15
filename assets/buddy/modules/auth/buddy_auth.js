@@ -89,6 +89,16 @@ window.Buddy = window.Buddy || {};
     return telemetry.request(service, path, requestOptions);
   }
 
+  function getRedirectUrl() {
+    try {
+      var url = new URL(window.location.href);
+      url.searchParams.delete(CONFIG.verificationParameter);
+      return url.toString();
+    } catch (e) {
+      return window.location.href;
+    }
+  }
+
   function getVerificationHash() {
     try {
       return new URL(window.location.href).searchParams.get(CONFIG.verificationParameter);
@@ -224,7 +234,15 @@ window.Buddy = window.Buddy || {};
     state.mode = 'waiting-email';
     return apiRequest('login', {
       method: 'POST',
-      body: { email: normalized }
+      body: {
+        email: normalized,
+        appID: window.BuddyConfig &&
+          window.BuddyConfig.app &&
+          window.BuddyConfig.app.siteId
+          ? window.BuddyConfig.app.siteId
+          : null,
+        redirectUrl: getRedirectUrl()
+      }
     }).then(function (data) {
       emitEvent('buddy:auth-login-sent', { email: normalized });
       return data;
