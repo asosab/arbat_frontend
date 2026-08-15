@@ -128,7 +128,7 @@ window.Buddy = window.Buddy || {};
     debugLog('Enviando evento de telemetry:', payload);
 
     try {
-      fetch(CONFIG.apiUrl || '/telemetry', {
+      fetch(CONFIG.apiUrl || (CONFIG.apis && CONFIG.apis.telemetry) || '/telemetry', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -147,6 +147,94 @@ window.Buddy = window.Buddy || {};
     }
 
     return true;
+  }
+
+
+
+  function resolveApi(service, path) {
+    var apis = CONFIG.apis || {};
+    var entry = apis[service];
+    if (!entry) throw new Error('[Buddy Telemetry] API no configurada: ' + service);
+
+    var baseUrl = typeof entry === 'string'
+      ? entry
+      : (entry.baseUrl || (CONFIG.apiBaseUrls && CONFIG.apiBaseUrls[service]) || '');
+    if (!baseUrl) throw new Error('[Buddy Telemetry] Falta baseUrl para API: ' + service);
+
+    var target = String(path || '');
+    if (/^https?:\/\//i.test(target)) return target;
+    if (target.charAt(0) !== '/') target = '/' + target;
+    return baseUrl.replace(/\/$/, '') + target;
+  }
+
+  function getApiConfig(service) {
+    var entry = CONFIG.apis && CONFIG.apis[service];
+    if (!entry) return null;
+    return typeof entry === 'string' ? { baseUrl: entry } : entry;
+  }
+
+  function configureApi(service, config) {
+    if (!service || !config) return false;
+    CONFIG.apis = CONFIG.apis || {};
+    var current = getApiConfig(service) || {};
+    CONFIG.apis[service] = Object.assign({}, current, config);
+    return true;
+  }
+
+  function request(service, path, options) {
+    options = options || {};
+    if (!CONFIG || CONFIG.enabled === false) {
+      return Promise.reject(new Error('Telemetry deshabilitado.'));
+    }
+
+    var url = resolveApi(service, path);
+    var method = String(options.method || 'GET').toUpperCase();
+    var headers = Object.assign({}, options.headers || {});
+    var fetchOptions = {
+      method: method,
+      headers: headers,
+      credentials: options.credentials || 'include',
+      cache: options.cache || 'no-store'
+    };
+
+    if (options.signal) fetchOptions.signal = options.signal;
+    if (options.keepalive !== undefined) fetchOptions.keepalive = !!options.keepalive;
+
+    if (options.body !== undefined && options.body !== null) {
+      if (typeof options.body === 'object' && !(options.body instanceof FormData)) {
+        headers['Content-Type'] = headers['Content-Type'] || 'application/json';
+        fetchOptions.body = JSON.stringify(options.body);
+      } else {
+        fetchOptions.body = options.body;
+      }
+    }
+
+    return fetch(url, fetchOptions).then(function (response) {
+      return response.text().then(function (raw) {
+        var data = null;
+        if (raw) {
+          try { data = JSON.parse(raw); } catch (e) { data = raw; }
+        }
+        if (!response.ok) {
+          var error = new Error('HTTP ' + response.status);
+          error.status = response.status;
+          error.data = data;
+          throw error;
+        }
+        return data;
+      });
+    });
+  }
+
+  function get(service, path, options) {
+    return request(service, path, Object.assign({}, options || {}, { method: 'GET' }));
+  }
+
+  function post(service, path, body, options) {
+    return request(service, path, Object.assign({}, options || {}, {
+      method: 'POST',
+      body: body
+    }));
   }
 
   function setUserId(value) {
@@ -173,6 +261,11 @@ window.Buddy = window.Buddy || {};
     send: send,
     setUserId: setUserId,
     clearUserId: clearUserId,
+    request: request,
+    get: get,
+    post: post,
+    configureApi: configureApi,
+    getApiConfig: getApiConfig,
     getSessionId: getSessionId,
     init: init,
     config: CONFIG

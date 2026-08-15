@@ -118,7 +118,11 @@ window.Buddy = window.Buddy || {};
       'transform:rotate(45deg);border-radius:2px;}' +
       // Globo "promo" (más ancho, con pointer-events habilitado para poder
       // tocar un <a> real adentro) — mismo criterio que raulito.js.
-      '.buddy-says-bubble.is-promo{max-width:300px;pointer-events:auto;' +
+      '.buddy-says-bubble.is-interactive{pointer-events:auto;user-select:none;max-width:300px;}'+
+      '.buddy-says-bubble.is-interactive .buddy-says-choice{margin:8px 4px 0;padding:6px 12px;border:1px solid #888;' +
+      'border-radius:8px;background:#f3f3f3;color:#1a1a1a;cursor:pointer;font:inherit;}'+
+      '.buddy-says-bubble.is-interactive .buddy-says-choice:hover{background:#e8e8e8;}'+
+      '.buddy-says-bubble.is-promo{max-width:300px;pointer-events:auto;'
       'user-select:text;}' +
       '.buddy-says-bubble.is-promo a{color:#0d6efd;text-decoration:underline;' +
       'pointer-events:auto;}';
@@ -126,6 +130,7 @@ window.Buddy = window.Buddy || {};
   }
 
   var bubbleEl = null;
+  var interactiveHandler = null;
 
   function ensureBubbleElement() {
     if (bubbleEl) return bubbleEl;
@@ -201,14 +206,70 @@ window.Buddy = window.Buddy || {};
     bubbleEl.style.bottom = (window.innerHeight - faceY + CONFIG.bubbleGapPx) + 'px';
   }
 
+  function clearInteractiveChoices() {
+    if (!bubbleEl) return;
+    var choices = bubbleEl.querySelectorAll('.buddy-says-choice');
+    for (var i = 0; i < choices.length; i += 1) choices[i].remove();
+    interactiveHandler = null;
+    bubbleEl.classList.remove('is-interactive');
+  }
+
+  function cancelInteractive() {
+    interactiveHandler = null;
+    if (bubbleTimer) {
+      clearTimeout(bubbleTimer);
+      bubbleTimer = null;
+    }
+    callToken++;
+    clearInteractiveChoices();
+    hideBubble();
+    return true;
+  }
+
+  function finishInteractive(value) {
+    var handler = interactiveHandler;
+    interactiveHandler = null;
+    if (bubbleTimer) {
+      clearTimeout(bubbleTimer);
+      bubbleTimer = null;
+    }
+    callToken++;
+    clearInteractiveChoices();
+    hideBubble();
+    if (typeof handler === 'function') return handler(value);
+    return false;
+  }
+
+  function renderInteractiveChoices(opciones) {
+    clearInteractiveChoices();
+    if (!opciones || opciones.interactive !== true || !Array.isArray(opciones.choices)) return;
+    interactiveHandler = typeof opciones.onChoice === 'function' ? opciones.onChoice : null;
+    bubbleEl.classList.add('is-interactive');
+    opciones.choices.forEach(function (choice) {
+      if (!choice) return;
+      var button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'buddy-says-choice';
+      button.textContent = String(choice.label == null ? choice.value : choice.label);
+      button.addEventListener('click', function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        finishInteractive(choice.value);
+      });
+      bubbleEl.appendChild(button);
+    });
+  }
+
   function showBubble(texto, opciones, datosExpresion) {
     ensureBubbleElement();
+    clearInteractiveChoices();
     if (opciones.html) {
       bubbleEl.innerHTML = texto;
     } else {
       bubbleEl.textContent = texto;
     }
     bubbleEl.classList.toggle('is-promo', !!opciones.promo);
+    renderInteractiveChoices(opciones);
     positionBubble(datosExpresion);
     bubbleEl.style.display = 'block';
     // Fuerza reflow para que la transición de entrada dispare siempre,
@@ -284,6 +345,7 @@ window.Buddy = window.Buddy || {};
 
   function buddySays(texto, opciones) {
     opciones = opciones || {};
+    var interactive = opciones.interactive === true && Array.isArray(opciones.choices);
     var durationMs = getBubbleDurationMs(texto, opciones);
 
     var datosExpresion = resolveExpresionParaEmocion(opciones.emocion);
@@ -308,6 +370,11 @@ window.Buddy = window.Buddy || {};
     callToken++;
     var thisCall = callToken;
     if (bubbleTimer) clearTimeout(bubbleTimer);
+
+    if (interactive) {
+      bubbleTimer = null;
+      return true;
+    }
 
     bubbleTimer = setTimeout(function () {
       bubbleTimer = null;
@@ -834,6 +901,7 @@ window.Buddy = window.Buddy || {};
       clearTimeout(bubbleTimer);
       bubbleTimer = null;
     }
+    clearInteractiveChoices();
     hideBubble();
   }
 
@@ -841,6 +909,8 @@ window.Buddy = window.Buddy || {};
     config: SOURCES_CONFIG,
     decirSiLibre: decirSiLibre,
     cancelarMensajeActual: cancelarMensajeActual,
+    resolverInteraccion: finishInteractive,
+    cancelarInteraccion: cancelInteractive,
     estaOcupado: isSystemBusy,
     iniciarFuentes: initializeSourceEngine,
     _sources: SOURCES,

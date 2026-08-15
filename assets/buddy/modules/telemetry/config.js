@@ -1,8 +1,25 @@
 /**
- * Buddy Telemetry — configuración del módulo.
+ * Buddy Telemetry — configuración central de comunicación con APIs.
+ *
+ * Todos los módulos que necesiten comunicarse con un servidor deben hacerlo
+ * mediante la API pública de Buddy Telemetry. Los módulos no deben llamar
+ * fetch() directamente contra sus propios endpoints.
  */
 window.BuddyTelemetryConfig = window.BuddyTelemetryConfig || {};
 window.BuddyTelemetryConfig = Object.assign({
   enabled: true,
+  apiBaseUrls: {
+    buddy: 'https://api.statetty.com'
+  },
+  apis: {
+    telemetry: '/api/buddy/telemetry',
+    auth: {
+      baseUrl: 'https://api.statetty.com',
+      session: '/api/buddy/auth/session',
+      login: '/api/buddy/auth/login',
+      verify: '/api/buddy/auth/verify',
+      logout: '/api/buddy/auth/logout'
+    }
+  },
   apiUrl: 'https://api.statetty.com/api/buddy/telemetry'
 }, window.BuddyTelemetryConfig || {});
