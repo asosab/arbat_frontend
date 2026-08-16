@@ -57,7 +57,7 @@ description: "Reservá tu clase de tiro con arco en arbat. Dejanos tu día, el n
 
 <script>
 (function () {
-  var numero = "{{ site.arbat.telefono_whatsapp | first | remove: '+' | remove: ' ' }}";
+  var numero = "{{ site.arbat.telefono_whatsapp_reservas | remove: '+' | remove: ' ' }}";
   var form = document.getElementById("formulario-reserva");
   form.addEventListener("submit", function (evento) {
     evento.preventDefault();
