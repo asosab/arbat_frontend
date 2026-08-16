@@ -24,7 +24,7 @@ window.Buddy = window.Buddy || {};
   };
 
   function debugLog() {
-    if (!window.BuddyConfig || window.BuddyConfig.debugMode !== true) return;
+    if (!window.BuddyConfig || (window.BuddyConfig.debug !== true && window.BuddyConfig.debugMode !== true)) return;
     var args = Array.prototype.slice.call(arguments);
     args.unshift('[Buddy Auth]');
     console.log.apply(console, args);
@@ -69,6 +69,11 @@ window.Buddy = window.Buddy || {};
   }
 
   function apiRequest(endpointKey, options) {
+    debugLog('apiRequest: preparando', {
+      endpointKey: endpointKey,
+      method: (options && options.method) || 'GET',
+      body: options && options.body instanceof URLSearchParams ? Object.fromEntries(options.body.entries()) : (options && options.body)
+    });
     options = options || {};
     var telemetry = getAuthApi();
     var endpoint = CONFIG.endpoints[endpointKey];
@@ -225,6 +230,7 @@ window.Buddy = window.Buddy || {};
 
   function requestLogin(email) {
     var normalized = normalizeEmail(email);
+    debugLog('requestLogin: solicitud iniciada', { email: normalized });
     if (!isValidEmail(normalized)) {
       return Promise.reject(new Error('Dirección de correo inválida.'));
     }
@@ -240,10 +246,12 @@ window.Buddy = window.Buddy || {};
       ? window.BuddyConfig.app.siteId
       : '');
     params.set('redirectUrl', getRedirectUrl());
+    debugLog('requestLogin: payload', Object.fromEntries(params.entries()));
     return apiRequest('login', {
       method: 'POST',
       body: params
     }).then(function (data) {
+      debugLog('requestLogin: respuesta del servidor', data);
       emitEvent('buddy:auth-login-sent', { email: normalized });
       return data;
     }).finally(function () {

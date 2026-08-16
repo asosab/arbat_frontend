@@ -27,7 +27,7 @@ window.Buddy = window.Buddy || {};
   var userId = null;
 
   function debugLog() {
-    if (!window.BuddyConfig || window.BuddyConfig.debugMode !== true) return;
+    if (!window.BuddyConfig || (window.BuddyConfig.debug !== true && window.BuddyConfig.debugMode !== true)) return;
     var args = Array.prototype.slice.call(arguments);
     args.unshift('[Buddy]');
     console.log.apply(console, args);
@@ -181,6 +181,38 @@ window.Buddy = window.Buddy || {};
     return true;
   }
 
+  function sanitizeDebugUrl(url) {
+    try {
+      var parsed = new URL(url, document.baseURI);
+      ['auth', 'token'].forEach(function (key) {
+        if (parsed.searchParams.has(key)) parsed.searchParams.set(key, '***MASKED***');
+      });
+      return parsed.href;
+    } catch (e) {
+      return String(url || '').replace(/([?&](?:auth|token)=)[^&]*/gi, '$1***MASKED***');
+    }
+  }
+
+  function debugBody(body) {
+    if (body == null) return null;
+    if (body instanceof URLSearchParams) {
+      var obj = {};
+      body.forEach(function (value, key) {
+        obj[key] = value;
+      });
+      return obj;
+    }
+    if (body instanceof FormData) {
+      var form = {};
+      body.forEach(function (value, key) {
+        form[key] = value instanceof File ? '[File ' + value.name + ']' : value;
+      });
+      return form;
+    }
+    if (typeof body === 'object') return body;
+    return String(body);
+  }
+
   function request(service, path, options) {
     options = options || {};
     if (!CONFIG || CONFIG.enabled === false) {
@@ -198,6 +230,8 @@ window.Buddy = window.Buddy || {};
     };
 
     if (options.signal) fetchOptions.signal = options.signal;
+
+    debugLog('HTTP REQUEST', { service: service, method: method, url: sanitizeDebugUrl(url), credentials: fetchOptions.credentials, body: debugBody(options.body) });
     if (options.keepalive !== undefined) fetchOptions.keepalive = !!options.keepalive;
 
     if (options.body !== undefined && options.body !== null) {
@@ -217,6 +251,15 @@ window.Buddy = window.Buddy || {};
         if (raw) {
           try { data = JSON.parse(raw); } catch (e) { data = raw; }
         }
+        debugLog('HTTP RESPONSE', {
+          service: service,
+          method: method,
+          url: sanitizeDebugUrl(url),
+          status: response.status,
+          ok: response.ok,
+          contentType: response.headers.get('content-type'),
+          body: data
+        });
         if (!response.ok) {
           var error = new Error('HTTP ' + response.status);
           error.status = response.status;
@@ -225,6 +268,16 @@ window.Buddy = window.Buddy || {};
         }
         return data;
       });
+    }).catch(function (error) {
+      debugLog('HTTP ERROR', {
+        service: service,
+        method: method,
+        url: sanitizeDebugUrl(url),
+        message: error && error.message ? error.message : String(error),
+        status: error && error.status,
+        data: error && error.data
+      });
+      throw error;
     });
   }
 

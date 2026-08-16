@@ -28,7 +28,7 @@ window.Buddy = window.Buddy || {};
   'use strict';
 
   function debugLog() {
-    if (!window.BuddyConfig || window.BuddyConfig.debugMode !== true) return;
+    if (!window.BuddyConfig || (window.BuddyConfig.debug !== true && window.BuddyConfig.debugMode !== true)) return;
     var args = Array.prototype.slice.call(arguments);
     args.unshift('[Buddy]');
     console.log.apply(console, args);
@@ -846,12 +846,17 @@ window.Buddy = window.Buddy || {};
 
     personajeActivo = characterId;
     modulosActivos = abilities;
+    debugLog('initialize: inicio', { character: characterId, abilities: abilities.slice(), assetBase: ASSET_BASE });
     window.Buddy.characterId = characterId;
     window.Buddy.abilities = abilities.slice();
 
     return loadScript(ASSET_BASE + 'config.js')
       .then(function () {
+        debugLog('config.js cargado', window.BuddyConfig || {});
+      })
+      .then(function () {
         window.Buddy.config = window.BuddyConfig || {};
+        debugLog('BuddyConfig disponible. debug=' + (window.BuddyConfig.debug === true) + ' debugMode=' + (window.BuddyConfig.debugMode === true));
         return loadOptionalScript(ASSET_BASE + 'modules/telemetry/config.js');
       })
       .then(function () {
@@ -899,13 +904,17 @@ window.Buddy = window.Buddy || {};
             // implementación. Esto evita que módulos como Archery intenten
             // leer window.BuddyArcheryConfig antes de que config.js haya sido
             // cargado.
-            .then(function () { return loadScript(scriptUrlForModuleConfig(moduleId)); })
-            .then(function () { return loadScript(scriptUrlForModule(moduleId)); })
+            .then(function () { debugLog('módulo ' + moduleId + ': cargando config'); return loadScript(scriptUrlForModuleConfig(moduleId)); })
+            .then(function () { debugLog('módulo ' + moduleId + ': cargando implementación'); return loadScript(scriptUrlForModule(moduleId)); })
             .then(function () {
               var charData = getCharData();
+              debugLog('módulo ' + moduleId + ': cargando texto');
               return loadScript(scriptUrlForModuleText(moduleId, charData.perfil.idioma, charData.perfil.estilo));
             })
-            .then(function () { return preloadModuleAssets(moduleId); });
+            .then(function () {
+              debugLog('módulo ' + moduleId + ': precargando assets');
+              return preloadModuleAssets(moduleId);
+            });
         }, Promise.resolve());
       })
       .then(function () {
@@ -920,6 +929,7 @@ window.Buddy = window.Buddy || {};
       .then(function () {
         ready = true;
         window.Buddy.ready = true;
+        debugLog('initialize: Buddy listo', { character: personajeActivo, abilities: modulosActivos.slice() });
         window.Buddy.readyPromise = readyPromise;
         window.dispatchEvent(new CustomEvent('buddy:ready', {
           detail: { character: personajeActivo, abilities: modulosActivos.slice() }
