@@ -201,7 +201,9 @@ window.Buddy = window.Buddy || {};
     if (options.keepalive !== undefined) fetchOptions.keepalive = !!options.keepalive;
 
     if (options.body !== undefined && options.body !== null) {
-      if (typeof options.body === 'object' && !(options.body instanceof FormData)) {
+      if (options.body instanceof URLSearchParams || options.body instanceof FormData) {
+        fetchOptions.body = options.body;
+      } else if (typeof options.body === 'object') {
         headers['Content-Type'] = headers['Content-Type'] || 'application/json';
         fetchOptions.body = JSON.stringify(options.body);
       } else {

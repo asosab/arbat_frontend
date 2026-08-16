@@ -232,17 +232,17 @@ window.Buddy = window.Buddy || {};
 
     state.busy = true;
     state.mode = 'waiting-email';
+    var params = new URLSearchParams();
+    params.set('email', normalized);
+    params.set('appID', window.BuddyConfig &&
+      window.BuddyConfig.app &&
+      window.BuddyConfig.app.siteId
+      ? window.BuddyConfig.app.siteId
+      : '');
+    params.set('redirectUrl', getRedirectUrl());
     return apiRequest('login', {
       method: 'POST',
-      body: {
-        email: normalized,
-        appID: window.BuddyConfig &&
-          window.BuddyConfig.app &&
-          window.BuddyConfig.app.siteId
-          ? window.BuddyConfig.app.siteId
-          : null,
-        redirectUrl: getRedirectUrl()
-      }
+      body: params
     }).then(function (data) {
       emitEvent('buddy:auth-login-sent', { email: normalized });
       return data;
@@ -302,12 +302,12 @@ window.Buddy = window.Buddy || {};
     // register-name es una acción explícita del servicio Auth. Se mantiene
     // sobre POST /login para que el cliente no dependa de un endpoint adicional:
     // la sesión autenticada identifica al usuario que está completando el alta.
+    var params = new URLSearchParams();
+    params.set('action', 'register-name');
+    params.set('name', normalized);
     return apiRequest('login', {
       method: 'POST',
-      body: {
-        action: 'register-name',
-        name: normalized
-      }
+      body: params
     }).then(function (data) {
       if (!data || data.ok === false || data.authenticated === false) {
         throw new Error('El servidor no confirmó el registro del nombre.');
