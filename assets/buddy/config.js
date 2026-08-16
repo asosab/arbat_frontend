@@ -6,7 +6,8 @@
 window.BuddyConfig = window.BuddyConfig || {};
 window.BuddyConfig = Object.assign({
   app: {
-    siteId: 'arbat'
+    siteId: 'arbat',
+    email:  'arbat.archery@gmail.com'
   },
   debugMode: true
 }, window.BuddyConfig || {});
