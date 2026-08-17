@@ -324,11 +324,10 @@ window.Buddy = window.Buddy || {};
   var bubbleTimer = null;
   var callToken = 0;
 
-  // Cola FIFO de mensajes solicitados por los módulos. Antes un nuevo
-  // buddy_says() sustituía inmediatamente el globo/timer anterior. Eso hacía
-  // que mensajes generados en cadena (por ejemplo, Archery al terminar una
-  // tanda) se perdieran. Los mensajes pendientes ahora se conservan y se
-  // entregan en orden cuando termina el mensaje actual.
+  // Cola prioritaria de mensajes solicitados directamente por los módulos.
+  // Si hay un mensaje en curso, cada nuevo buddy_says() se coloca de inmediato
+  // después del mensaje actual, por delante de los demás mensajes pendientes.
+  // Esto evita que una solicitud directa quede detrás de mensajes ya en cola.
   var speechQueue = [];
 
   function getBubbleDurationMs(texto, opciones) {
@@ -375,8 +374,8 @@ window.Buddy = window.Buddy || {};
     opciones = Object.assign({}, opciones || {});
 
     if (hasActiveSpeech()) {
-      speechQueue.push({ texto: texto, opciones: opciones });
-      debugSource('[BUDDY SAYS] mensaje agregado a la cola:', texto,
+      speechQueue.unshift({ texto: texto, opciones: opciones });
+      debugSource('[BUDDY SAYS] mensaje directo colocado inmediatamente después del actual:', texto,
         'pendientes=', speechQueue.length);
       return true;
     }
@@ -406,8 +405,9 @@ window.Buddy = window.Buddy || {};
     // 2) muestra el globo, anclado a cabeza_superior de esa expresión.
     showBubble(texto, opciones, datosExpresion);
 
-    // Sustituye cualquier mensaje/timer anterior en curso (mismo criterio
-    // que raulito.js: un nuevo llamado siempre gana).
+    // Este método sólo se ejecuta cuando el mensaje puede mostrarse ahora;
+    // los nuevos buddy_says() durante un mensaje activo se incorporan a
+    // speechQueue y no llegan a pisar el timer ni el globo actual.
     callToken++;
     var thisCall = callToken;
     if (bubbleTimer) clearTimeout(bubbleTimer);
