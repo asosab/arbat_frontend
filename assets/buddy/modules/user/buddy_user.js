@@ -25,10 +25,6 @@ window.Buddy = window.Buddy || {};
     return window.Buddy.telemetry;
   }
 
-  function getStoredSessionToken() {
-    try { return window.sessionStorage.getItem('buddyAuthSessionToken') || null; }
-    catch (e) { return null; }
-  }
 
   function configureTelemetryApi() {
     var telemetry = getTelemetry();
@@ -54,17 +50,13 @@ window.Buddy = window.Buddy || {};
     configureTelemetryApi();
     debugLog('update: payload', Object.fromEntries(params.entries()));
 
-    var headers = {};
-    var sessionToken = getStoredSessionToken();
-    if (sessionToken) {
-      headers['Authorization'] = 'Bearer ' + sessionToken;
-    }
-
+    // La sesión web viaja por cookie HttpOnly. No exponemos ni reenviamos el
+    // session token desde JavaScript; el backend conserva Bearer como fallback
+    // para clientes que no utilicen cookie.
     return getTelemetry().request(CONFIG.apiService || 'user', CONFIG.endpoints.update, {
       method: 'POST',
       credentials: 'include',
       cache: 'no-store',
-      headers: headers,
       body: params
     }).then(function (response) {
       debugLog('update: respuesta', response);
