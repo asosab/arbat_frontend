@@ -35,6 +35,7 @@
     // original para poder devolverla exactamente a su lugar y tamaño.
     var pageTargetVisualState = null;
     var pageTargetRestoreTimer = null;
+    var pageTargetBlurSyncRunning = false;
     var pageTargetLastScoreSumAt = 0;
     var pageTargetAnimationToken = 0;
   
@@ -1544,6 +1545,28 @@ function ensureElements() {
     updateAimFocusArrowLayers();
   }
 
+  function startPageTargetBlurSync() {
+    if (pageTargetBlurSyncRunning) return;
+    pageTargetBlurSyncRunning = true;
+
+    function frame() {
+      if (!aimFocusActive) {
+        pageTargetBlurSyncRunning = false;
+        return;
+      }
+
+      var target = getTargetEl();
+      if (isPageDomTarget(target)) {
+        updateAimFocusGeometry();
+        updateAimFocusArrowLayers();
+      }
+
+      requestAnimationFrame(frame);
+    }
+
+    requestAnimationFrame(frame);
+  }
+
   function showAimFocus() {
     if (!isAimBlurEnabled()) return;
     var el = ensureAimFocusElement();
@@ -1903,6 +1926,10 @@ function enterAimState() {
     // Efecto de concentración: se activa al entrar en aiming, pero puede
     // haber sido deshabilitado por CONFIG o por la API pública.
     showAimFocus();
+    // La diana DOM se transforma con una transición CSS. El blur debe leer
+    // su getBoundingClientRect() en cada frame para acompañar simultáneamente
+    // el desplazamiento y el cambio de tamaño, no solo su estado inicial/final.
+    startPageTargetBlurSync();
 
     // Arranca el pulso de latido (v0.4) en reposo: sin intensidad hasta que
     // el primer pointermove aporte una velocidad real que medir. El
