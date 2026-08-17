@@ -568,6 +568,18 @@ window.BuddyArcheryConfig = window.BuddyArcheryConfig || {
         fallback: { enabled: true, image: 'diana.png' },
         marginPx: 16,
         scale: 1,
+        // Transformación visual exclusiva para la diana DOM de la página.
+        // En cada entrada a aiming se verifica el tamaño/posición reales y,
+        // si hace falta, se anima hasta este estado. Al cumplirse
+        // restoreAfterMs sin una nueva sumatoria de puntos y sin apuntar,
+        // vuelve a su tamaño y posición originales.
+        domAim: {
+          sizePx: 100,
+          edgeMarginPercent: 0.30,
+          blurOpeningExtraPercent: 0.30,
+          restoreAfterMs: 60000,
+          transitionMs: 650
+        },
         rings: [
           { points: 10, outerPercent: 0.14 }, // centro negro
           { points: 9,  outerPercent: 0.29 }, // espacio siguiente

@@ -30,6 +30,13 @@
     var aimBlurRuntimeEnabled = true;
     var aimFocusTargetEl = null;
     var aimFocusTargetOriginalZ = null;
+
+    // Estado visual de la diana DOM de página. Se conserva la geometría
+    // original para poder devolverla exactamente a su lugar y tamaño.
+    var pageTargetVisualState = null;
+    var pageTargetRestoreTimer = null;
+    var pageTargetLastScoreSumAt = 0;
+    var pageTargetAnimationToken = 0;
   
     var activePointerId = null;
     var startX = 0;
@@ -425,6 +432,216 @@ function targetTargetPx(targetInfo) {
 function getTargetEl() {
     var resolution = getTargetResolution();
     return resolution ? resolution.element : null;
+  }
+
+function isPageDomTarget(target) {
+    var resolution = getTargetResolution();
+    return !!(resolution && resolution.source === 'page' && resolution.element === target);
+  }
+
+function pageTargetDomConfig() {
+    var target = CONFIG.target || {};
+    return target.domAim || {};
+  }
+
+function pageTargetTransitionMs() {
+    var ms = Number(pageTargetDomConfig().transitionMs);
+    return isFinite(ms) && ms >= 0 ? ms : 650;
+  }
+
+function capturePageTargetVisualState(target) {
+    if (!target || !target.getBoundingClientRect) return null;
+    var rect = target.getBoundingClientRect();
+    if (!rect.width || !rect.height) return null;
+    return {
+      el: target,
+      originalRect: {
+        left: rect.left,
+        top: rect.top,
+        width: rect.width,
+        height: rect.height
+      },
+      originalInline: {
+        position: target.style.position,
+        left: target.style.left,
+        top: target.style.top,
+        right: target.style.right,
+        bottom: target.style.bottom,
+        width: target.style.width,
+        height: target.style.height,
+        maxWidth: target.style.maxWidth,
+        maxHeight: target.style.maxHeight,
+        transform: target.style.transform,
+        transition: target.style.transition,
+        zIndex: target.style.zIndex
+      },
+      active: false
+    };
+  }
+
+function ensurePageTargetVisualState(target) {
+    if (!isPageDomTarget(target)) return null;
+    if (!pageTargetVisualState || pageTargetVisualState.el !== target) {
+      pageTargetVisualState = capturePageTargetVisualState(target);
+    }
+    return pageTargetVisualState;
+  }
+
+function cancelPageTargetRestoreTimer() {
+    if (pageTargetRestoreTimer) {
+      clearTimeout(pageTargetRestoreTimer);
+      pageTargetRestoreTimer = null;
+    }
+  }
+
+function restorePageTargetOriginal(animate) {
+    var visual = pageTargetVisualState;
+    var animationToken = ++pageTargetAnimationToken;
+    if (!visual || !visual.el || !visual.originalRect) return;
+
+    cancelPageTargetRestoreTimer();
+    var target = visual.el;
+    var duration = pageTargetTransitionMs();
+
+    if (!animate || duration <= 0) {
+      Object.keys(visual.originalInline).forEach(function (key) {
+        target.style[key] = visual.originalInline[key];
+      });
+      visual.active = false;
+      return;
+    }
+
+    var current = target.getBoundingClientRect();
+    if (!current.width || !current.height) return;
+
+    // Recuperamos temporalmente el layout original para conocer la posición
+    // que corresponde AHORA. Así, si la página se desplazó mientras se jugaba,
+    // la restauración no intenta volver a una coordenada vieja del viewport.
+    Object.keys(visual.originalInline).forEach(function (key) {
+      target.style[key] = visual.originalInline[key];
+    });
+    var destination = target.getBoundingClientRect();
+    if (!destination.width || !destination.height) {
+      visual.active = false;
+      return;
+    }
+
+    target.style.transition = 'none';
+    target.style.position = 'fixed';
+    target.style.right = 'auto';
+    target.style.bottom = 'auto';
+    target.style.maxWidth = 'none';
+    target.style.maxHeight = 'none';
+    target.style.left = current.left + 'px';
+    target.style.top = current.top + 'px';
+    target.style.width = current.width + 'px';
+    target.style.height = current.height + 'px';
+    target.style.transform = 'none';
+    target.offsetWidth;
+    target.style.transition = 'left ' + duration + 'ms ease, top ' + duration + 'ms ease, width ' + duration + 'ms ease, height ' + duration + 'ms ease';
+
+    requestAnimationFrame(function () {
+      if (!visual.active || animationToken !== pageTargetAnimationToken) return;
+      target.style.left = destination.left + 'px';
+      target.style.top = destination.top + 'px';
+      target.style.width = destination.width + 'px';
+      target.style.height = destination.height + 'px';
+    });
+
+    setTimeout(function () {
+      if (!visual.active || animationToken !== pageTargetAnimationToken) return;
+      Object.keys(visual.originalInline).forEach(function (key) {
+        target.style[key] = visual.originalInline[key];
+      });
+      visual.active = false;
+    }, duration + 30);
+  }
+
+function schedulePageTargetRestore() {
+    cancelPageTargetRestoreTimer();
+    if (!pageTargetVisualState || !pageTargetVisualState.active || !pageTargetLastScoreSumAt) return;
+
+    var cfg = pageTargetDomConfig();
+    var wait = Number(cfg.restoreAfterMs);
+    if (!isFinite(wait) || wait < 0) wait = 60000;
+
+    var elapsed = pageTargetLastScoreSumAt ? (performance.now() - pageTargetLastScoreSumAt) : 0;
+    var remaining = Math.max(0, wait - elapsed);
+    pageTargetRestoreTimer = setTimeout(function () {
+      pageTargetRestoreTimer = null;
+      if (state === 'aiming') return;
+      restorePageTargetOriginal(true);
+    }, remaining);
+  }
+
+function markPageTargetScoreSum() {
+    if (!pageTargetVisualState || !pageTargetVisualState.active) return;
+    pageTargetLastScoreSumAt = performance.now();
+    schedulePageTargetRestore();
+  }
+
+function preparePageTargetForAiming() {
+    var resolution = getTargetResolution();
+    var target = resolution && resolution.source === 'page' ? resolution.element : null;
+    if (!target) return;
+
+    cancelPageTargetRestoreTimer();
+    pageTargetAnimationToken++;
+    var visual = ensurePageTargetVisualState(target);
+    if (!visual) return;
+
+    var cfg = pageTargetDomConfig();
+    var targetWidth = Number(cfg.sizePx);
+    if (!isFinite(targetWidth) || targetWidth <= 0) targetWidth = 100;
+    var marginPercent = Number(cfg.edgeMarginPercent);
+    if (!isFinite(marginPercent) || marginPercent < 0) marginPercent = 0.30;
+
+    var current = target.getBoundingClientRect();
+    if (!current.width || !current.height) return;
+    var aspect = visual.originalRect.height / visual.originalRect.width;
+    var targetHeight = targetWidth * aspect;
+    var targetMargin = targetWidth * marginPercent;
+    var targetLeft = targetMargin;
+    var targetTop = targetMargin;
+    var duration = pageTargetTransitionMs();
+
+    // La comprobación se hace en cada entrada a aiming. Si otro CSS o script
+    // cambió el logo, volvemos a llevarlo al estado configurado de forma sutil.
+    var alreadyThere = visual.active &&
+      Math.abs(current.width - targetWidth) < 0.5 &&
+      Math.abs(current.height - targetHeight) < 0.5 &&
+      Math.abs(current.left - targetLeft) < 0.5 &&
+      Math.abs(current.top - targetTop) < 0.5;
+
+    if (alreadyThere) return;
+
+    target.style.transition = duration > 0
+      ? 'left ' + duration + 'ms ease, top ' + duration + 'ms ease, width ' + duration + 'ms ease, height ' + duration + 'ms ease'
+      : 'none';
+    target.style.position = 'fixed';
+    target.style.right = 'auto';
+    target.style.bottom = 'auto';
+    target.style.maxWidth = 'none';
+    target.style.maxHeight = 'none';
+    target.style.transform = 'none';
+
+    // Si aún está en su layout original, primero fijamos su posición visual
+    // actual para que el navegador pueda interpolar hasta la esquina.
+    target.style.left = current.left + 'px';
+    target.style.top = current.top + 'px';
+    target.style.width = current.width + 'px';
+    target.style.height = current.height + 'px';
+    target.offsetWidth;
+
+    requestAnimationFrame(function () {
+      if (!visual.el || visual.el !== target) return;
+      target.style.left = targetLeft + 'px';
+      target.style.top = targetTop + 'px';
+      target.style.width = targetWidth + 'px';
+      target.style.height = targetHeight + 'px';
+    });
+
+    visual.active = true;
   }
 
 function updateTargetVisibility() {
@@ -1240,14 +1457,26 @@ function ensureElements() {
     if (!isFinite(softness) || softness < 0) softness = 0.22;
     if (softness > 0.49) softness = 0.49;
 
-    // La ventana nítida se basa en el mayor de los ejes para dar a la
-    // diana una zona de protección suficientemente amplia para los misses.
-    var rx = Math.max(rect.width, rect.height) * scale / 2;
-    var ry = Math.max(rect.width, rect.height) * scale / 2;
-
-    // El foco debe poder contener el blanco aunque sea rectangular.
-    rx = Math.max(rx, rect.width * scale / 2);
-    ry = Math.max(ry, rect.height * scale / 2);
+    // Para una diana DOM de página, la abertura transparente central debe
+    // medir exactamente el tamaño visual de la diana + 30%, para mantener
+    // visibles las flechas perdidas cercanas. La suavidad del borde se suma
+    // hacia afuera sin reducir esa abertura efectiva.
+    var rx;
+    var ry;
+    if (isPageDomTarget(target)) {
+      var extra = Number(pageTargetDomConfig().blurOpeningExtraPercent);
+      if (!isFinite(extra) || extra < 0) extra = 0.30;
+      var openingWidth = Math.max(rect.width, rect.height) * (1 + extra);
+      var openingRadius = openingWidth / 2;
+      var maskScale = Math.max(0.01, 1 - softness);
+      rx = openingRadius / maskScale;
+      ry = openingRadius / maskScale;
+    } else {
+      rx = Math.max(rect.width, rect.height) * scale / 2;
+      ry = Math.max(rect.width, rect.height) * scale / 2;
+      rx = Math.max(rx, rect.width * scale / 2);
+      ry = Math.max(ry, rect.height * scale / 2);
+    }
 
     var cx = rect.left + rect.width / 2;
     var cy = rect.top + rect.height / 2;
@@ -1481,6 +1710,9 @@ function showCharacter(preserveCurrentPose) {
 function hideCharacter() {
     hideAimFocus();
     clearAllTimers();
+    cancelPageTargetRestoreTimer();
+    restorePageTargetOriginal(false);
+    pageTargetLastScoreSumAt = 0;
     detachAimListeners();
     stopTensSound();
     stopAimTremor();
@@ -1625,6 +1857,15 @@ function enterAimState() {
     charEl.removeEventListener('pointerup', onPointerUpDuringPending);
     state = 'aiming';
     aimStartedAt = performance.now();
+
+    // Cada entrada a aiming revalida la diana DOM de página. Si su tamaño o
+    // posición ya no coinciden con la configuración, se corrigen con una
+    // transición progresiva; las dianas de personaje/módulo no se tocan.
+    preparePageTargetForAiming();
+
+    // Mientras se apunta no debe correr el retorno de un minuto: el tiempo
+    // de inactividad se reanuda cuando termina esta interacción.
+    cancelPageTargetRestoreTimer();
 
     // Desde este instante Buddy está ocupado: ningún mensaje automático de
     // Says puede aparecer mientras se apunta. Si había un mensaje de Says
@@ -2041,6 +2282,7 @@ function resolve(outcome, reasonLabel, failBubbleText) {
     stopTensSound();
     stopAimTremor();
     state = 'resolved';
+    schedulePageTargetRestore();
 
     if (outcome === 'fire') {
       // Centro visual REAL de la mira (incluye el offset espejado y
@@ -2127,6 +2369,7 @@ function resolve(outcome, reasonLabel, failBubbleText) {
 
           startArrowCooldown();
           narrateAndanadaTotal(batchScoreSum);
+          markPageTargetScoreSum();
           sendAndanadaTelemetry(andanada);
           arrowsInBatch = 0;
           batchScoreSum = 0;
