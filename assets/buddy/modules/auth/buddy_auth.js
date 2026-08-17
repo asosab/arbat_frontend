@@ -21,7 +21,8 @@ window.Buddy = window.Buddy || {};
     mode: 'idle',
     welcomePending: false,
     welcomeType: null,
-    pendingProfile: null
+    pendingProfile: null,
+    sessionToken: null
   };
 
   function debugLog() {
@@ -89,8 +90,14 @@ window.Buddy = window.Buddy || {};
       cache: 'no-store'
     };
 
-    // La autenticación web utiliza exclusivamente la cookie HttpOnly.
-    // Bearer permanece soportado por el backend para clientes API externos.
+    var sessionToken = state.sessionToken || getStoredSessionToken();
+    if (sessionToken) {
+      state.sessionToken = sessionToken;
+      requestOptions.headers = Object.assign({}, requestOptions.headers || {}, {
+        Authorization: 'Bearer ' + sessionToken
+      });
+    }
+
     if (options.body !== undefined) requestOptions.body = options.body;
     if (options.signal) requestOptions.signal = options.signal;
 
@@ -123,8 +130,15 @@ window.Buddy = window.Buddy || {};
     } catch (e) {}
   }
 
-  function clearLegacySessionToken() {
-    try { window.sessionStorage.removeItem('buddyAuthSessionToken'); } catch (e) {}
+  // El sessionToken se conserva únicamente en memoria. La cookie HttpOnly es
+  // el mecanismo principal de sesión; este token existe sólo como fallback
+  // para clientes/navegadores que no envíen la cookie cross-site.
+  function getStoredSessionToken() {
+    return state.sessionToken || null;
+  }
+
+  function setStoredSessionToken(token) {
+    state.sessionToken = token ? String(token) : null;
   }
 
   function clearLocalState() {
@@ -135,6 +149,7 @@ window.Buddy = window.Buddy || {};
     state.welcomePending = false;
     state.welcomeType = null;
     state.pendingProfile = null;
+    setStoredSessionToken(null);
     if (window.Buddy.telemetry && typeof window.Buddy.telemetry.clearUserId === 'function') {
       window.Buddy.telemetry.clearUserId();
     }
@@ -311,7 +326,8 @@ window.Buddy = window.Buddy || {};
       return false;
     }
 
-        var user = normalizeUser(data);
+    if (data.sessionToken) setStoredSessionToken(data.sessionToken);
+    var user = normalizeUser(data);
     var needsName = data.needsName === true || data.newUser === true || data.isNewUser === true || !user || !user.name;
     setAuthenticated(user, needsName, welcomeType || (needsName ? 'new' : 'existing'));
     return true;
@@ -401,7 +417,8 @@ window.Buddy = window.Buddy || {};
         throw new Error('El enlace de autenticación no pudo validarse.');
       }
 
-            var user = normalizeUser(data);
+      if (data.sessionToken) setStoredSessionToken(data.sessionToken);
+      var user = normalizeUser(data);
       var needsName = data.needsName === true || data.newUser === true || data.isNewUser === true || !user || !user.name;
       setAuthenticated(user, needsName, needsName ? 'new' : 'existing');
       return handleAuthenticatedUser().then(function () {
@@ -594,7 +611,6 @@ window.Buddy = window.Buddy || {};
 
   function init() {
     if (state.initialized || !state.enabled) return;
-    clearLegacySessionToken();
     state.initialized = true;
 
     if (!window.Buddy.telemetry || typeof window.Buddy.telemetry.request !== 'function') {
@@ -618,6 +634,7 @@ window.Buddy = window.Buddy || {};
     isAuthenticated: function () { return state.authenticated; },
     getUser: function () { return state.user; },
     getState: getState,
+    getSessionToken: function () { return state.sessionToken || null; },
     checkSession: checkSession,
     requestLogin: requestLogin,
     startAuthenticationPrompt: startAuthenticationPrompt,
