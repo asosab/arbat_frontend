@@ -20,7 +20,8 @@ window.Buddy = window.Buddy || {};
     needsName: false,
     mode: 'idle',
     welcomePending: false,
-    welcomeType: null
+    welcomeType: null,
+    pendingProfile: null
   };
 
   function debugLog() {
@@ -127,9 +128,119 @@ window.Buddy = window.Buddy || {};
     state.mode = 'idle';
     state.welcomePending = false;
     state.welcomeType = null;
+    state.pendingProfile = null;
     if (window.Buddy.telemetry && typeof window.Buddy.telemetry.clearUserId === 'function') {
       window.Buddy.telemetry.clearUserId();
     }
+  }
+
+  function allUserDataComplete(user) {
+    return !!(user && user.email && user.name && user.phone);
+  }
+
+  function updateLocalUser(user) {
+    var normalized = normalizeUser({ user: user });
+    if (!normalized) return null;
+    state.user = normalized;
+    state.needsName = !normalized.name;
+    return normalized;
+  }
+
+  function applyPendingProfile() {
+    var pending = state.pendingProfile;
+    state.pendingProfile = null;
+    if (!pending || !state.authenticated) return Promise.resolve(true);
+    if (!pending.name && !pending.whatsapp) return Promise.resolve(true);
+    if (!window.Buddy.user || typeof window.Buddy.user.update !== 'function') {
+      debugLog('Hay datos de perfil pendientes pero Buddy User no está disponible.');
+      state.pendingProfile = pending;
+      return Promise.resolve(false);
+    }
+
+    debugLog('Aplicando datos de perfil capturados durante login.', pending);
+    return window.Buddy.user.update({
+      name: pending.name,
+      whatsapp: pending.whatsapp
+    }).then(function (data) {
+      var returnedUser = getResponseUser(data);
+      if (!returnedUser) throw new Error('El servidor no devolvió el usuario actualizado.');
+      updateLocalUser(returnedUser);
+      emitEvent('buddy:auth-user-updated', {
+        user: state.user,
+        source: 'login-form'
+      });
+      return true;
+    }).catch(function (error) {
+      debugLog('No se pudieron guardar los datos capturados durante login.', error);
+      return false;
+    });
+  }
+
+  function requestUserFormIfNeeded() {
+    if (!state.authenticated || allUserDataComplete(state.user)) return false;
+    if (!window.Buddy.says || typeof window.Buddy.says.frmUsr !== 'function') {
+      debugLog('No se puede mostrar frmUsr todavía: Buddy.says.frmUsr no está disponible.');
+      return false;
+    }
+
+    var user = state.user || {};
+    var config = {
+      emocion: 'sereno',
+      fields: {
+        email: {
+          value: user.email || '',
+          readonly: true,
+          required: false,
+          label: 'Correo:'
+        },
+        name: {
+          value: user.name || '',
+          readonly: false,
+          required: !user.name,
+          label: 'Nombre:'
+        },
+        whatsapp: {
+          value: user.phone || '',
+          readonly: false,
+          required: false,
+          label: 'Whatsapp:'
+        }
+      },
+      submitText: 'enviar',
+      onSubmit: function (data) {
+        if (!window.Buddy.user || typeof window.Buddy.user.update !== 'function') {
+          throw new Error('Servicio de usuario no disponible.');
+        }
+        return window.Buddy.user.update({
+          name: data.name,
+          whatsapp: data.whatsapp
+        }).then(function (response) {
+          var returnedUser = getResponseUser(response);
+          if (!returnedUser) throw new Error('El servidor no devolvió los datos del usuario.');
+          updateLocalUser(returnedUser);
+          state.mode = state.needsName ? 'name' : 'idle';
+          emitEvent('buddy:auth-user-updated', {
+            user: state.user,
+            source: 'frmUsr'
+          });
+          return true;
+        });
+      }
+    };
+
+    debugLog('Solicitando frmUsr para completar datos.', {
+      email: user.email,
+      hasName: !!user.name,
+      hasWhatsapp: !!user.phone
+    });
+    return window.Buddy.says.frmUsr(config);
+  }
+
+  function handleAuthenticatedUser() {
+    return applyPendingProfile().then(function () {
+      requestUserFormIfNeeded();
+      return state.user;
+    });
   }
 
   function setAuthenticated(user, needsName, welcomeType) {
@@ -208,7 +319,7 @@ window.Buddy = window.Buddy || {};
     return apiRequest('session', { method: 'GET' })
       .then(function (data) {
         applySessionResponse(data, data && data.newUser ? 'new' : 'existing');
-        return state.authenticated;
+        return handleAuthenticatedUser().then(function () { return state.authenticated; });
       })
       .catch(function (error) {
         debugLog('No se pudo consultar la sesión.', error);
@@ -228,7 +339,7 @@ window.Buddy = window.Buddy || {};
       });
   }
 
-  function requestLogin(email) {
+  function requestLogin(email, profile) {
     var normalized = normalizeEmail(email);
     debugLog('requestLogin: solicitud iniciada', { email: normalized });
     if (!isValidEmail(normalized)) {
@@ -238,6 +349,10 @@ window.Buddy = window.Buddy || {};
 
     state.busy = true;
     state.mode = 'waiting-email';
+    state.pendingProfile = profile ? {
+      name: normalizeText(profile.name),
+      whatsapp: normalizeText(profile.whatsapp || profile.phone)
+    } : null;
     var params = new URLSearchParams();
     params.set('email', normalized);
     params.set('appID', window.BuddyConfig &&
@@ -283,12 +398,14 @@ window.Buddy = window.Buddy || {};
       var user = normalizeUser(data);
       var needsName = data.needsName === true || data.newUser === true || data.isNewUser === true || !user || !user.name;
       setAuthenticated(user, needsName, needsName ? 'new' : 'existing');
-      emitEvent('buddy:auth-verified', {
-        authenticated: true,
-        user: state.user,
-        needsName: state.needsName
+      return handleAuthenticatedUser().then(function () {
+        emitEvent('buddy:auth-verified', {
+          authenticated: true,
+          user: state.user,
+          needsName: state.needsName
+        });
+        return true;
       });
-      return true;
     }).catch(function (error) {
       debugLog('No se pudo verificar el enlace.', error);
       setUnauthenticated();
@@ -446,6 +563,7 @@ window.Buddy = window.Buddy || {};
     getState: getState,
     checkSession: checkSession,
     requestLogin: requestLogin,
+    requestUserFormIfNeeded: requestUserFormIfNeeded,
     verifyHash: verifyHash,
     registerName: registerName,
     logout: logout,

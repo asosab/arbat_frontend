@@ -863,6 +863,12 @@ window.Buddy = window.Buddy || {};
         return loadOptionalScript(ASSET_BASE + 'modules/telemetry/buddy_telemetry.js');
       })
       .then(function () {
+        return loadOptionalScript(ASSET_BASE + 'modules/user/config.js');
+      })
+      .then(function () {
+        return loadOptionalScript(ASSET_BASE + 'modules/user/buddy_user.js');
+      })
+      .then(function () {
         return loadScript(scriptUrlForCharacter(characterId));
       })
       .then(function () {

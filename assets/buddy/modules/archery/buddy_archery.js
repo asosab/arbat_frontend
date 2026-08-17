@@ -119,6 +119,10 @@
     // -------------------------------------------------------------------
     var batchScoreSum = 0;        // suma de puntos de la tanda en curso (miss cuenta 0); se reinicia junto con arrowsInBatch
     var andanadaBubbleTimer = null; // delay del globo con la suma de la tanda, tras el de la última flecha
+    // Flujo post-andanada: si el jugador no estaba autenticado, primero debe
+    // autenticarse. Solo después de una autenticación válida se solicita el nombre.
+    var pendingAuthForName = false;
+    var pendingAndanadaNameGreeting = false;
     // Pose a la que Raúl vuelve entre disparos cuando no hay nada más
     // puntual que mostrar (fuego/apuntado/fallo de ESE tiro/agotamiento).
     // Arranca en 'idle' (pose03) y narrateAndanadaTotal() la actualiza al
@@ -139,6 +143,9 @@
     var calibOffsetX = 0;
     var calibOffsetY = 0;
     var calibrationBubbleTimer = null; // delay del globo "Voy a calibrar..." tras el de puntaje
+  // Flujo de registro de nombre al completar una andanada. Solo se activa
+  // cuando el usuario ya está autenticado pero todavía no tiene nombre.
+  var nameCaptureActive = false;
   
     // -------------------------------------------------------------------
     // Registro de flechas de la sesión (v0.5) — ver CONFIG.arrowLog.
@@ -685,7 +692,59 @@ function maxAndanadaScore() {
     return CONFIG.arrowLimit.countBeforeCooldown * maxSingleArrowScore();
   }
 
-function narrateAndanadaTotal(total) {
+function getAuthForNameCapture() {
+    var auth = window.Buddy && window.Buddy.auth;
+    if (!auth || typeof auth.isAuthenticated !== 'function' || typeof auth.getUser !== 'function') return null;
+    if (!auth.isAuthenticated()) return null;
+    var user = auth.getUser() || {};
+    if (user.name || user.nombre || user.firstName || user.nombrePila) return null;
+    return auth;
+  }
+
+  function getBuddyAppID() {
+    var buddy = window.Buddy || {};
+    var config = buddy.config || {};
+    var appID = CONFIG.appID || CONFIG.appId || buddy.appID || buddy.appId ||
+      window.appID || window.appId || config.appID || config.appId;
+
+    if (appID) return String(appID);
+
+    var host = window.location && window.location.hostname;
+    if (host) {
+      var parts = host.split('.');
+      if (parts.length >= 2) return parts[0];
+    }
+    return 'esta aplicación';
+  }
+
+  function startAuthenticationPrompt() {
+    var chat = window.Buddy && window.Buddy.chat;
+    if (!chat || typeof chat.open !== 'function') return false;
+    chat.open();
+    if (typeof chat.restorePlaceholder === 'function') chat.restorePlaceholder();
+    if (typeof chat.clearInput === 'function') chat.clearInput();
+    if (typeof chat.focusInput === 'function') chat.focusInput();
+    return true;
+  }
+
+  function isArcheryHandlingAuthWelcome() {
+    return false;
+  }
+
+  function handleAuthenticationForName(event) {
+    var detail = event && event.detail ? event.detail : {};
+    if (!detail.authenticated) return;
+    // Auth es el único módulo que decide cuándo abrir frmUsr. Archery solo
+    // conserva la necesidad de un saludo específico si la autenticación fue
+    // provocada por una tanda que acababa de terminar.
+    if (pendingAndanadaNameGreeting && detail.user && detail.user.name) {
+      pendingAndanadaNameGreeting = false;
+      var firstWord = String(detail.user.name).trim().split(/\s+/)[0];
+      say('¡Hola ' + firstWord + '! desde ahora podré llamarte por tu nombre y recordar tus flechas jugadas', 'alegre');
+    }
+  }
+
+  function narrateAndanadaTotal(total) {
     defaultIdlePoseKey = (total >= CONFIG.andanada.lowScorePoseThreshold) ? 'idle' : 'fail';
 
     var isPerfect = total >= maxAndanadaScore();
@@ -708,6 +767,28 @@ function narrateAndanadaTotal(total) {
         say(template ? template.replace('{puntos}', total) : null,
             isPerfect ? 'positivo' : 'neutral',
             { durationMs: displayMs });
+      }
+
+      // Después de anunciar la suma: si el usuario ya está autenticado y
+      // todavía no tiene nombre, Auth/Says se encargan del formulario.
+      // Archery solo recuerda que, cuando el formulario sea resuelto, debe
+      // emitir su saludo específico. Si no está autenticado, se invita a
+      // iniciar sesión; después de la autenticación Auth abrirá frmUsr.
+      var auth = window.Buddy && window.Buddy.auth;
+      var isAuthenticated = !!(auth &&
+        typeof auth.isAuthenticated === 'function' &&
+        auth.isAuthenticated());
+
+      if (isAuthenticated) {
+        var authenticatedUser = auth.getUser ? (auth.getUser() || {}) : {};
+        if (!authenticatedUser.name && !authenticatedUser.firstName) {
+          pendingAndanadaNameGreeting = true;
+        }
+      } else {
+        pendingAndanadaNameGreeting = true;
+        var appID = getBuddyAppID();
+        say('Si te registras en ' + appID + ' podré recordar tus juegos realizados y mostrarte tus mejoras', 'sereno');
+        startAuthenticationPrompt();
       }
 
       scheduleCalibrationMessage(displayMs);
@@ -1440,6 +1521,9 @@ function clearAllTimers() {
   }
 
 function onPointerDown(e) {
+    // Un formulario bloqueante de Says tiene prioridad sobre el juego.
+    if (window.Buddy && typeof window.Buddy.isBusy === 'function' && window.Buddy.isBusy()) return;
+
     // Agotamiento total (v0.5): si Raúl está en pose04 pidiendo descanso
     // (ver enterExhaustedIdle), no entra en pose de apuntado — sólo
     // recuerda que necesita descansar. Se revisa ANTES que 'idle' porque
@@ -2258,7 +2342,8 @@ function init() {
       return state !== 'idle' && state !== 'hidden';
     },
     setAimBlurEnabled: setAimBlurEnabled,
-    isAimBlurEnabled: isAimBlurRuntimeEnabled
+    isAimBlurEnabled: isAimBlurRuntimeEnabled,
+    isHandlingAuthWelcome: isArcheryHandlingAuthWelcome
   };
 
   // API directa para otros módulos que prefieran consultar/controlar
@@ -2266,6 +2351,11 @@ function init() {
   window.BuddyArchery = window.BuddyArchery || {};
   window.BuddyArchery.setAimBlurEnabled = setAimBlurEnabled;
   window.BuddyArchery.isAimBlurEnabled = isAimBlurRuntimeEnabled;
+
+  // Si el usuario tuvo que autenticarse después de una andanada, el segundo
+  // paso (nombre) comienza únicamente cuando Auth confirma la autenticación.
+  window.addEventListener('buddy:auth-state-changed', handleAuthenticationForName);
+  window.addEventListener('buddy:auth-user-updated', handleAuthenticationForName);
 
   // Fase 10: la política común se registra desde init(), cuando Buddy ya
   // existe. Dejamos este intento defensivo por compatibilidad con cargas

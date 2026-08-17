@@ -125,12 +125,25 @@ window.Buddy = window.Buddy || {};
       '.buddy-says-bubble.is-promo{max-width:300px;pointer-events:auto;'
       'user-select:text;}' +
       '.buddy-says-bubble.is-promo a{color:#0d6efd;text-decoration:underline;' +
-      'pointer-events:auto;}';
+      'pointer-events:auto;}' +
+      '.buddy-says-bubble.is-form{max-width:310px;pointer-events:auto;user-select:text;text-align:left;padding:12px 14px;}' +
+      '.buddy-says-form{display:flex;flex-direction:column;gap:7px;}' +
+      '.buddy-says-form-row{display:grid;grid-template-columns:72px minmax(0,1fr);align-items:center;gap:7px;}' +
+      '.buddy-says-form-row label{font-weight:600;white-space:nowrap;}' +
+      '.buddy-says-form-row input{width:100%;height:32px;box-sizing:border-box;padding:5px 8px;border:1px solid #bbb;border-radius:6px;font:inherit;outline:none;}' +
+      '.buddy-says-form-row input:focus{border-color:#777;}' +
+      '.buddy-says-form-row input[readonly]{background:#f1f1f1;color:#666;}' +
+      '.buddy-says-form-actions{display:flex;justify-content:flex-end;margin-top:3px;}' +
+      '.buddy-says-form-submit{height:32px;padding:0 14px;border:1px solid #888;border-radius:6px;background:#f3f3f3;color:#1a1a1a;cursor:pointer;font:inherit;}' +
+      '.buddy-says-form-submit:hover{background:#e8e8e8;}' +
+      '.buddy-says-form-submit:disabled{opacity:.6;cursor:wait;}' +
+      '.buddy-says-form-error{display:none;margin-top:2px;color:#b00020;font-size:12px;text-align:left;}';
     document.head.appendChild(style);
   }
 
   var bubbleEl = null;
   var interactiveHandler = null;
+  var userFormState = null;
 
   function ensureBubbleElement() {
     if (bubbleEl) return bubbleEl;
@@ -223,6 +236,7 @@ window.Buddy = window.Buddy || {};
     callToken++;
     clearInteractiveChoices();
     hideBubble();
+    showNextQueuedSpeech();
     return true;
   }
 
@@ -236,7 +250,14 @@ window.Buddy = window.Buddy || {};
     callToken++;
     clearInteractiveChoices();
     hideBubble();
-    if (typeof handler === 'function') return handler(value);
+    if (typeof handler === 'function') {
+      var result = handler(value);
+      // El handler puede generar inmediatamente el siguiente mensaje; si no
+      // lo hizo, libera la cola que estaba esperando detrás de la interacción.
+      if (!hasActiveSpeech()) showNextQueuedSpeech();
+      return result;
+    }
+    showNextQueuedSpeech();
     return false;
   }
 
@@ -316,6 +337,12 @@ window.Buddy = window.Buddy || {};
   var bubbleTimer = null;
   var callToken = 0;
 
+  // Cola prioritaria de mensajes solicitados directamente por los módulos.
+  // Si hay un mensaje en curso, cada nuevo buddy_says() se coloca de inmediato
+  // después del mensaje actual, por delante de los demás mensajes pendientes.
+  // Esto evita que una solicitud directa quede detrás de mensajes ya en cola.
+  var speechQueue = [];
+
   function getBubbleDurationMs(texto, opciones) {
     if (opciones && typeof opciones.durationMs === 'number') {
       return Math.max(0, opciones.durationMs);
@@ -343,8 +370,232 @@ window.Buddy = window.Buddy || {};
     return Math.round(Math.min(maxMs, Math.max(minMs, duration)));
   }
 
+  function hasActiveSpeech() {
+    return !!(userFormState || bubbleTimer || interactiveHandler || isBubbleVisible());
+  }
+
+  function showNextQueuedSpeech() {
+    if (userFormState || hasActiveSpeech() || !speechQueue.length) return false;
+
+    var next = speechQueue.shift();
+    if (next && next.type === 'form') {
+      debugSource('[BUDDY SAYS] entregando formulario pendiente; pendientes=', speechQueue.length);
+      return frmUsr(next.config);
+    }
+    debugSource('[BUDDY SAYS] entregando mensaje pendiente:', next.texto,
+      'pendientes=', speechQueue.length);
+    return showSpeechNow(next.texto, next.opciones);
+  }
+
+  function normalizeFormField(field, defaults) {
+    var value = field && Object.prototype.hasOwnProperty.call(field, 'value') ? field.value : '';
+    return {
+      value: value == null ? '' : String(value),
+      readonly: field && field.readonly === true,
+      required: field && field.required === true,
+      label: field && field.label ? String(field.label) : defaults.label,
+      placeholder: field && field.placeholder != null ? String(field.placeholder) : defaults.placeholder
+    };
+  }
+
+  function buildUserFormConfig(config) {
+    config = config || {};
+    var fields = config.fields || {};
+    return {
+      email: normalizeFormField(fields.email, { label: 'Correo:', placeholder: '' }),
+      name: normalizeFormField(fields.name, { label: 'Nombre:', placeholder: '' }),
+      whatsapp: normalizeFormField(fields.whatsapp, { label: 'Whatsapp:', placeholder: '' })
+    };
+  }
+
+  function createUserForm(config) {
+    ensureBubbleElement();
+    var fields = buildUserFormConfig(config);
+    bubbleEl.innerHTML = '';
+    bubbleEl.classList.remove('is-promo', 'is-interactive');
+    bubbleEl.classList.add('is-form');
+
+    var form = document.createElement('form');
+    form.className = 'buddy-says-form';
+    form.noValidate = true;
+
+    var controls = {};
+    ['email', 'name', 'whatsapp'].forEach(function (key) {
+      var field = fields[key];
+      var row = document.createElement('div');
+      row.className = 'buddy-says-form-row';
+
+      var label = document.createElement('label');
+      label.textContent = field.label;
+      label.htmlFor = 'buddy-says-user-' + key;
+
+      var input = document.createElement('input');
+      input.type = key === 'email' ? 'email' : 'text';
+      input.id = 'buddy-says-user-' + key;
+      input.name = key;
+      input.value = field.value;
+      input.placeholder = field.placeholder;
+      input.readOnly = field.readonly;
+      input.required = field.required;
+      input.autocomplete = key === 'email' ? 'email' : (key === 'whatsapp' ? 'tel' : 'name');
+
+      row.appendChild(label);
+      row.appendChild(input);
+      form.appendChild(row);
+      controls[key] = input;
+    });
+
+    var error = document.createElement('div');
+    error.className = 'buddy-says-form-error';
+
+    var actions = document.createElement('div');
+    actions.className = 'buddy-says-form-actions';
+    var submit = document.createElement('button');
+    submit.type = 'submit';
+    submit.className = 'buddy-says-form-submit';
+    submit.textContent = config.submitText || 'enviar';
+    actions.appendChild(submit);
+    form.appendChild(error);
+    form.appendChild(actions);
+    bubbleEl.appendChild(form);
+
+    userFormState = {
+      config: config,
+      form: form,
+      controls: controls,
+      submit: submit,
+      error: error,
+      resolved: false
+    };
+
+    function setError(message) {
+      error.textContent = String(message || '');
+      error.style.display = message ? 'block' : 'none';
+    }
+
+    function collect() {
+      return {
+        email: controls.email.value.trim(),
+        name: controls.name.value.trim(),
+        whatsapp: controls.whatsapp.value.trim()
+      };
+    }
+
+    function validate(data) {
+      if (fields.email.required && !data.email) return 'El correo es obligatorio.';
+      if (fields.email.required && !isValidEmailForForm(data.email)) return 'Escribe un correo válido.';
+      if (fields.name.required && !data.name) return 'El nombre es obligatorio.';
+      return '';
+    }
+
+    function isValidEmailForForm(value) {
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
+    }
+
+    form.addEventListener('submit', function (event) {
+      event.preventDefault();
+      if (!userFormState || userFormState.resolved) return;
+
+      var data = collect();
+      var validationError = validate(data);
+      if (validationError) {
+        setError(validationError);
+        var invalid = fields.email.required && !data.email ? controls.email :
+          (fields.name.required && !data.name ? controls.name : controls.email);
+        try { invalid.focus(); } catch (e) {}
+        return;
+      }
+
+      setError('');
+      submit.disabled = true;
+      controls.email.disabled = true;
+      controls.name.disabled = true;
+      controls.whatsapp.disabled = true;
+
+      var callback = typeof config.onSubmit === 'function' ? config.onSubmit : null;
+      var result;
+      try {
+        result = callback ? callback(data) : true;
+      } catch (error) {
+        result = Promise.reject(error);
+      }
+
+      Promise.resolve(result).then(function (ok) {
+        if (ok === false) throw new Error('La operación no fue confirmada.');
+        resolveUserForm(data);
+      }).catch(function (error) {
+        submit.disabled = false;
+        controls.email.disabled = false;
+        controls.name.disabled = false;
+        controls.whatsapp.disabled = false;
+        setError(error && error.message ? error.message : 'No se pudieron guardar los datos.');
+      });
+    });
+  }
+
+  function resolveUserForm(data) {
+    if (!userFormState) return false;
+    var state = userFormState;
+    userFormState = null;
+    state.resolved = true;
+    if (bubbleEl) bubbleEl.classList.remove('is-form');
+    callToken++;
+    hideBubble();
+    var callback = typeof state.config.onResolved === 'function' ? state.config.onResolved : null;
+    if (callback) callback(data);
+    showNextQueuedSpeech();
+    return true;
+  }
+
+  function frmUsr(config) {
+    config = config || {};
+    if (!config.fields) {
+      throw new Error('Buddy.says.frmUsr requiere config.fields.');
+    }
+
+    var entry = { type: 'form', config: config };
+    if (userFormState || hasActiveSpeech()) {
+      speechQueue.unshift(entry);
+      debugSource('[BUDDY SAYS] formulario de usuario colocado inmediatamente después del actual; pendientes=', speechQueue.length);
+      return true;
+    }
+
+    var datosExpresion = resolveExpresionParaEmocion(config.emocion);
+    if (!datosExpresion || !datosExpresion.archivo) return false;
+    window.Buddy.showCharacterImage(datosExpresion);
+    createUserForm(config);
+    positionBubble(datosExpresion);
+    bubbleEl.style.display = 'block';
+    void bubbleEl.offsetWidth;
+    bubbleEl.classList.add('is-visible');
+    setTimeout(function () {
+      if (userFormState && userFormState.controls) {
+        var controls = userFormState.controls;
+        var target = controls.email.readOnly ?
+          (controls.name.readOnly ? controls.whatsapp : controls.name) : controls.email;
+        try { target.focus(); target.setSelectionRange(target.value.length, target.value.length); } catch (e) { try { target.focus(); } catch (ignore) {} }
+      }
+    }, 0);
+    return true;
+  }
+
   function buddySays(texto, opciones) {
+    opciones = Object.assign({}, opciones || {});
+
+    if (hasActiveSpeech()) {
+      speechQueue.unshift({ texto: texto, opciones: opciones });
+      debugSource('[BUDDY SAYS] mensaje directo colocado inmediatamente después del actual:', texto,
+        'pendientes=', speechQueue.length);
+      return true;
+    }
+
+    return showSpeechNow(texto, opciones);
+  }
+
+  function showSpeechNow(texto, opciones) {
     opciones = opciones || {};
+    if (userFormState) return false;
+    if (bubbleEl) bubbleEl.classList.remove('is-form');
     var interactive = opciones.interactive === true && Array.isArray(opciones.choices);
     var durationMs = getBubbleDurationMs(texto, opciones);
 
@@ -365,8 +616,9 @@ window.Buddy = window.Buddy || {};
     // 2) muestra el globo, anclado a cabeza_superior de esa expresión.
     showBubble(texto, opciones, datosExpresion);
 
-    // Sustituye cualquier mensaje/timer anterior en curso (mismo criterio
-    // que raulito.js: un nuevo llamado siempre gana).
+    // Este método sólo se ejecuta cuando el mensaje puede mostrarse ahora;
+    // los nuevos buddy_says() durante un mensaje activo se incorporan a
+    // speechQueue y no llegan a pisar el timer ni el globo actual.
     callToken++;
     var thisCall = callToken;
     if (bubbleTimer) clearTimeout(bubbleTimer);
@@ -399,6 +651,10 @@ window.Buddy = window.Buddy || {};
           window.Buddy.showCharacterImage(serenoData);
         }
       }
+
+      // Una vez liberado el mensaje actual, continúa el tren FIFO sin
+      // reemplazar ni perder los mensajes que llegaron mientras se hablaba.
+      showNextQueuedSpeech();
     }, durationMs);
 
     return true;
@@ -896,6 +1152,10 @@ window.Buddy = window.Buddy || {};
   }
 
   function cancelarMensajeActual() {
+    if (userFormState) {
+      debugSource('[BUDDY SAYS] cancelarMensajeActual ignorado: formulario de usuario bloqueante activo.');
+      return false;
+    }
     callToken++;
     if (bubbleTimer) {
       clearTimeout(bubbleTimer);
@@ -903,13 +1163,29 @@ window.Buddy = window.Buddy || {};
     }
     clearInteractiveChoices();
     hideBubble();
+    // Cancelar el mensaje actual no significa descartar los mensajes que
+    // quedaron pendientes. Se continúa con el siguiente del tren.
+    showNextQueuedSpeech();
+  }
+
+  function getPendingSpeechCount() {
+    return speechQueue.length;
+  }
+
+  if (window.Buddy && typeof window.Buddy.registerBusyProvider === 'function') {
+    window.Buddy.registerBusyProvider('says', function () {
+      return !!userFormState;
+    });
   }
 
   window.Buddy.says = {
     config: SOURCES_CONFIG,
     decirSiLibre: decirSiLibre,
     cancelarMensajeActual: cancelarMensajeActual,
+    pendientes: getPendingSpeechCount,
+    formularioActivo: function () { return !!userFormState; },
     resolverInteraccion: finishInteractive,
+    frmUsr: frmUsr,
     cancelarInteraccion: cancelInteractive,
     estaOcupado: isSystemBusy,
     iniciarFuentes: initializeSourceEngine,

@@ -339,6 +339,9 @@ window.Buddy = window.Buddy || {};
   }
 
   function sendCurrent() {
+    if (window.Buddy.says && typeof window.Buddy.says.formularioActivo === 'function' && window.Buddy.says.formularioActivo()) {
+      return Promise.resolve(false);
+    }
     if (!elements.input) return Promise.resolve(false);
     var texto = elements.input.value.trim();
     if (!texto) return Promise.resolve(false);
@@ -394,40 +397,15 @@ window.Buddy = window.Buddy || {};
 
   function showWelcome(authState) {
     var auth = getAuth();
-    if (!auth || state.authWelcomeShown) return;
+    if (!auth) return;
     if (!authState || !authState.welcomePending) return;
 
     state.authWelcomeShown = true;
     var user = authState.user || {};
-    if (authState.welcomeType === 'new' || authState.needsName) {
-      var nameInteraction = function (texto) {
-        var name = String(texto || '').trim();
-        if (!name) return false;
-        return auth.registerName(name).then(function () {
-          clearInteraction();
-          restorePlaceholder();
-          var finalUser = auth.getUser() || {};
-          var template = auth.config.nameSavedTemplate || '¡Mucho gusto, {name}!';
-          emit(template.replace('{name}', finalUser.name || name), 'alegre');
-          auth.consumeWelcome();
-          focusInput();
-          return true;
-        }).catch(function () {
-          showAuthPrompt('No pude registrar tu nombre. Inténtalo nuevamente.', auth.config.namePlaceholder || 'Escribe tu nombre', nameInteraction);
-          return false;
-        });
-      };
-      showAuthPrompt(
-        auth.config.newUserWelcomeMessage || '¡Bienvenido! ¿Cómo te llamas?',
-        auth.config.namePlaceholder || 'Escribe tu nombre',
-        nameInteraction
-      );
-      return;
-    }
 
-    if (authState.welcomeType === 'named-new') {
-      var namedTemplate = auth.config.nameSavedTemplate || '¡Mucho gusto, {name}!';
-      emit(namedTemplate.replace('{name}', user.name || ''), 'alegre');
+    // La recopilación de datos pendientes de un usuario autenticado pertenece
+    // a Auth + Says.frmUsr. Chat no crea un segundo formulario ni interacción.
+    if (authState.needsName) {
       auth.consumeWelcome();
       return;
     }
@@ -440,6 +418,7 @@ window.Buddy = window.Buddy || {};
   }
 
   function handleAuthButton() {
+    if (window.Buddy.says && typeof window.Buddy.says.formularioActivo === 'function' && window.Buddy.says.formularioActivo()) return;
     var auth = getAuth();
     if (!auth) return;
 
@@ -470,28 +449,52 @@ window.Buddy = window.Buddy || {};
     }
 
     auth.enterLoginMode();
-    var loginInteraction = function (texto) {
-      var email = String(texto || '').trim().toLowerCase();
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        showAuthPrompt('Escribe una dirección de correo válida.', auth.config.emailPlaceholder || 'Escribe tu dirección de correo', loginInteraction);
-        return false;
+    if (!window.Buddy.says || typeof window.Buddy.says.frmUsr !== 'function') {
+      showAuthPrompt(
+        auth.config.loginMessage || 'Escribe tu correo en la caja de texto, te enviaré un link de verificación a esa dirección',
+        auth.config.emailPlaceholder || 'Escribe tu dirección de correo',
+        function (texto) {
+          return auth.requestLogin(String(texto || '').trim().toLowerCase());
+        }
+      );
+      return;
+    }
+
+    window.Buddy.says.frmUsr({
+      emocion: 'sereno',
+      fields: {
+        email: {
+          value: '',
+          readonly: false,
+          required: true,
+          label: 'Correo:',
+          placeholder: auth.config.emailPlaceholder || 'Escribe tu dirección de correo'
+        },
+        name: {
+          value: '',
+          readonly: false,
+          required: false,
+          label: 'Nombre:'
+        },
+        whatsapp: {
+          value: '',
+          readonly: false,
+          required: false,
+          label: 'Whatsapp:'
+        }
+      },
+      submitText: 'enviar',
+      onSubmit: function (data) {
+        return auth.requestLogin(data.email, data).then(function () {
+          auth.cancelFlow();
+          emit(auth.config.emailSentMessage || 'Revisa tu correo y has click en el link de logueo', 'sereno');
+          return true;
+        }).catch(function (error) {
+          auth.enterLoginMode();
+          throw new Error(error && error.message ? error.message : 'No pude enviar el enlace. Inténtalo nuevamente.');
+        });
       }
-      return auth.requestLogin(email).then(function () {
-        auth.cancelFlow();
-        restorePlaceholder();
-        emit(auth.config.emailSentMessage || 'Revisa tu correo y has click en el link de logueo', 'sereno');
-        return true;
-      }).catch(function () {
-        auth.enterLoginMode();
-        showAuthPrompt('No pude enviar el enlace. Inténtalo nuevamente.', auth.config.emailPlaceholder || 'Escribe tu dirección de correo', loginInteraction);
-        return false;
-      });
-    };
-    showAuthPrompt(
-      auth.config.loginMessage || 'Escribe tu correo en la caja de texto, te enviaré un link de verificación a esa dirección',
-      auth.config.emailPlaceholder || 'Escribe tu dirección de correo',
-      loginInteraction
-    );
+    });
   }
 
   function refreshAuthIntegration() {
