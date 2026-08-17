@@ -135,7 +135,7 @@ window.Buddy = window.Buddy || {};
   }
 
   function allUserDataComplete(user) {
-    return !!(user && user.email && user.name && user.phone);
+    return !!(user && user.email && user.name);
   }
 
   function updateLocalUser(user) {
@@ -496,6 +496,56 @@ window.Buddy = window.Buddy || {};
       });
   }
 
+  function startAuthenticationPrompt() {
+    if (!state.enabled || state.authenticated || state.busy) return false;
+    if (!window.Buddy.says || typeof window.Buddy.says.frmUsr !== 'function') {
+      debugLog('No se puede mostrar el formulario de login: Buddy.says.frmUsr no está disponible.');
+      return false;
+    }
+
+    state.mode = 'login-email';
+    emitEvent('buddy:auth-mode-changed', { mode: state.mode });
+
+    var config = {
+      emocion: 'sereno',
+      fields: {
+        email: {
+          value: '',
+          readonly: false,
+          required: true,
+          label: 'Correo:',
+          placeholder: CONFIG.emailPlaceholder || ''
+        },
+        name: { value: '', readonly: true, required: false, hidden: true, label: 'Nombre:' },
+        whatsapp: { value: '', readonly: true, required: false, hidden: true, label: 'Whatsapp:' }
+      },
+      submitText: 'enviar',
+      cancelText: 'cancelar',
+      onSubmit: function (data) {
+        return requestLogin(data.email).then(function () {
+          // El correo fue solicitado; el usuario todavía no está autenticado.
+          // El formulario se cierra y el enlace llegará por correo.
+          return true;
+        });
+      },
+      onCancel: function () {
+        state.mode = 'idle';
+        emitEvent('buddy:auth-mode-changed', { mode: state.mode });
+      }
+    };
+
+    // El globo que contiene el botón de login todavía está en transición de
+    // salida cuando se invoca este método. Esperamos a que quede libre para
+    // que frmUsr no termine en la cola de Says.
+    setTimeout(function () {
+      if (!state.authenticated && window.Buddy.says && typeof window.Buddy.says.frmUsr === 'function') {
+        window.Buddy.says.frmUsr(config);
+      }
+    }, 220);
+
+    return true;
+  }
+
   function enterLoginMode() {
     state.mode = 'login-email';
     emitEvent('buddy:auth-mode-changed', { mode: state.mode });
@@ -563,6 +613,7 @@ window.Buddy = window.Buddy || {};
     getState: getState,
     checkSession: checkSession,
     requestLogin: requestLogin,
+    startAuthenticationPrompt: startAuthenticationPrompt,
     requestUserFormIfNeeded: requestUserFormIfNeeded,
     verifyHash: verifyHash,
     registerName: registerName,

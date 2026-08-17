@@ -133,9 +133,11 @@ window.Buddy = window.Buddy || {};
       '.buddy-says-form-row input{width:100%;height:32px;box-sizing:border-box;padding:5px 8px;border:1px solid #bbb;border-radius:6px;font:inherit;outline:none;}' +
       '.buddy-says-form-row input:focus{border-color:#777;}' +
       '.buddy-says-form-row input[readonly]{background:#f1f1f1;color:#666;}' +
-      '.buddy-says-form-actions{display:flex;justify-content:flex-end;margin-top:3px;}' +
+      '.buddy-says-form-actions{display:flex;justify-content:flex-end;gap:7px;margin-top:3px;}' +
       '.buddy-says-form-submit{height:32px;padding:0 14px;border:1px solid #888;border-radius:6px;background:#f3f3f3;color:#1a1a1a;cursor:pointer;font:inherit;}' +
       '.buddy-says-form-submit:hover{background:#e8e8e8;}' +
+       '.buddy-says-form-cancel{height:32px;padding:0 14px;border:1px solid #888;border-radius:6px;background:#ffffff;color:#1a1a1a;cursor:pointer;font:inherit;}' +
+       '.buddy-says-form-cancel:hover{background:#f0f0f0;}' +
       '.buddy-says-form-submit:disabled{opacity:.6;cursor:wait;}' +
       '.buddy-says-form-error{display:none;margin-top:2px;color:#b00020;font-size:12px;text-align:left;}';
     document.head.appendChild(style);
@@ -393,6 +395,7 @@ window.Buddy = window.Buddy || {};
       value: value == null ? '' : String(value),
       readonly: field && field.readonly === true,
       required: field && field.required === true,
+      hidden: field && field.hidden === true,
       label: field && field.label ? String(field.label) : defaults.label,
       placeholder: field && field.placeholder != null ? String(field.placeholder) : defaults.placeholder
     };
@@ -424,6 +427,7 @@ window.Buddy = window.Buddy || {};
       var field = fields[key];
       var row = document.createElement('div');
       row.className = 'buddy-says-form-row';
+      if (field.hidden) row.style.display = 'none';
 
       var label = document.createElement('label');
       label.textContent = field.label;
@@ -450,10 +454,17 @@ window.Buddy = window.Buddy || {};
 
     var actions = document.createElement('div');
     actions.className = 'buddy-says-form-actions';
+    var cancel = document.createElement('button');
+    cancel.type = 'button';
+    cancel.className = 'buddy-says-form-cancel';
+    cancel.textContent = config.cancelText || 'cancelar';
+
     var submit = document.createElement('button');
     submit.type = 'submit';
     submit.className = 'buddy-says-form-submit';
     submit.textContent = config.submitText || 'enviar';
+
+    actions.appendChild(cancel);
     actions.appendChild(submit);
     form.appendChild(error);
     form.appendChild(actions);
@@ -463,6 +474,7 @@ window.Buddy = window.Buddy || {};
       config: config,
       form: form,
       controls: controls,
+      cancel: cancel,
       submit: submit,
       error: error,
       resolved: false
@@ -491,6 +503,21 @@ window.Buddy = window.Buddy || {};
     function isValidEmailForForm(value) {
       return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
     }
+
+    // El formulario vive dentro del globo: las interacciones con sus
+    // controles no deben propagarse a handlers externos que puedan cerrar
+    // o reemplazar el globo.
+    ['click', 'mousedown', 'mouseup', 'pointerdown', 'pointerup'].forEach(function (eventName) {
+      form.addEventListener(eventName, function (event) {
+        event.stopPropagation();
+      });
+    });
+
+    cancel.addEventListener('click', function (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      cancelUserForm();
+    });
 
     form.addEventListener('submit', function (event) {
       event.preventDefault();
@@ -531,6 +558,24 @@ window.Buddy = window.Buddy || {};
         setError(error && error.message ? error.message : 'No se pudieron guardar los datos.');
       });
     });
+  }
+
+  function cancelUserForm() {
+    if (!userFormState) return false;
+    var state = userFormState;
+    userFormState = null;
+    state.resolved = true;
+    if (bubbleEl) bubbleEl.classList.remove('is-form');
+    callToken++;
+    hideBubble();
+
+    var callback = typeof state.config.onCancel === 'function' ? state.config.onCancel : null;
+    if (callback) {
+      try { callback(); } catch (error) { console.error('[buddy_says] Error en onCancel:', error); }
+    }
+
+    showNextQueuedSpeech();
+    return true;
   }
 
   function resolveUserForm(data) {

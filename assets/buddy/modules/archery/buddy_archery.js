@@ -936,13 +936,12 @@ function getAuthForNameCapture() {
   }
 
   function startAuthenticationPrompt() {
-    var chat = window.Buddy && window.Buddy.chat;
-    if (!chat || typeof chat.open !== 'function') return false;
-    chat.open();
-    if (typeof chat.restorePlaceholder === 'function') chat.restorePlaceholder();
-    if (typeof chat.clearInput === 'function') chat.clearInput();
-    if (typeof chat.focusInput === 'function') chat.focusInput();
-    return true;
+    var auth = window.Buddy && window.Buddy.auth;
+    if (!auth || typeof auth.startAuthenticationPrompt !== 'function') return false;
+
+    // El botón de registro debe abrir exclusivamente el formulario de Auth
+    // dentro del globo de Says. Chat no participa en este flujo.
+    return auth.startAuthenticationPrompt();
   }
 
   function isArcheryHandlingAuthWelcome() {
@@ -1005,8 +1004,21 @@ function getAuthForNameCapture() {
       } else {
         pendingAndanadaNameGreeting = true;
         var appID = getBuddyAppID();
-        say('Si te registras en ' + appID + ' podré recordar tus juegos realizados y mostrarte tus mejoras', 'sereno');
-        startAuthenticationPrompt();
+        say(
+          'Si te registras en ' + appID + ' podré recordar tus juegos realizados y mostrarte tus mejoras',
+          'sereno',
+          {
+            interactive: true,
+            durationMs: displayMs,
+            choices: [
+              { label: 'login', value: 'login' }
+            ],
+            onChoice: function (value) {
+              if (value === 'login') return startAuthenticationPrompt();
+              return false;
+            }
+          }
+        );
       }
 
       scheduleCalibrationMessage(displayMs);
