@@ -2282,7 +2282,11 @@ function resolve(outcome, reasonLabel, failBubbleText) {
     stopTensSound();
     stopAimTremor();
     state = 'resolved';
-    schedulePageTargetRestore();
+
+    // La diana DOM debe permanecer en su tamaño/posición de juego durante
+    // toda la interacción. El timer de retorno se inicia EXCLUSIVAMENTE
+    // después de completar la sumatoria de la andanada (markPageTargetScoreSum),
+    // nunca al resolver cada disparo.
 
     if (outcome === 'fire') {
       // Centro visual REAL de la mira (incluye el offset espejado y
