@@ -16,10 +16,6 @@ window.Buddy = window.Buddy || {};
   var state = {
     open: false,
     initialized: false,
-    longPressTimer: null,
-    longPressActive: false,
-    longPressStartX: 0,
-    longPressStartY: 0,
     interaction: null,
     authWelcomeShown: false
   };
@@ -50,29 +46,28 @@ window.Buddy = window.Buddy || {};
     var style = document.createElement('style');
     style.id = 'buddy-chat-style';
     style.textContent =
-      '.buddy-chat{position:fixed;left:0;right:0;bottom:0;z-index:10030;' +
-      'display:flex;align-items:center;gap:8px;padding:8px 10px;' +
-      'box-sizing:border-box;background:rgba(255,255,255,.98);' +
-      'border-top:1px solid rgba(0,0,0,.12);box-shadow:0 -4px 16px rgba(0,0,0,.12);' +
+      '.buddy-chat{position:fixed;right:12px;bottom:54px;width:min(520px,calc(100vw - 24px));' +
+      'z-index:10030;display:flex;align-items:center;gap:8px;padding:8px 10px;' +
+      'box-sizing:border-box;background:rgba(255,255,255,.98);border:1px solid rgba(0,0,0,.12);' +
+      'border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.18);' +
       'font:14px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;}' +
       '.buddy-chat[hidden]{display:none!important;}' +
+      '.buddy-chat-toggle{position:fixed;right:12px;bottom:12px;width:36px;height:36px;' +
+      'z-index:10031;display:flex;align-items:center;justify-content:center;padding:0;' +
+      'border:1px solid rgba(0,0,0,.22);border-radius:7px;background:rgba(255,255,255,.98);' +
+      'box-shadow:0 2px 10px rgba(0,0,0,.18);color:#333;font:bold 22px/1 sans-serif;cursor:pointer;}' +
+      '.buddy-chat-toggle:hover{background:#f2f2f2;color:#000;}' +
       '.buddy-chat-input{min-width:0;flex:1 1 auto;height:36px;box-sizing:border-box;' +
-      'padding:7px 10px;border:1px solid #bbb;border-radius:6px;outline:none;' +
-      'font:inherit;line-height:20px;}' +
+      'padding:7px 10px;border:1px solid #bbb;border-radius:6px;outline:none;font:inherit;line-height:20px;}' +
       '.buddy-chat-input:focus{border-color:#777;}' +
-      '.buddy-chat-auth{flex:0 0 auto;height:36px;padding:0 12px;border:1px solid #888;' +
+      '.buddy-chat-auth,.buddy-chat-send{flex:0 0 auto;height:36px;padding:0 12px;border:1px solid #888;' +
       'border-radius:6px;background:#f3f3f3;cursor:pointer;font:inherit;}' +
-      '.buddy-chat-auth:hover{background:#e8e8e8;}' +
-      '.buddy-chat-auth:active{transform:translateY(1px);}' +
-      '.buddy-chat-send{flex:0 0 auto;height:36px;padding:0 14px;border:1px solid #888;' +
-      'border-radius:6px;background:#f3f3f3;cursor:pointer;font:inherit;}' +
-      '.buddy-chat-send:hover{background:#e8e8e8;}' +
-      '.buddy-chat-send:active{transform:translateY(1px);}' +
-      '.buddy-chat-enter{display:none!important;}' +
-      '.buddy-chat-enter input{margin:0;}' +
-      '.buddy-chat-close{flex:0 0 auto;width:32px;height:36px;padding:0;border:0;' +
-      'background:transparent;color:#555;font-size:24px;line-height:32px;cursor:pointer;}' +
-      '.buddy-chat-close:hover{color:#000;}';
+      '.buddy-chat-auth:hover,.buddy-chat-send:hover{background:#e8e8e8;}' +
+      '.buddy-chat-auth:active,.buddy-chat-send:active{transform:translateY(1px);}' +
+      '.buddy-chat-enter{display:none!important;}.buddy-chat-enter input{margin:0;}' +
+      '.buddy-chat-close{flex:0 0 auto;width:32px;height:36px;padding:0;border:0;background:transparent;' +
+      'color:#555;font-size:24px;line-height:32px;cursor:pointer;}.buddy-chat-close:hover{color:#000;}' +
+      '@media(max-width:520px){.buddy-chat{right:8px;bottom:54px;width:calc(100vw - 16px);}}';
     document.head.appendChild(style);
   }
 
@@ -86,6 +81,14 @@ window.Buddy = window.Buddy || {};
     container.hidden = true;
     container.setAttribute('role', 'search');
     container.setAttribute('aria-label', 'Chat de Buddy');
+
+    var toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.id = 'buddy-chat-toggle';
+    toggle.className = 'buddy-chat-toggle';
+    toggle.textContent = '>';
+    toggle.setAttribute('aria-label', 'Mostrar chat de Buddy');
+    toggle.title = 'Mostrar chat';
 
     var authButton = document.createElement('button');
     authButton.type = 'button';
@@ -134,9 +137,11 @@ window.Buddy = window.Buddy || {};
     container.appendChild(send);
     container.appendChild(close);
     document.body.appendChild(container);
+    document.body.appendChild(toggle);
 
     elements = {
       container: container,
+      toggle: toggle,
       authButton: authButton,
       input: input,
       checkbox: checkbox,
@@ -145,6 +150,11 @@ window.Buddy = window.Buddy || {};
       close: close
     };
 
+    toggle.addEventListener('click', function (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      toggleChat();
+    });
     send.addEventListener('click', function () { sendCurrent(); });
     authButton.addEventListener('click', function () { handleAuthButton(); });
     close.addEventListener('click', function () { closeChat(); });
@@ -181,6 +191,11 @@ window.Buddy = window.Buddy || {};
     ensureUI();
     state.open = true;
     elements.container.hidden = false;
+    if (elements.toggle) {
+      elements.toggle.textContent = '<';
+      elements.toggle.setAttribute('aria-label', 'Ocultar chat de Buddy');
+      elements.toggle.title = 'Ocultar chat';
+    }
     if (texto !== undefined && texto !== null) elements.input.value = String(texto);
     focusInput();
     return true;
@@ -190,6 +205,11 @@ window.Buddy = window.Buddy || {};
     if (!elements.container) return false;
     state.open = false;
     elements.container.hidden = true;
+    if (elements.toggle) {
+      elements.toggle.textContent = '>';
+      elements.toggle.setAttribute('aria-label', 'Mostrar chat de Buddy');
+      elements.toggle.title = 'Mostrar chat';
+    }
     clearInteraction();
     return true;
   }
@@ -229,59 +249,6 @@ window.Buddy = window.Buddy || {};
   function isStandaloneKey(event, key) {
     return event && event.key && event.key.toLocaleLowerCase() === key &&
       !event.ctrlKey && !event.altKey && !event.shiftKey && !event.metaKey;
-  }
-
-  var LONG_PRESS_MS = 4000;
-  var LONG_PRESS_MOVE_TOLERANCE = 18;
-
-  function clearLongPressTimer() {
-    if (state.longPressTimer !== null) {
-      window.clearTimeout(state.longPressTimer);
-      state.longPressTimer = null;
-    }
-  }
-
-  function cancelLongPress() {
-    clearLongPressTimer();
-    state.longPressActive = false;
-  }
-
-  function handleTouchStart(event) {
-    if (CONFIG.enabled === false || state.open) return;
-    if (!event.touches || event.touches.length !== 1) {
-      cancelLongPress();
-      return;
-    }
-    var touch = event.touches[0];
-    state.longPressStartX = touch.clientX;
-    state.longPressStartY = touch.clientY;
-    state.longPressActive = false;
-    clearLongPressTimer();
-    state.longPressTimer = window.setTimeout(function () {
-      state.longPressTimer = null;
-      state.longPressActive = true;
-      openChat();
-    }, LONG_PRESS_MS);
-  }
-
-  function handleTouchMove(event) {
-    if (state.longPressTimer === null || !event.touches || !event.touches.length) return;
-    var touch = event.touches[0];
-    var dx = touch.clientX - state.longPressStartX;
-    var dy = touch.clientY - state.longPressStartY;
-    if (Math.sqrt(dx * dx + dy * dy) > LONG_PRESS_MOVE_TOLERANCE) cancelLongPress();
-  }
-
-  function handleTouchEnd() {
-    cancelLongPress();
-  }
-
-  function handleTouchCancel() {
-    cancelLongPress();
-  }
-
-  function handleLongPressContextMenu(event) {
-    if (state.longPressTimer !== null || state.longPressActive) event.preventDefault();
   }
 
   function handleGlobalKeydown(event) {
@@ -520,11 +487,6 @@ window.Buddy = window.Buddy || {};
     if (state.initialized || CONFIG.enabled === false) return;
     state.initialized = true;
     document.addEventListener('keydown', handleGlobalKeydown, true);
-    document.addEventListener('touchstart', handleTouchStart, { capture: true, passive: true });
-    document.addEventListener('touchmove', handleTouchMove, { capture: true, passive: true });
-    document.addEventListener('touchend', handleTouchEnd, { capture: true, passive: true });
-    document.addEventListener('touchcancel', handleTouchCancel, { capture: true, passive: true });
-    document.addEventListener('contextmenu', handleLongPressContextMenu, true);
     if (document.body) ensureUI();
     handleUrlInvocation();
 
