@@ -25,6 +25,11 @@ window.Buddy = window.Buddy || {};
     return window.Buddy.telemetry;
   }
 
+  function getStoredSessionToken() {
+    try { return window.sessionStorage.getItem('buddyAuthSessionToken') || null; }
+    catch (e) { return null; }
+  }
+
   function configureTelemetryApi() {
     var telemetry = getTelemetry();
     if (typeof telemetry.configureApi === 'function') {
@@ -49,10 +54,17 @@ window.Buddy = window.Buddy || {};
     configureTelemetryApi();
     debugLog('update: payload', Object.fromEntries(params.entries()));
 
+    var headers = {};
+    var sessionToken = getStoredSessionToken();
+    if (sessionToken) {
+      headers['Authorization'] = 'Bearer ' + sessionToken;
+    }
+
     return getTelemetry().request(CONFIG.apiService || 'user', CONFIG.endpoints.update, {
       method: 'POST',
       credentials: 'include',
       cache: 'no-store',
+      headers: headers,
       body: params
     }).then(function (response) {
       debugLog('update: respuesta', response);
