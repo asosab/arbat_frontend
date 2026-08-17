@@ -401,17 +401,15 @@ window.BuddyArcheryConfig = window.BuddyArcheryConfig || {
       // Al cargar la página se sortea un error fijo (`calibOffsetX/Y`, ver
       // más abajo) de entre `minErrorPx` y `maxErrorPx` de magnitud, en una
       // dirección aleatoria. Ese error se mantiene igual disparo a disparo
-      // dentro de una misma andanada — no es ruido nuevo en cada flecha,
-      // es un desvío constante, como correspondería a una mira mal
-      // calibrada de verdad — y sólo se corrige (se reduce un
-      // `correctionRatio` de su valor actual, es decir se achica un 25% por
-      // defecto) al completar cada andanada de
-      // `CONFIG.arrowLimit.countBeforeCooldown` flechas (reutiliza ese
-      // mismo umbral en vez de llevar un contador propio — ver
-      // startArrowCooldown/recalibrateMira), momento en el que Raúl avisa
-      // con `message` que va a ajustarla. Con el tiempo (varias andanadas)
-      // el error tiende a cero sin llegar a desaparecer del todo (75% del
-      // error anterior, nunca 0 exacto).,
+      // dentro de una misma andanada: no es ruido nuevo en cada flecha, sino
+      // un desvío constante de la mira.
+      //
+      // Al completar cada andanada, la mira se ajusta una sola vez. La
+      // precisión del ajuste se sortea entre `minCorrectionPrecision` y
+      // `maxCorrectionPrecision`: por ejemplo, con 60% de precisión queda
+      // el 40% del error anterior. Si el error restante es menor que
+      // `centerSnapThresholdPx`, se fuerza a 0 y la mira queda perfectamente
+      // alineada. Una vez alineada no vuelve a ajustarse.
       calibracion: {
         enabled: true,
   
@@ -420,10 +418,16 @@ window.BuddyArcheryConfig = window.BuddyArcheryConfig || {
         minErrorPx: 10,
         maxErrorPx: 30,
   
-        // Fracción del error ACTUAL que se corrige (se acerca al centro
-        // real) cada vez que se completa una andanada. 0.25 = el error
-        // queda en 75% de lo que era.
-        correctionRatio: 0.25,
+        // Precisión mínima/máxima del ajuste que se sortea al completar
+        // cada andanada. 0.60 = corrige como mínimo el 60% del error actual;
+        // 1.00 = corrige el 100%.
+        minCorrectionPrecision: 0.60,
+        maxCorrectionPrecision: 1.00,
+
+        // Si después de un ajuste quedan menos de esta cantidad de píxeles
+        // de error, se considera que la mira ya está centrada y se coloca
+        // exactamente en el centro.
+        centerSnapThresholdPx: 5,
   
         // Lo que dice Raúl al recalibrar, mostrado con el mismo delay que
         // dura el globo de puntaje de la última flecha de la andanada

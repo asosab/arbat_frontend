@@ -1130,10 +1130,9 @@ function startArrowCooldown() {
 
     // Mira sin calibrar (v0.8): cada andanada completa (esta función se
     // llama exactamente en ese momento) es también la señal para ir
-    // ajustando la mira — reutiliza el mismo umbral de
-    // CONFIG.arrowLimit.countBeforeCooldown en vez de llevar un contador
-    // propio, ya que conceptualmente es la misma "andanada de seis
-    // flechas".
+    // ajustando la mira una sola vez — reutiliza el mismo momento de
+    // totalización en vez de llevar un contador propio. Si ya está centrada,
+    // recalibrateMira() no hace nada.
     recalibrateMira();
 
     // Foto de las flechas a desvanecer: las clavadas hasta este instante
@@ -1181,8 +1180,31 @@ function initCalibration() {
 
 function recalibrateMira() {
     if (!CONFIG.calibracion.enabled) return;
-    calibOffsetX *= (1 - CONFIG.calibracion.correctionRatio);
-    calibOffsetY *= (1 - CONFIG.calibracion.correctionRatio);
+
+    // Si ya está centrada, la calibración queda bloqueada: las siguientes
+    // totalizaciones no vuelven a mover la mira.
+    var currentMagnitude = Math.sqrt(
+      calibOffsetX * calibOffsetX + calibOffsetY * calibOffsetY
+    );
+    if (currentMagnitude === 0) return;
+
+    // Cada ajuste corrige aleatoriamente entre el 60% y el 100% del error
+    // actual, conservando la dirección del desvío.
+    var minPrecision = CONFIG.calibracion.minCorrectionPrecision;
+    var maxPrecision = CONFIG.calibracion.maxCorrectionPrecision;
+    var precision = minPrecision + Math.random() * (maxPrecision - minPrecision);
+    var remainingMagnitude = currentMagnitude * (1 - precision);
+
+    // A menos de 5 px del centro se considera perfectamente alineada.
+    if (remainingMagnitude < CONFIG.calibracion.centerSnapThresholdPx) {
+      calibOffsetX = 0;
+      calibOffsetY = 0;
+      return;
+    }
+
+    var scale = remainingMagnitude / currentMagnitude;
+    calibOffsetX *= scale;
+    calibOffsetY *= scale;
   }
 
 function scheduleCalibrationMessage(afterMs) {
