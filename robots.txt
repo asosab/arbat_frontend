@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://arbat.com.bo/sitemap.xml
+Sitemap: https://arbatarchery.com/sitemap.xml

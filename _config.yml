@@ -163,6 +163,7 @@ show_drafts: false
 # ---------------------------------------------------------------------------
 exclude:
   - README.md
+  - CHANGELOG.md
   - Gemfile
   - Gemfile.lock
   - node_modules/
@@ -170,6 +171,8 @@ exclude:
   - scripts/
   - "*.gemspec"
   - assets/images/README.md
+  - assets/images/favicon/README-favicon.md
+  - assets/buddy/
 
 # ---------------------------------------------------------------------------
 # Facebook Login (SDK JS) — usado por _includes/facebook-sdk.html y
