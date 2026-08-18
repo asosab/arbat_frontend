@@ -172,7 +172,9 @@ exclude:
   - "*.gemspec"
   - assets/images/README.md
   - assets/images/favicon/README-favicon.md
-  - assets/buddy/
+  - assets/buddy/buddy-test.html
+  - assets/buddy/modules/auth/auth-service-contract.md
+  - assets/buddy/modules/says/sources/README.md
 
 # ---------------------------------------------------------------------------
 # Facebook Login (SDK JS) — usado por _includes/facebook-sdk.html y
