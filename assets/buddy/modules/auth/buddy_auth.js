@@ -1,8 +1,6 @@
 /**
- * Buddy Auth — autenticación cliente por enlace de correo.
- *
- * Regla de arquitectura: Auth no usa fetch() directamente. Todas las
- * comunicaciones con servidor pasan por window.Buddy.telemetry.
+ * Buddy Auth — autenticación JWT (accessToken + refreshToken).
+ * Sin cookies. Todo por Authorization: Bearer y body JSON.
  */
 window.Buddy = window.Buddy || {};
 
@@ -10,6 +8,9 @@ window.Buddy = window.Buddy || {};
   'use strict';
 
   var CONFIG = window.BuddyAuthConfig || {};
+  var REFRESH_KEY = 'buddy_refresh_token';
+  var ACCESS_KEY = 'buddy_access_token';
+
   var state = {
     enabled: CONFIG.enabled !== false,
     initialized: false,
@@ -22,7 +23,8 @@ window.Buddy = window.Buddy || {};
     welcomePending: false,
     welcomeType: null,
     pendingProfile: null,
-    sessionToken: null
+    accessToken: null,
+    refreshToken: null
   };
 
   function debugLog() {
@@ -50,6 +52,51 @@ window.Buddy = window.Buddy || {};
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizeEmail(email));
   }
 
+  // --- Token persistence ---
+
+  function storeRefreshToken(token) {
+    try {
+      if (token) localStorage.setItem(REFRESH_KEY, token);
+      else localStorage.removeItem(REFRESH_KEY);
+    } catch (e) {}
+  }
+
+  function getStoredRefreshToken() {
+    try { return localStorage.getItem(REFRESH_KEY) || null; } catch (e) { return null; }
+  }
+
+  function storeAccessToken(token) {
+    try {
+      if (token) sessionStorage.setItem(ACCESS_KEY, token);
+      else sessionStorage.removeItem(ACCESS_KEY);
+    } catch (e) {}
+  }
+
+  function getStoredAccessToken() {
+    try { return sessionStorage.getItem(ACCESS_KEY) || null; } catch (e) { return null; }
+  }
+
+  function saveTokens(accessToken, refreshToken) {
+    state.accessToken = accessToken || null;
+    state.refreshToken = refreshToken || null;
+    storeAccessToken(accessToken);
+    storeRefreshToken(refreshToken);
+  }
+
+  function clearTokens() {
+    state.accessToken = null;
+    state.refreshToken = null;
+    storeAccessToken(null);
+    storeRefreshToken(null);
+  }
+
+  function restoreTokens() {
+    if (!state.accessToken) state.accessToken = getStoredAccessToken();
+    if (!state.refreshToken) state.refreshToken = getStoredRefreshToken();
+  }
+
+  // --- API client ---
+
   function getAuthApi() {
     if (!window.Buddy.telemetry || typeof window.Buddy.telemetry.request !== 'function') {
       throw new Error('Buddy Telemetry no está disponible.');
@@ -65,44 +112,89 @@ window.Buddy = window.Buddy || {};
         session: CONFIG.endpoints.session,
         login: CONFIG.endpoints.login,
         verify: CONFIG.endpoints.verify,
-        logout: CONFIG.endpoints.logout
+        logout: CONFIG.endpoints.logout,
+        refresh: CONFIG.endpoints.refresh
       });
     }
   }
 
+  function buildHeaders(extra) {
+    var headers = Object.assign({}, extra || {});
+    if (state.accessToken) {
+      headers['Authorization'] = 'Bearer ' + state.accessToken;
+    }
+    return headers;
+  }
+
   function apiRequest(endpointKey, options) {
-    debugLog('apiRequest: preparando', {
-      endpointKey: endpointKey,
-      method: (options && options.method) || 'GET',
-      body: options && options.body instanceof URLSearchParams ? Object.fromEntries(options.body.entries()) : (options && options.body)
-    });
     options = options || {};
     var telemetry = getAuthApi();
     var endpoint = CONFIG.endpoints[endpointKey];
     if (!endpoint) return Promise.reject(new Error('Endpoint Auth no configurado: ' + endpointKey));
 
     var service = CONFIG.apiService || 'auth';
-    var path = endpoint;
     var method = String(options.method || 'GET').toUpperCase();
     var requestOptions = {
       method: method,
-      credentials: 'include',
-      cache: 'no-store'
+      cache: 'no-store',
+      headers: buildHeaders(options.headers)
     };
-
-    var sessionToken = state.sessionToken || getStoredSessionToken();
-    if (sessionToken) {
-      state.sessionToken = sessionToken;
-      requestOptions.headers = Object.assign({}, requestOptions.headers || {}, {
-        Authorization: 'Bearer ' + sessionToken
-      });
-    }
 
     if (options.body !== undefined) requestOptions.body = options.body;
     if (options.signal) requestOptions.signal = options.signal;
 
-    return telemetry.request(service, path, requestOptions);
+    debugLog('apiRequest:', endpointKey, method, endpoint);
+    return telemetry.request(service, endpoint, requestOptions);
   }
+
+  // --- Refresh flow ---
+
+  function tryRefreshToken() {
+    if (!state.refreshToken) return Promise.reject(new Error('No hay refreshToken.'));
+
+    debugLog('tryRefreshToken: refrescando...');
+
+    var body = JSON.stringify({ refreshToken: state.refreshToken });
+    var telemetry = getAuthApi();
+    var endpoint = CONFIG.endpoints.refresh;
+    if (!endpoint) return Promise.reject(new Error('Endpoint refresh no configurado.'));
+
+    return telemetry.request(CONFIG.apiService || 'auth', endpoint, {
+      method: 'POST',
+      cache: 'no-store',
+      headers: { 'Content-Type': 'application/json' },
+      body: body
+    }).then(function (data) {
+      if (!data || !data.ok) throw new Error('Refresh falló.');
+
+      saveTokens(data.accessToken, data.refreshToken);
+      if (data.user) updateLocalUser(data.user);
+      debugLog('tryRefreshToken: OK');
+      return data;
+    }).catch(function (error) {
+      debugLog('tryRefreshToken: fallo', error);
+      clearTokens();
+      setUnauthenticated();
+      throw error;
+    });
+  }
+
+  function apiRequestWithRefresh(endpointKey, options) {
+    return apiRequest(endpointKey, options).then(function (response) {
+      return response;
+    }).catch(function (error) {
+      // Si el error indica token expirado, intentar refresh una vez
+      if (state.refreshToken && error && (error.status === 401 || (error.message && error.message.indexOf('token') !== -1))) {
+        debugLog('apiRequestWithRefresh: token posiblemente expirado, intentando refresh...');
+        return tryRefreshToken().then(function () {
+          return apiRequest(endpointKey, options);
+        });
+      }
+      throw error;
+    });
+  }
+
+  // --- URL helpers ---
 
   function getRedirectUrl() {
     try {
@@ -130,16 +222,7 @@ window.Buddy = window.Buddy || {};
     } catch (e) {}
   }
 
-  // El sessionToken se conserva únicamente en memoria. La cookie HttpOnly es
-  // el mecanismo principal de sesión; este token existe sólo como fallback
-  // para clientes/navegadores que no envíen la cookie cross-site.
-  function getStoredSessionToken() {
-    return state.sessionToken || null;
-  }
-
-  function setStoredSessionToken(token) {
-    state.sessionToken = token ? String(token) : null;
-  }
+  // --- State management ---
 
   function clearLocalState() {
     state.authenticated = false;
@@ -149,7 +232,7 @@ window.Buddy = window.Buddy || {};
     state.welcomePending = false;
     state.welcomeType = null;
     state.pendingProfile = null;
-    setStoredSessionToken(null);
+    clearTokens();
     if (window.Buddy.telemetry && typeof window.Buddy.telemetry.clearUserId === 'function') {
       window.Buddy.telemetry.clearUserId();
     }
@@ -166,6 +249,60 @@ window.Buddy = window.Buddy || {};
     state.needsName = !normalized.name;
     return normalized;
   }
+
+  function normalizeUser(data) {
+    if (!data || typeof data !== 'object') return null;
+    var user = data.user;
+    if (!user || typeof user !== 'object') return null;
+
+    return {
+      id: user.id != null ? user.id : (user._id != null ? user._id : null),
+      email: user.email || null,
+      name: user.name || user.nombre || user.firstName || user.nombrePila || null,
+      firstName: user.firstName || user.nombre || user.name || null,
+      lastName: user.lastName || user.apellido || user.apellidos || null,
+      phone: user.phone || user.telefono || user.mobile || user.celular || null,
+      locale: user.locale || user.idioma || null,
+      createdAt: user.createdAt || user.creadoEn || null
+    };
+  }
+
+  function getResponseUser(data) {
+    return normalizeUser(data) || normalizeUser({ user: data });
+  }
+
+  function setAuthenticated(user, needsName, welcomeType) {
+    state.authenticated = true;
+    state.user = user || null;
+    state.needsName = !!needsName;
+    state.mode = state.needsName ? 'name' : 'idle';
+    state.welcomePending = true;
+    state.welcomeType = welcomeType || (state.needsName ? 'new' : 'existing');
+
+    if (window.Buddy.telemetry && typeof window.Buddy.telemetry.setUserId === 'function') {
+      var userId = state.user && (state.user.id || state.user._id || state.user.email);
+      window.Buddy.telemetry.setUserId(userId || null);
+    }
+
+    emitEvent('buddy:auth-state-changed', {
+      authenticated: state.authenticated,
+      user: state.user,
+      needsName: state.needsName,
+      welcomeType: state.welcomeType
+    });
+  }
+
+  function setUnauthenticated() {
+    clearLocalState();
+    emitEvent('buddy:auth-state-changed', {
+      authenticated: false,
+      user: null,
+      needsName: false,
+      welcomeType: null
+    });
+  }
+
+  // --- Profile ---
 
   function applyPendingProfile() {
     var pending = state.pendingProfile;
@@ -264,87 +401,65 @@ window.Buddy = window.Buddy || {};
     });
   }
 
-  function setAuthenticated(user, needsName, welcomeType) {
-    state.authenticated = true;
-    state.user = user || null;
-    state.needsName = !!needsName;
-    state.mode = state.needsName ? 'name' : 'idle';
-    state.welcomePending = true;
-    state.welcomeType = welcomeType || (state.needsName ? 'new' : 'existing');
-
-    if (window.Buddy.telemetry && typeof window.Buddy.telemetry.setUserId === 'function') {
-      var userId = state.user && (state.user.id || state.user._id || state.user.email);
-      window.Buddy.telemetry.setUserId(userId || null);
-    }
-
-    emitEvent('buddy:auth-state-changed', {
-      authenticated: state.authenticated,
-      user: state.user,
-      needsName: state.needsName,
-      welcomeType: state.welcomeType
-    });
-  }
-
-  function setUnauthenticated() {
-    clearLocalState();
-    emitEvent('buddy:auth-state-changed', {
-      authenticated: false,
-      user: null,
-      needsName: false,
-      welcomeType: null
-    });
-  }
-
-  function normalizeUser(data) {
-    if (!data || typeof data !== 'object') return null;
-    var user = data.user;
-    if (!user || typeof user !== 'object') return null;
-
-    // Contrato de usuario que Auth espera del servicio. El servidor puede
-    // devolver campos adicionales; el cliente conserva únicamente los que
-    // necesita para el estado de Buddy.
-    return {
-      id: user.id != null ? user.id : (user._id != null ? user._id : null),
-      email: user.email || null,
-      name: user.name || user.nombre || user.firstName || user.nombrePila || null,
-      firstName: user.firstName || user.nombre || user.name || null,
-      lastName: user.lastName || user.apellido || user.apellidos || null,
-      phone: user.phone || user.telefono || user.mobile || user.celular || null,
-      locale: user.locale || user.idioma || null,
-      createdAt: user.createdAt || user.creadoEn || null
-    };
-  }
-
-  function getResponseUser(data) {
-    return normalizeUser(data) || normalizeUser({ user: data });
-  }
-
-  function applySessionResponse(data, welcomeType) {
-    var authenticated = !!(data && (data.authenticated === true || data.active === true));
-    if (!authenticated) {
-      setUnauthenticated();
-      return false;
-    }
-
-    if (data.sessionToken) setStoredSessionToken(data.sessionToken);
-    var user = normalizeUser(data);
-    var needsName = data.needsName === true || data.newUser === true || data.isNewUser === true || !user || !user.name;
-    setAuthenticated(user, needsName, welcomeType || (needsName ? 'new' : 'existing'));
-    return true;
-  }
+  // --- Auth actions ---
 
   function checkSession() {
     if (!state.enabled || state.checking) return Promise.resolve(state.authenticated);
     state.checking = true;
     configureTelemetryApi();
 
+    restoreTokens();
+
+    // Si no hay tokens almacenados, no hay sesión
+    if (!state.accessToken && !state.refreshToken) {
+      state.checking = false;
+      setUnauthenticated();
+      emitEvent('buddy:auth-ready', {
+        authenticated: false,
+        user: null,
+        needsName: false,
+        welcomeType: null,
+        sessionOk: false
+      });
+      return Promise.resolve(false);
+    }
+
+    // Si hay refreshToken pero no accessToken, intentar refresh primero
+    if (!state.accessToken && state.refreshToken) {
+      return tryRefreshToken().then(function () {
+        return checkSessionAfterRefresh();
+      }).catch(function () {
+        state.checking = false;
+        setUnauthenticated();
+        emitEvent('buddy:auth-ready', {
+          authenticated: false,
+          user: null,
+          needsName: false,
+          welcomeType: null,
+          sessionOk: false
+        });
+        return false;
+      });
+    }
+
+    // Hay accessToken — verificar con el servidor
     return apiRequest('session', { method: 'GET' })
       .then(function (data) {
+        if (data && data.code === 'TOKEN_EXPIRED' && state.refreshToken) {
+          return tryRefreshToken().then(function () {
+            return checkSessionAfterRefresh();
+          });
+        }
         applySessionResponse(data, data && data.newUser ? 'new' : 'existing');
         return handleAuthenticatedUser().then(function () { return state.authenticated; });
       })
       .catch(function (error) {
         debugLog('No se pudo consultar la sesión.', error);
+        if (state.refreshToken) {
+          return tryRefreshToken().then(function () {
+            return checkSessionAfterRefresh();
+          });
+        }
         setUnauthenticated();
         return false;
       })
@@ -359,6 +474,31 @@ window.Buddy = window.Buddy || {};
         });
         return result;
       });
+  }
+
+  function checkSessionAfterRefresh() {
+    return apiRequest('session', { method: 'GET' })
+      .then(function (data) {
+        applySessionResponse(data, data && data.newUser ? 'new' : 'existing');
+        return handleAuthenticatedUser().then(function () { return state.authenticated; });
+      })
+      .catch(function () {
+        setUnauthenticated();
+        return false;
+      });
+  }
+
+  function applySessionResponse(data, welcomeType) {
+    var authenticated = !!(data && (data.authenticated === true || data.active === true));
+    if (!authenticated) {
+      setUnauthenticated();
+      return false;
+    }
+
+    var user = normalizeUser(data);
+    var needsName = data.needsName === true || data.newUser === true || data.isNewUser === true || !user || !user.name;
+    setAuthenticated(user, needsName, welcomeType || (needsName ? 'new' : 'existing'));
+    return true;
   }
 
   function requestLogin(email, profile) {
@@ -410,14 +550,17 @@ window.Buddy = window.Buddy || {};
 
     return getAuthApi().request(CONFIG.apiService || 'auth', path, {
       method: 'GET',
-      credentials: 'include',
       cache: 'no-store'
     }).then(function (data) {
       if (!data || data.ok === false || data.authenticated === false) {
         throw new Error('El enlace de autenticación no pudo validarse.');
       }
 
-      if (data.sessionToken) setStoredSessionToken(data.sessionToken);
+      // Guardar tokens JWT
+      if (data.accessToken && data.refreshToken) {
+        saveTokens(data.accessToken, data.refreshToken);
+      }
+
       var user = normalizeUser(data);
       var needsName = data.needsName === true || data.newUser === true || data.isNewUser === true || !user || !user.name;
       setAuthenticated(user, needsName, needsName ? 'new' : 'existing');
@@ -447,13 +590,10 @@ window.Buddy = window.Buddy || {};
     state.busy = true;
     state.mode = 'registering-name';
 
-    // register-name es una acción explícita del servicio Auth. Se mantiene
-    // sobre POST /login para que el cliente no dependa de un endpoint adicional:
-    // la sesión autenticada identifica al usuario que está completando el alta.
     var params = new URLSearchParams();
     params.set('action', 'register-name');
     params.set('name', normalized);
-    return apiRequest('login', {
+    return apiRequestWithRefresh('login', {
       method: 'POST',
       body: params
     }).then(function (data) {
@@ -466,9 +606,6 @@ window.Buddy = window.Buddy || {};
         throw new Error('El servidor no devolvió los datos del usuario.');
       }
 
-      // El servicio debe devolver el usuario completo y actualizado después
-      // de register-name. Esto permite que el cliente quede sincronizado sin
-      // inventar apellido, teléfono u otros datos.
       state.user = returnedUser;
       state.needsName = data.needsName === true;
       state.mode = state.needsName ? 'name' : 'idle';
@@ -500,24 +637,34 @@ window.Buddy = window.Buddy || {};
     state.busy = true;
     state.mode = 'logging-out';
 
-    return apiRequest('logout', { method: 'GET' })
-      .then(function (data) {
-        if (data && data.ok === false) throw new Error('El servidor no confirmó el cierre de sesión.');
-        setUnauthenticated();
-        emitEvent('buddy:auth-logout', { ok: true });
-        window.location.reload();
-        return true;
-      })
-      .catch(function (error) {
-        debugLog('No se pudo cerrar la sesión.', error);
-        state.mode = 'logout-confirmation';
-        emitEvent('buddy:auth-logout', { ok: false, error: error });
-        throw error;
-      })
-      .finally(function () {
-        state.busy = false;
-      });
+    // Informar al servidor para revocar refresh tokens
+    var body = state.refreshToken ? JSON.stringify({ refreshToken: state.refreshToken }) : undefined;
+    var endpoint = CONFIG.endpoints.logout;
+    var telemetry = getAuthApi();
+
+    var logoutPromise = telemetry.request(CONFIG.apiService || 'auth', endpoint, {
+      method: 'POST',
+      cache: 'no-store',
+      headers: Object.assign(
+        { 'Content-Type': 'application/json' },
+        state.accessToken ? { 'Authorization': 'Bearer ' + state.accessToken } : {}
+      ),
+      body: body
+    }).catch(function () {
+      // Responder OK aunque el servidor falle — localmente siempre se limpia
+    });
+
+    return logoutPromise.then(function () {
+      setUnauthenticated();
+      emitEvent('buddy:auth-logout', { ok: true });
+      window.location.reload();
+      return true;
+    }).finally(function () {
+      state.busy = false;
+    });
   }
+
+  // --- UI prompts ---
 
   function startAuthenticationPrompt() {
     if (!state.enabled || state.authenticated || state.busy) return false;
@@ -546,8 +693,6 @@ window.Buddy = window.Buddy || {};
       cancelText: 'cancelar',
       onSubmit: function (data) {
         return requestLogin(data.email).then(function () {
-          // El correo fue solicitado; el usuario todavía no está autenticado.
-          // El formulario se cierra y el enlace llegará por correo.
           return true;
         });
       },
@@ -557,9 +702,6 @@ window.Buddy = window.Buddy || {};
       }
     };
 
-    // El globo que contiene el botón de login todavía está en transición de
-    // salida cuando se invoca este método. Esperamos a que quede libre para
-    // que frmUsr no termine en la cola de Says.
     setTimeout(function () {
       if (!state.authenticated && window.Buddy.says && typeof window.Buddy.says.frmUsr === 'function') {
         window.Buddy.says.frmUsr(config);
@@ -634,7 +776,8 @@ window.Buddy = window.Buddy || {};
     isAuthenticated: function () { return state.authenticated; },
     getUser: function () { return state.user; },
     getState: getState,
-    getSessionToken: function () { return state.sessionToken || null; },
+    getAccessToken: function () { return state.accessToken || null; },
+    getRefreshToken: function () { return state.refreshToken || null; },
     checkSession: checkSession,
     requestLogin: requestLogin,
     startAuthenticationPrompt: startAuthenticationPrompt,

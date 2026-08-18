@@ -1,26 +1,23 @@
 /**
  * Buddy Auth — configuración del módulo cliente.
  *
- * Las peticiones reales al servidor siempre pasan por Buddy Telemetry.
- * apiBaseUrl permite configurar explícitamente el dominio de Auth; durante
- * init() se sincroniza con la entrada auth de Buddy Telemetry.
+ * Autenticación basada en JWT (accessToken + refreshToken).
+ * Sin cookies.
  */
 window.BuddyAuthConfig = window.BuddyAuthConfig || {};
 window.BuddyAuthConfig = Object.assign({
-  enabled: false,
+  enabled: true,
   apiBaseUrl: 'https://api.statetty.com',
   apiService: 'auth',
   endpoints: {
     session: '/api/buddy/auth/session',
     login: '/api/buddy/auth/login',
     verify: '/api/buddy/auth/verify',
-    logout: '/api/buddy/auth/logout'
+    logout: '/api/buddy/auth/logout',
+    refresh: '/api/buddy/auth/refresh'
   },
   verificationParameter: 'auth',
-  cookieName: 'buddy',
 
-  // Contrato esperado por el cliente. El servicio puede devolver campos
-  // adicionales, pero estos son los datos públicos usados por Buddy.
   userFields: ['id', 'email', 'name', 'firstName', 'lastName', 'phone', 'locale', 'createdAt'],
 
   loginButtonText: 'Login',

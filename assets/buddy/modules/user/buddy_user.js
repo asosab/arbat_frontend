@@ -1,8 +1,7 @@
 /**
  * Buddy User — servicio cliente para crear/actualizar datos de usuario.
  *
- * Este módulo no presenta formularios ni decide cuándo pedir datos.
- * Todas las comunicaciones pasan por Buddy Telemetry.
+ * Autenticación exclusivamente por JWT Bearer token.
  */
 window.Buddy = window.Buddy || {};
 
@@ -25,9 +24,9 @@ window.Buddy = window.Buddy || {};
     return window.Buddy.telemetry;
   }
 
-  function getSessionToken() {
-    if (window.Buddy.auth && typeof window.Buddy.auth.getSessionToken === 'function') {
-      return window.Buddy.auth.getSessionToken();
+  function getAccessToken() {
+    if (window.Buddy.auth && typeof window.Buddy.auth.getAccessToken === 'function') {
+      return window.Buddy.auth.getAccessToken();
     }
     return null;
   }
@@ -56,53 +55,27 @@ window.Buddy = window.Buddy || {};
     configureTelemetryApi();
     debugLog('update: payload', Object.fromEntries(params.entries()));
 
+    var accessToken = getAccessToken();
+    if (!accessToken) {
+      return Promise.reject(new Error('No hay token de autenticación.'));
+    }
+
     var telemetry = getTelemetry();
-    var requestOptions = {
+    return telemetry.request(CONFIG.apiService || 'user', CONFIG.endpoints.update, {
       method: 'POST',
-      credentials: 'include',
       cache: 'no-store',
+      headers: {
+        'Authorization': 'Bearer ' + accessToken,
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
       body: params
-    };
-
-    // Primer intento: cookie HttpOnly, sin Authorization. Esto mantiene la
-    // cookie como mecanismo principal y evita un preflight innecesario.
-    return telemetry.request(CONFIG.apiService || 'user', CONFIG.endpoints.update, requestOptions)
-      .then(function (response) {
-        debugLog('update: respuesta por cookie', response);
-        if (!response || response.ok === false || response.authenticated === false) {
-          throw new Error(response && response.error ? response.error : 'El servidor no confirmó la actualización del usuario.');
-        }
-        return response;
-      })
-      .catch(function (error) {
-        var sessionToken = getSessionToken();
-
-        // Fallback: si la cookie cross-site no llegó, reutilizamos la sesión
-        // creada por auth/verify. El token sólo vive en memoria y viaja por
-        // Authorization; credentials=omit evita que el preflight de Bearer
-        // dependa del CORS con credenciales global.
-        if (!error || error.status !== 401 || !sessionToken) {
-          throw error;
-        }
-
-        debugLog('update: cookie no autenticó; intentando fallback Bearer.');
-
-        return telemetry.request(CONFIG.apiService || 'user', CONFIG.endpoints.update, {
-          method: 'POST',
-          credentials: 'omit',
-          cache: 'no-store',
-          headers: {
-            Authorization: 'Bearer ' + sessionToken
-          },
-          body: params
-        }).then(function (response) {
-          debugLog('update: respuesta por Bearer', response);
-          if (!response || response.ok === false || response.authenticated === false) {
-            throw new Error(response && response.error ? response.error : 'El servidor no confirmó la actualización del usuario.');
-          }
-          return response;
-        });
-      });
+    }).then(function (response) {
+      debugLog('update: respuesta', response);
+      if (!response || response.ok === false || response.authenticated === false) {
+        throw new Error(response && response.error ? response.error : 'El servidor no confirmó la actualización del usuario.');
+      }
+      return response;
+    });
   }
 
   window.Buddy.user = {
