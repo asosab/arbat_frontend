@@ -1,25 +1,7 @@
 /**
  * assets/buddy/buddy.js
  * ---------------------------------------------------------------------------
- * Fase 3 del plan de separación de raulito.js (ver planBuddy_v5.md).
- *
- * Fase 6: además de los resolutores y el render centralizado del personaje,
- * este archivo actúa como punto único de entrada: lee data-buddy-character /
- * data-buddy-abilities, carga personaje, says y módulos en orden, y expone el
- * estado de inicialización. En Fase 8 carga además las fuentes registradas
- * de says; el busy global común sigue reservado para la Fase 10.
- *
- * Fuente de la matemática de encuadre: raulito.js (screenLongSide,
- * applyLongSideFit, fitLongSide, characterTargetPx, characterBottomOffsetPx,
- * characterAnchorTargetPx, characterRightOffsetPx, positionCharacter,
- * characterMarginPx, characterLongSidePercent, characterAnchorRightPercent).
- * Se traslada sin cambiar el comportamiento visual: antes esos cálculos
- * usaban CONFIG.scales.character[poseKey] / CONFIG.characterWaistRatio[poseKey]
- * / CONFIG.characterAnchorXRatio[poseKey] (indexados por pose fija); ahora
- * usan directamente los campos `escala` / `anclas.cintura.y` / `anclas.cintura.x`
- * del objeto { archivo, ancho, alto, escala, anclas } que devuelve cada
- * resolutor (ver planBuddy_v5.md, tabla de mapeo sección 4.1: "cintura" es
- * el equivalente exacto de characterWaistRatio/characterAnchorXRatio).
+ * 
  * ---------------------------------------------------------------------------
  */
 window.Buddy = window.Buddy || {};
