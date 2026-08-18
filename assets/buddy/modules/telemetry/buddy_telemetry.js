@@ -225,7 +225,7 @@ window.Buddy = window.Buddy || {};
     var fetchOptions = {
       method: method,
       headers: headers,
-      credentials: options.credentials || 'include',
+      credentials: options.credentials || 'omit',
       cache: options.cache || 'no-store'
     };
 
