@@ -8,9 +8,7 @@
 window.BuddyTelemetryConfig = window.BuddyTelemetryConfig || {};
 window.BuddyTelemetryConfig = Object.assign({
   enabled: true,
-  apiBaseUrls: {
-    buddy: 'https://api.statetty.com'
-  },
+  apiBaseUrls: { buddy: 'https://api.statetty.com'},
   apis: {
     telemetry: '/api/buddy/telemetry',
     auth: {
