@@ -1001,7 +1001,9 @@ function getAuthForNameCapture() {
         if (!authenticatedUser.name && !authenticatedUser.firstName) {
           pendingAndanadaNameGreeting = true;
         }
-      } else {
+      } else if (window.Buddy.auth && window.Buddy.auth.enabled === true &&
+                 window.Buddy.user && window.Buddy.user.config &&
+                 window.Buddy.user.config.enabled === true) {
         pendingAndanadaNameGreeting = true;
         var appID = getBuddyAppID();
         say(
