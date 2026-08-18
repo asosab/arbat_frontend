@@ -11,6 +11,6 @@ window.BuddyConfig = Object.assign({
   debugMode: false,
   app: {
     siteId: 'arbat',
-    email:  'arbat.archery@gmail.com'
+    email:  'info@arbatarchery.com'  //'arbat.archery@gmail.com'
   },
 }, window.BuddyConfig || {});

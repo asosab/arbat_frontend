@@ -18,7 +18,7 @@ timezone: America/La_Paz
 # Autor / entidad para jekyll-seo-tag
 author:
   name: "arbat"
-  email: "arbat.archery@gmail.com"
+  email: "info@arbatarchery.com"
   twitter: "arbatArchery"   # sin @ — alimenta twitter:creator
 
 # Logo para jekyll-seo-tag — se inyecta en el JSON-LD de Organization/WebSite
@@ -59,7 +59,7 @@ arbat:
     - "+591 70885758"
     - "+591 76660577"
   telefono_whatsapp_reservas: "+591 64533014"
-  email: "arbat.archery@gmail.com"
+  email: "info@arbatarchery.com"
   instagram: "https://www.instagram.com/arbat.archery"
   horarios:
     - dias: "Lunes, miércoles y viernes"
