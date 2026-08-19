@@ -1,7 +1,7 @@
 ---
 title: "Política de Privacidad"
 permalink: /privacidad/
-description: "Política de privacidad de arbat — qué datos se recopilan al iniciar sesión con Facebook y cómo se tratan."
+description: "Política de privacidad de arbat — qué datos se recopilan al iniciar sesión y cómo se tratan."
 breadcrumb_hidden: true
 ---
 
@@ -21,17 +21,14 @@ trata esa información.
 
 ## 2. Qué datos recopilamos
 
-El sitio ofrece la opción de iniciar sesión con **Facebook Login**. Si elegís
-usarla, Facebook nos entrega los siguientes datos de tu perfil, con tu
-autorización previa:
+El sitio ofrece la opción de iniciar sesión con un **enlace mágico por
+correo electrónico**. Si elegís usarla, solicitamos tu dirección de correo
+para enviarte un enlace de verificación. Una vez verificado, almacenamos los
+siguientes datos:
 
-- Nombre
 - Correo electrónico
-- Foto de perfil
-- Identificador de usuario de Facebook (ID interno de Facebook)
-
-No pedimos ni recibimos ningún otro dato de tu cuenta de Facebook (no leemos
-publicaciones, amigos, ni ninguna otra información).
+- Nombre (si lo proporcionás)
+- Número de teléfono / WhatsApp (si lo proporcionás)
 
 Si no usás el inicio de sesión, el sitio no recopila datos personales tuyos
 más allá de los registros técnicos estándar de cualquier sitio web (por
@@ -39,69 +36,63 @@ ejemplo, los que genera GitHub Pages al servir las páginas).
 
 ## 3. Cómo usamos los datos
 
-Los datos obtenidos por Facebook Login se usan únicamente para:
+Los datos recopilados se usan únicamente para:
 
-- Identificarte dentro del sitio mientras navegás (mostrar tu nombre y foto
-  en la barra de navegación).
+- Identificarte dentro del sitio mientras navegás (mostrar tu nombre en la
+  interfaz del asistente virtual).
 - Facilitar, en el futuro, el uso de funciones que requieran una cuenta
   (por ejemplo, gestionar tus reservas de clases).
 
 No usamos estos datos con fines de marketing, publicidad ni los vendemos ni
-compartimos con terceros distintos de Facebook (ver sección 5).
+compartimos con terceros.
 
 ## 4. Dónde se almacenan los datos
 
-Actualmente, arbat **no tiene un servidor propio que almacene tus datos**.
-La información que Facebook nos entrega al iniciar sesión se guarda
-únicamente en la memoria del navegador (`sessionStorage`) del dispositivo
-que usaste para iniciar sesión. Esto significa que:
+Los datos se almacenan en el servidor de arbat (`api.statetty.com`). La
+información se persiste en base de datos y se mantiene mientras tu cuenta
+esté activa.
 
-- Los datos nunca salen de tu navegador hacia un servidor de arbat.
-- Se borran automáticamente al cerrar la pestaña o el navegador, o al vaciar
-  la caché/datos de navegación.
-- No quedan copias de esos datos en ningún otro lugar bajo control de arbat.
+En tu navegador se guardan dos tokens de sesión:
+
+- **Token de acceso** (`accessToken`): se almacena en la memoria del
+  navegador (`sessionStorage`) y expira al cerrar la pestaña o el
+  navegador.
+- **Token de actualización** (`refreshToken`): se almacena en el navegador
+  (`localStorage`) y se usa para renovar el token de acceso sin necesidad
+  de volver a verificar tu correo. Tiene una vida útil de 120 días.
+
+Ambos tokens se eliminan automáticamente al cerrar sesión.
 
 Para más detalle, ver [Instrucciones de Eliminación de Datos]({{ '/eliminacion-datos/' | relative_url }}).
 
-Cuando arbat implemente un backend propio para gestionar cuentas y reservas,
-esta política se actualizará para reflejar dónde y por cuánto tiempo se
-almacenarán los datos en ese momento.
+## 5. Cookies y tecnologías similares
 
-## 5. Con quién compartimos datos
+El sitio **no usa cookies** de rastreo ni de terceros. Los tokens de sesión
+se almacenan en `localStorage` y `sessionStorage`, que no son cookies.
 
-- **Facebook / Meta Platforms, Inc.:** es quien procesa el inicio de sesión
-  y nos entrega tus datos de perfil según los permisos que autorizás. El
-  tratamiento que Facebook hace de tus datos está sujeto a su propia
-  [política de privacidad](https://www.facebook.com/privacy/policy/).
-- No compartimos tus datos con ningún otro tercero.
+En algunas páginas se incrusta un iframe de Google Calendar para mostrar la
+agenda pública de clases, que puede instalar sus propias cookies según la
+política de Google.
 
-## 6. Cookies y tecnologías similares
+## 6. Tus derechos
 
-El sitio usa las cookies técnicas que instala el SDK de Facebook (necesarias
-para que el inicio de sesión funcione) y, en algunas páginas, un iframe de
-Google Calendar para mostrar la agenda pública de clases, que puede instalar
-sus propias cookies según la política de Google.
+Tenés derecho a acceder, rectificar o eliminar los datos que almacenamos
+sobre vos. Podés solicitarlo escribiendo a
+[{{ site.arbat.email }}](mailto:{{ site.arbat.email }}).
 
-## 7. Tus derechos
+También podés cerrar tu sesión en cualquier momento desde la interfaz del
+asistente virtual, lo que eliminará los tokens de sesión de tu navegador.
+Para eliminar tus datos del servidor, solicitá la eliminación de tu cuenta
+mediante el correo indicado arriba.
 
-Tenés derecho a acceder, rectificar o eliminar los datos que Facebook Login
-nos entregó. Como se explica en la sección 4, alcanza con cerrar el
-navegador o vaciar su caché para eliminarlos de inmediato, ya que no
-guardamos copias en servidores propios. Ver las
-[Instrucciones de Eliminación de Datos]({{ '/eliminacion-datos/' | relative_url }})
-para el detalle paso a paso.
-
-También podés revocar el acceso de la app de arbat a tu cuenta de Facebook
-en cualquier momento desde la configuración de tu cuenta de Facebook, en
-**Configuración → Aplicaciones y sitios web**.
-
-## 8. Cambios a esta política
+## 7. Cambios a esta política
 
 Podemos actualizar esta política cuando cambien las funciones del sitio (por
-ejemplo, al incorporar un backend propio). La fecha de "Última actualización"
-al inicio de esta página siempre va a reflejar la versión vigente.
+ejemplo, al incorporar nuevas funcionalidades). La fecha de "Última
+actualización" al inicio de esta página siempre va a reflejar la versión
+vigente.
 
-## 9. Contacto
+## 8. Contacto
 
 Si tenés dudas sobre esta política o sobre el tratamiento de tus datos,
 escribinos a [{{ site.arbat.email }}](mailto:{{ site.arbat.email }}).

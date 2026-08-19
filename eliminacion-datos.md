@@ -1,59 +1,58 @@
 ---
 title: "Instrucciones de Eliminación de Datos"
 permalink: /eliminacion-datos/
-description: "Cómo se eliminan los datos obtenidos por Facebook Login en el sitio de arbat."
+description: "Cómo se eliminan los datos de tu cuenta en el sitio de arbat."
 breadcrumb_hidden: true
 ---
 
 # Instrucciones de Eliminación de Datos
 
-**{{ site.arbat.nombre }}** no retiene datos personales en servidores
-propios. Cuando iniciás sesión con Facebook en este sitio, los datos que
-Facebook nos entrega (nombre, correo electrónico, foto de perfil e ID de
-usuario) se guardan **únicamente en la memoria del navegador que estás
-usando** (`sessionStorage`), no en ningún servidor de arbat.
+Cuando iniciás sesión en **{{ site.arbat.nombre }}**, se guardan dos tokens
+de sesión en tu navegador y un registro de tu cuenta en nuestro servidor.
+Estas instrucciones explican cómo eliminarlos.
 
-## Eliminación automática
+## Qué datos se almacenan
 
-Esos datos se borran solos, sin que tengas que hacer nada, en cualquiera de
-estos casos:
+| Dato | Ubicación | Tiempo de vida |
+|------|-----------|----------------|
+| Token de acceso (`accessToken`) | `sessionStorage` del navegador | Se borra al cerrar la pestaña/navegador |
+| Token de actualización (`refreshToken`) | `localStorage` del navegador | 120 días o hasta cerrar sesión |
+| Cuenta (correo, nombre, teléfono) | Servidor de arbat (`api.statetty.com`) | Mientras la cuenta exista |
 
-- Al cerrar la pestaña o la ventana del navegador donde iniciaste sesión.
-- Al vaciar la caché o los datos de navegación del explorador.
-- Al cerrar sesión desde el propio sitio con el botón "Salir" del menú.
+## Eliminación automática de tokens locales
 
-No existe ninguna copia adicional de tus datos en arbat que sobreviva a
-estos pasos: como no hay backend propio todavía, no hay nada que borrar del
-lado del servidor.
+Los tokens de sesión se borran solos, sin que tengas que hacer nada, en
+cualquiera de estos casos:
+
+- Al cerrar la pestaña o la ventana del navegador donde iniciaste sesión
+  (borra el `accessToken`).
+- Al cerrar sesión desde el propio sitio con el botón "Cerrar sesión" del
+  asistente virtual (borra ambos tokens y recarga la página).
 
 ## Cómo vaciar la caché manualmente
 
-Si querés forzar el borrado sin esperar a cerrar el navegador, seguí los
-pasos de tu navegador:
+Si querés forzar el borrado de los tokens sin esperar a cerrar el navegador,
+seguí los pasos de tu navegador:
 
 - **Chrome:** Configuración → Privacidad y seguridad → Borrar datos de
-  navegación → seleccionar "Cookies y otros datos de sitios" → Borrar datos.
+  navegación → seleccionar "Almacenamiento local" → Borrar datos.
 - **Firefox:** Configuración → Privacidad y Seguridad → Cookies y datos del
   sitio → Borrar datos.
-- **Safari:** Configuración → Privacidad → Gestionar datos de sitios web web
+- **Safari:** Configuración → Privacidad → Gestionar datos de sitios web
   → buscar el sitio de arbat → Eliminar.
 - **Edge:** Configuración → Privacidad, búsqueda y servicios → Borrar datos
   de exploración → Borrar ahora.
 
-## Revocar el acceso desde Facebook
+Esto elimina ambos tokens. Sin tokens, el sitio no puede identificarte ni
+realizar peticiones autenticadas en tu nombre.
 
-Además de borrar los datos guardados en tu navegador, podés quitarle a la
-app de arbat el permiso para acceder a tu perfil de Facebook en cualquier
-momento:
+## Eliminar tu cuenta del servidor
 
-1. Entrá a tu cuenta de Facebook y andá a **Configuración y privacidad →
-   Configuración**.
-2. Buscá la sección **Aplicaciones y sitios web**.
-3. Ubicá "arbat" en la lista y seleccioná **Eliminar**.
-
-Una vez hecho esto, Facebook deja de compartir tu información con el sitio,
-y un próximo inicio de sesión te va a pedir autorizar los permisos de
-nuevo desde cero.
+Para solicitar la eliminación definitiva de tu cuenta y todos los datos
+asociados (correo, nombre, teléfono) de nuestros servidores, escribinos a
+[{{ site.arbat.email }}](mailto:{{ site.arbat.email }}) con el asunto
+"Eliminar mi cuenta". Procesaremos la solicitud y confirmaremos la
+eliminación por correo.
 
 ## ¿Tenés alguna duda?
 
