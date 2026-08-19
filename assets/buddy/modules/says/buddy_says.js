@@ -497,6 +497,7 @@ window.Buddy = window.Buddy || {};
       if (fields.email.required && !data.email) return 'El correo es obligatorio.';
       if (fields.email.required && !isValidEmailForForm(data.email)) return 'Escribe un correo válido.';
       if (fields.name.required && !data.name) return 'El nombre es obligatorio.';
+      if (fields.whatsapp.required && !data.whatsapp) return 'El teléfono es obligatorio.';
       return '';
     }
 
@@ -528,7 +529,7 @@ window.Buddy = window.Buddy || {};
       if (validationError) {
         setError(validationError);
         var invalid = fields.email.required && !data.email ? controls.email :
-          (fields.name.required && !data.name ? controls.name : controls.email);
+          (fields.name.required && !data.name ? controls.name : (fields.whatsapp.required && !data.whatsapp ? controls.whatsapp : controls.email));
         try { invalid.focus(); } catch (e) {}
         return;
       }

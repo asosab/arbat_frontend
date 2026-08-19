@@ -1,222 +1,226 @@
 /**
  * ARBAT — assets/js/user.js
  * ---------------------------------------------------------------------
- * Gestión de sesión de usuario en el sitio.
+ * Integración de la UI de usuario de ARBAT con Buddy Auth.
  *
- * Fase actual (esta versión):
- *   - Login vía Facebook SDK (requiere que _includes/facebook-sdk.html ya
- *     haya corrido FB.init() antes de que este script se use).
- *   - Persistencia en sessionStorage: sobrevive a la navegación entre
- *     páginas del sitio (es un sitio Jekyll multi-página, no una SPA), pero
- *     se borra al cerrar la pestaña/navegador. No hay backend todavía.
+ * La autenticación, el registro, los JWT, el refresh, el logout y la
+ * limpieza del parámetro ?auth= son responsabilidad exclusiva de Buddy.
+ * Este módulo solo adapta Buddy a la interfaz de ARBAT.
  *
- * Fase futura (marcada con "TODO: backend" abajo):
- *   - Enviar el accessToken de Facebook al API interno de ARBAT para que lo
- *     valide y devuelva un usuario/token propio.
- *   - Guardar ese token propio en vez de (o además de) los datos crudos de
- *     Facebook, y usarlo para las siguientes llamadas al backend.
- *
- * Uso típico desde otro script o desde el header:
- *   ArbatUser.loginWithFacebook(function (user) {
- *     if (user) { ... actualizar UI con user.nombre, user.foto ... }
- *   });
- *
- *   ArbatUser.logout();
- *
- *   var actual = ArbatUser.get(); // null si no hay sesión
- *
- *   window.addEventListener('arbat:user-changed', function (e) {
- *     // e.detail es el usuario (o null tras logout) — útil para que el
- *     // header/nav se repinte solo, sin acoplarse al código de login.
- *   });
+ * Buddy autentica contra https://api.statetty.com y puede reutilizarse en
+ * sitios de dominios distintos.
  * ---------------------------------------------------------------------
  */
 
-(function (window) {
+(function (window, document) {
   'use strict';
 
-  var STORAGE_KEY = 'arbat_user';
+  var LOGIN_BUTTON_ID = 'btn-login';
+
+  function getAuth() {
+    return window.Buddy && window.Buddy.auth ? window.Buddy.auth : null;
+  }
+
+  function getUser() {
+    var auth = getAuth();
+    return auth && typeof auth.getUser === 'function' ? auth.getUser() : null;
+  }
+
+  function isLoggedIn() {
+    var auth = getAuth();
+    return !!(auth && typeof auth.isAuthenticated === 'function' && auth.isAuthenticated());
+  }
+
+  function initials(nombre) {
+    var value = String(nombre || '').trim();
+    if (!value) return '';
+
+    var words = value.split(/\s+/).filter(Boolean);
+    var result = words[0].charAt(0);
+    if (words.length > 1) result += words[1].charAt(0);
+    return result.toUpperCase();
+  }
+
+  function primerNombre(nombreCompleto) {
+    return String(nombreCompleto || '').trim().split(/\s+/)[0] || '';
+  }
+
+  /**
+   * El HTML existente puede tener un <img id="nav-user-avatar">.
+   * Como todavía no se usa fotografía, lo convertimos a un elemento textual
+   * que pueda mostrar las iniciales dentro del mismo círculo CSS.
+   */
+  function ensureAvatarElement() {
+    var avatar = document.getElementById('nav-user-avatar');
+    if (!avatar) return null;
+
+    if (avatar.tagName && avatar.tagName.toLowerCase() === 'img') {
+      var replacement = document.createElement('span');
+      Array.prototype.forEach.call(avatar.attributes, function (attribute) {
+        if (attribute.name !== 'src' && attribute.name !== 'alt') {
+          replacement.setAttribute(attribute.name, attribute.value);
+        }
+      });
+      replacement.textContent = '';
+      replacement.setAttribute('aria-hidden', 'true');
+      avatar.parentNode.replaceChild(replacement, avatar);
+      avatar = replacement;
+    }
+
+    avatar.classList.add('nav-user-avatar-initials');
+    return avatar;
+  }
+
+  function renderAvatar(avatar, user) {
+    if (!avatar) return;
+    avatar.textContent = user ? initials(user.name || user.firstName) : '';
+    avatar.setAttribute('aria-label', user ? (user.name || user.email || 'Usuario') : 'Usuario');
+    avatar.title = user ? (user.name || user.email || '') : '';
+  }
 
   var ArbatUser = {
-    /**
-     * Devuelve el usuario guardado en esta sesión del navegador, o null
-     * si no hay nadie logueado.
-     */
+    /** Usuario autenticado según el estado actual de Buddy. */
     get: function () {
-      try {
-        var raw = sessionStorage.getItem(STORAGE_KEY);
-        return raw ? JSON.parse(raw) : null;
-      } catch (e) {
-        console.error('ArbatUser.get: no se pudo leer sessionStorage', e);
-        return null;
-      }
+      return getUser();
     },
 
-    /** true si hay un usuario en sesión. */
+    /** true si Buddy considera autenticada la sesión actual. */
     isLoggedIn: function () {
-      return !!this.get();
-    },
-
-    /** Guarda el usuario en sessionStorage y avisa al resto de la página. */
-    _save: function (user) {
-      try {
-        sessionStorage.setItem(STORAGE_KEY, JSON.stringify(user));
-      } catch (e) {
-        console.error('ArbatUser._save: no se pudo escribir en sessionStorage', e);
-      }
-      window.dispatchEvent(new CustomEvent('arbat:user-changed', { detail: user }));
-    },
-
-    /** Borra la sesión guardada localmente (no cierra sesión en Facebook). */
-    clear: function () {
-      try {
-        sessionStorage.removeItem(STORAGE_KEY);
-      } catch (e) {
-        console.error('ArbatUser.clear: no se pudo limpiar sessionStorage', e);
-      }
-      window.dispatchEvent(new CustomEvent('arbat:user-changed', { detail: null }));
+      return isLoggedIn();
     },
 
     /**
-     * Abre el diálogo de Facebook Login. Si el usuario acepta, pide su
-     * perfil básico y lo guarda en sessionStorage.
-     *
-     * @param {function(Object|null)} [callback] recibe el usuario guardado,
-     *        o null si el usuario canceló / no autorizó los permisos.
+     * Inicia el flujo de autenticación por correo de Buddy.
+     * No maneja tokens ni URLs de verificación.
      */
-    loginWithFacebook: function (callback) {
-      var self = this;
-
-      if (typeof FB === 'undefined') {
-        console.error('ArbatUser.loginWithFacebook: el SDK de Facebook no está cargado todavía.');
+    login: function (callback) {
+      var auth = getAuth();
+      if (!auth || typeof auth.startAuthenticationPrompt !== 'function') {
+        console.error('ArbatUser.login: Buddy Auth no está disponible.');
         if (callback) callback(null);
-        return;
+        return false;
       }
 
-      FB.login(function (response) {
-        if (!response.authResponse) {
-          // el usuario cerró el diálogo o no dio los permisos pedidos
-          if (callback) callback(null);
-          return;
+      var handled = false;
+      function onStateChange(event) {
+        var detail = event.detail || {};
+        if (detail.authenticated && !handled) {
+          handled = true;
+          window.removeEventListener('buddy:auth-state-changed', onStateChange);
+          if (callback) callback(detail.user || getUser());
         }
+      }
+      window.addEventListener('buddy:auth-state-changed', onStateChange);
 
-        FB.api('/me', { fields: 'id,name,email,picture.width(160).height(160)' }, function (profile) {
-          var user = {
-            provider: 'facebook',
-            fbUserID: profile.id,
-            nombre: profile.name,
-            email: profile.email || null,
-            foto: (profile.picture && profile.picture.data) ? profile.picture.data.url : null,
-            // TODO: backend — este accessToken es el de Facebook. Cuando
-            // exista el API interno, mandarlo a un endpoint tipo
-            // POST /auth/facebook { accessToken } y reemplazar este campo
-            // por el token propio que devuelva ese endpoint.
-            accessToken: response.authResponse.accessToken,
-            autenticadoEn: new Date().toISOString()
-          };
-          self._save(user);
-          if (callback) callback(user);
-        });
-      }, { scope: 'public_profile,email' });
+      var started = auth.startAuthenticationPrompt();
+      if (!started) window.removeEventListener('buddy:auth-state-changed', onStateChange);
+      return started;
     },
 
     /**
-     * Cierra sesión SOLO en ARBAT: borra la sesión guardada localmente.
-     * A propósito NO llama a FB.logout() — eso cerraría la sesión de
-     * Facebook del usuario en todo el navegador (lo afectaría en cualquier
-     * otro sitio donde use "Iniciar con Facebook"), y no es lo que se
-     * espera de un botón "Salir" de esta página.
+     * El registro de Buddy comienza igual que el login: autenticación por
+     * correo. Si el usuario es nuevo o le faltan datos, Buddy solicita los
+     * datos requeridos después de verificar el enlace.
+     */
+    register: function (callback) {
+      return this.login(callback);
+    },
+
+    /** Comprueba/recupera la sesión a través de Buddy. */
+    sync: function (callback) {
+      var auth = getAuth();
+      if (!auth || typeof auth.checkSession !== 'function') {
+        if (callback) callback(null);
+        return Promise.resolve(false);
+      }
+
+      return auth.checkSession().then(function () {
+        var user = getUser();
+        if (callback) callback(user);
+        return user;
+      });
+    },
+
+    /**
+     * Cierra la sesión a través de Buddy. Buddy revoca los refresh tokens y
+     * limpia el estado local; este módulo no manipula tokens.
      */
     logout: function (callback) {
-      this.clear();
-      if (callback) callback();
-    },
+      var auth = getAuth();
+      if (!auth || typeof auth.logout !== 'function') {
+        if (callback) callback(false);
+        return Promise.resolve(false);
+      }
 
-    /**
-     * Revisa contra Facebook si la sesión sigue siendo válida (por ejemplo,
-     * si el usuario cerró sesión en Facebook desde otra pestaña o revocó el
-     * permiso a la app). Si Facebook dice que ya no está conectado, limpia
-     * la sesión local aunque hubiera quedado guardada.
-     *
-     * OJO — ya NO se llama automáticamente al cargar la página (ver bug
-     * corregido: 2026-08). Los navegadores modernos bloquean las cookies de
-     * terceros que el SDK de Facebook necesita para verificar el estado de
-     * sesión, así que FB.getLoginStatus() suele devolver "unknown" o
-     * "not_authorized" incluso con un login recién hecho y válido. Llamar
-     * esto automáticamente causaba que el botón "Ingresar con Facebook"
-     * volviera a aparecer segundos después de haber iniciado sesión. Queda
-     * disponible para invocarla a mano si en algún momento hace falta.
-     */
-    sync: function () {
-      if (typeof FB === 'undefined') return;
-      var self = this;
-      FB.getLoginStatus(function (response) {
-        if (response.status !== 'connected' && self.isLoggedIn()) {
-          self.clear();
-        }
+      return auth.logout().then(function (ok) {
+        if (callback) callback(ok);
+        return ok;
       });
     }
   };
 
   window.ArbatUser = ArbatUser;
 
-  /**
-   * ---------------------------------------------------------------------
-   * Cableado del botón de login y del estado (avatar/nombre) en
-   * _includes/header.html. El botón "Salir" ya no vive acá: ahora se
-   * genera dentro del menú desplegable del usuario (ver menuuser.js).
-   * Busca los elementos por id; si una página no tiene header (por ejemplo
-   * la landing /probar-clase/), simplemente no hace nada.
-   * ---------------------------------------------------------------------
-   */
   function wireHeaderUI() {
-    var btnLogin = document.getElementById('btn-fb-login');
+    var btnLogin = document.getElementById(LOGIN_BUTTON_ID);
     var logged = document.getElementById('nav-user-logged');
-    var avatar = document.getElementById('nav-user-avatar');
+    var avatar = ensureAvatarElement();
     var nombre = document.getElementById('nav-user-nombre');
 
-    if (!btnLogin || !logged) return; // no hay header de usuario en esta página
-
-    // Primer nombre a partir del nombre completo devuelto por Facebook.
-    function primerNombre(nombreCompleto) {
-      return (nombreCompleto || '').trim().split(/\s+/)[0] || '';
-    }
+    if (!logged) return;
 
     function render(user) {
-      if (user) {
-        btnLogin.hidden = true;
-        logged.hidden = false;
-        if (avatar) {
-          avatar.src = user.foto || '';
-          avatar.alt = user.nombre || '';
-        }
-        if (nombre) {
-          nombre.textContent = user.nombre ? '¡Hola ' + primerNombre(user.nombre) + '!' : '';
-        }
-      } else {
-        btnLogin.hidden = false;
-        logged.hidden = true;
-        if (avatar) avatar.src = '';
-        if (nombre) nombre.textContent = '';
+      var authenticated = !!user;
+
+      if (btnLogin) btnLogin.hidden = authenticated;
+      logged.hidden = !authenticated;
+
+      renderAvatar(avatar, user);
+
+      if (nombre) {
+        nombre.textContent = authenticated && user.name
+          ? '¡Hola ' + primerNombre(user.name) + '!'
+          : '';
       }
     }
 
-    // Estado inicial (por si ya había sesión guardada en esta pestaña).
-    render(ArbatUser.get());
+    render(getUser());
 
-    // Repintar cada vez que login/logout/sync cambien el usuario.
-    window.addEventListener('arbat:user-changed', function (e) {
-      render(e.detail);
+    function renderFromEvent(event) {
+      var detail = event.detail || {};
+      render(detail.user !== undefined ? detail.user : (detail.authenticated ? getUser() : null));
+    }
+
+    window.addEventListener('buddy:auth-state-changed', renderFromEvent);
+    window.addEventListener('buddy:auth-ready', renderFromEvent);
+    window.addEventListener('buddy:auth-user-updated', function (event) {
+      render((event.detail || {}).user || getUser());
+    });
+    window.addEventListener('buddy:auth-verified', renderFromEvent);
+    window.addEventListener('buddy:auth-logout', function () {
+      render(null);
     });
 
-    btnLogin.addEventListener('click', function () {
-      btnLogin.disabled = true;
-      ArbatUser.loginWithFacebook(function () {
-        btnLogin.disabled = false;
+    function wireAuthButton(button, action) {
+      if (!button) return;
+      button.addEventListener('click', function () {
+        button.disabled = true;
+        var result = action();
+        if (result && typeof result.finally === 'function') {
+          result.finally(function () { button.disabled = false; });
+        } else {
+          setTimeout(function () { button.disabled = false; }, 500);
+        }
       });
+    }
+
+    // El botón «Ingresar» inicia el único flujo de Buddy. Buddy determina
+    // si corresponde a un login, un usuario nuevo o un perfil incompleto.
+    wireAuthButton(btnLogin, function () {
+      return ArbatUser.login();
     });
   }
 
   document.addEventListener('DOMContentLoaded', wireHeaderUI);
 
-})(window);
+})(window, document);

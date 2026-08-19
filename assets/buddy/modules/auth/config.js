@@ -20,20 +20,20 @@ window.BuddyAuthConfig = Object.assign({
 
   userFields: ['id', 'email', 'name', 'firstName', 'lastName', 'phone', 'locale', 'createdAt'],
 
-  loginButtonText: 'Login',
-  logoutButtonText: 'Logout',
+  loginButtonText: 'Iniciar sesión',
+  logoutButtonText: 'Cerrar sesión',
 
   emailPlaceholder: 'Escribe tu dirección de correo',
   namePlaceholder: 'Escribe tu nombre',
-  logoutPlaceholder: 'Escribe Si para cerrar tu sesion',
+  logoutPlaceholder: 'Escribe Sí para cerrar tu sesión',
 
-  loginMessage: 'Escribe tu correo en la caja de texto, te enviaré un link de verificación a esa dirección',
-  emailSentMessage: 'Revisa tu correo y has click en el link de logueo',
+  loginMessage: 'Escribe tu correo y te enviaremos un enlace de acceso a esa dirección.',
+  emailSentMessage: 'Revisa tu correo y haz clic en el enlace para iniciar sesión.',
   existingWelcomeTemplate: '¡Bienvenido, {name}!',
-  newUserWelcomeMessage: '¡Bienvenido! ¿Cómo te llamas?',
-  nameSavedTemplate: '¡Mucho gusto, {name}!',
-  logoutQuestion: '¿Deseas cerrar tu sesión de usuario en este explorador?',
-  logoutYesText: 'Si',
+  newUserWelcomeMessage: '¡Bienvenido! Para continuar, necesitamos algunos datos.',
+  nameSavedTemplate: '¡Mucho gusto, {name}!' ,
+  logoutQuestion: '¿Deseas cerrar tu sesión en este navegador?',
+  logoutYesText: 'Sí',
   logoutNoText: 'No',
 
   requestTimeoutMs: 15000

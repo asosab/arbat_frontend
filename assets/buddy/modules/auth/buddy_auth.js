@@ -239,14 +239,14 @@ window.Buddy = window.Buddy || {};
   }
 
   function allUserDataComplete(user) {
-    return !!(user && user.email && user.name);
+    return !!(user && user.email && user.name && user.phone);
   }
 
   function updateLocalUser(user) {
     var normalized = normalizeUser({ user: user });
     if (!normalized) return null;
     state.user = normalized;
-    state.needsName = !normalized.name;
+    state.needsName = !normalized.name || !normalized.phone;
     return normalized;
   }
 
@@ -355,13 +355,13 @@ window.Buddy = window.Buddy || {};
           value: user.name || '',
           readonly: false,
           required: !user.name,
-          label: 'Nombre:'
+          label: 'Nombre:',
         },
         whatsapp: {
           value: user.phone || '',
           readonly: false,
-          required: false,
-          label: 'Whatsapp:'
+          required: !user.phone,
+          label: 'Teléfono:'
         }
       },
       submitText: 'enviar',
@@ -389,7 +389,7 @@ window.Buddy = window.Buddy || {};
     debugLog('Solicitando frmUsr para completar datos.', {
       email: user.email,
       hasName: !!user.name,
-      hasWhatsapp: !!user.phone
+      hasPhone: !!user.phone
     });
     return window.Buddy.says.frmUsr(config);
   }
@@ -496,7 +496,7 @@ window.Buddy = window.Buddy || {};
     }
 
     var user = normalizeUser(data);
-    var needsName = data.needsName === true || data.newUser === true || data.isNewUser === true || !user || !user.name;
+    var needsName = data.needsName === true || data.newUser === true || data.isNewUser === true || !user || !user.name || !user.phone;
     setAuthenticated(user, needsName, welcomeType || (needsName ? 'new' : 'existing'));
     return true;
   }
@@ -562,7 +562,7 @@ window.Buddy = window.Buddy || {};
       }
 
       var user = normalizeUser(data);
-      var needsName = data.needsName === true || data.newUser === true || data.isNewUser === true || !user || !user.name;
+      var needsName = data.needsName === true || data.newUser === true || data.isNewUser === true || !user || !user.name || !user.phone;
       setAuthenticated(user, needsName, needsName ? 'new' : 'existing');
       return handleAuthenticatedUser().then(function () {
         emitEvent('buddy:auth-verified', {
@@ -607,7 +607,7 @@ window.Buddy = window.Buddy || {};
       }
 
       state.user = returnedUser;
-      state.needsName = data.needsName === true;
+      state.needsName = data.needsName === true || !returnedUser.name || !returnedUser.phone;
       state.mode = state.needsName ? 'name' : 'idle';
       state.welcomePending = true;
       state.welcomeType = state.needsName ? 'new' : 'named-new';
@@ -687,7 +687,7 @@ window.Buddy = window.Buddy || {};
           placeholder: CONFIG.emailPlaceholder || ''
         },
         name: { value: '', readonly: true, required: false, hidden: true, label: 'Nombre:' },
-        whatsapp: { value: '', readonly: true, required: false, hidden: true, label: 'Whatsapp:' }
+        whatsapp: { value: '', readonly: true, required: false, hidden: true, label: 'Teléfono:' }
       },
       submitText: 'enviar',
       cancelText: 'cancelar',
