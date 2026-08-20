@@ -4,7 +4,6 @@
  * Registra clicks sobre enlaces wa.me mediante Buddy Telemetry.
  *
  * El módulo es transversal y es cargado directamente por buddy.js.
- * No depende de data-buddy-abilities.
  * ---------------------------------------------------------------------------
  */
 window.Buddy = window.Buddy || {};

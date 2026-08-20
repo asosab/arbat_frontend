@@ -5,6 +5,8 @@
  * buddy_archery.js sólo implementa la mecánica y consume esta configuración.
  */
 window.BuddyArcheryConfig = window.BuddyArcheryConfig || {
+      enabled: true,
+      // condition opcional: puede devolver true/false según URL, sitio, etc.
       // -------------------------------------------------------------------
       // Imágenes de las poses propias de Archery para Raulito.
       //

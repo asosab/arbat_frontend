@@ -81,8 +81,7 @@ window.Buddy = window.Buddy || {};
   var EXPRESION_OBLIGATORIA = 'sereno';
 
   // -------------------------------------------------------------------
-  // Personaje activo. Se determina en Fase 6 leyendo data-buddy-character
-  // del <script> de entrada, antes de cargar cualquier módulo dependiente.
+  // Personaje activo. Se determina desde modules/character/config.js.
   // -------------------------------------------------------------------
   var personajeActivo = null;
   var modulosActivos = [];
@@ -603,15 +602,6 @@ window.Buddy = window.Buddy || {};
     return null;
   }
 
-  function parseAbilities(value) {
-    if (!value) return [];
-    return String(value)
-      .split(/[\s,]+/)
-      .map(function (item) { return item.trim().toLowerCase(); })
-      .filter(Boolean)
-      .filter(function (item, index, array) { return array.indexOf(item) === index; });
-  }
-
   function loadScript(url) {
     return new Promise(function (resolve, reject) {
       // La versión del script de entrada se propaga a cada JS dinámico antes
@@ -720,19 +710,6 @@ window.Buddy = window.Buddy || {};
       '/buddy_' + moduleId + '_' + style + '.js';
   }
 
-  // Chat es un módulo global de entrada (teclado, URL y API), por lo que no
-  // depende de data-buddy-abilities. Su propio config.js decide si queda
-  // habilitado para esta página.
-  function loadChatModule() {
-    return loadScript(ASSET_BASE + 'modules/chat/config.js')
-      .then(function () {
-        if (!window.BuddyChatConfig || window.BuddyChatConfig.enabled === false) {
-          return undefined;
-        }
-        return loadScript(ASSET_BASE + 'modules/chat/buddy_chat.js');
-      });
-  }
-
   function preloadImage(url) {
     return new Promise(function (resolve) {
       var img = new Image();
@@ -813,111 +790,190 @@ window.Buddy = window.Buddy || {};
     return Promise.resolve();
   }
 
+  function getConfiguredModules() {
+    var modules = window.BuddyConfig && Array.isArray(window.BuddyConfig.modules) ?
+      window.BuddyConfig.modules : [];
+
+    return modules.map(function (item) {
+      return String(item || '').trim().toLowerCase();
+    }).filter(function (item, index, array) {
+      return item && array.indexOf(item) === index && item !== 'character';
+    });
+  }
+
+  function getModuleConfigName(moduleId) {
+    return 'Buddy' + moduleId.charAt(0).toUpperCase() + moduleId.slice(1).replace(/_([a-z])/g, function (_, c) {
+      return c.toUpperCase();
+    }) + 'Config';
+  }
+
+  function getModuleConfig(moduleId) {
+    var name = getModuleConfigName(moduleId);
+    return window[name] || {};
+  }
+
+  function moduleIsEnabled(moduleId) {
+    var config = getModuleConfig(moduleId);
+    if (config.enabled === false) return false;
+
+    if (typeof config.condition === 'function') {
+      try {
+        return config.condition({
+          Buddy: window.Buddy,
+          config: config,
+          character: personajeActivo,
+          document: document,
+          location: window.location
+        }) === true;
+      } catch (error) {
+        debugLog('módulo ' + moduleId + ': condition lanzó una excepción; se deshabilita.', error);
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  function loadModuleConfig(moduleId) {
+    debugLog('módulo ' + moduleId + ': cargando config');
+    return loadScript(scriptUrlForModuleConfig(moduleId)).then(function () {
+      var config = getModuleConfig(moduleId);
+      var enabled = moduleIsEnabled(moduleId);
+      debugLog('módulo ' + moduleId + ': configuración evaluada', {
+        enabled: enabled,
+        config: config
+      });
+      return enabled;
+    });
+  }
+
+  function loadStandardModule(moduleId) {
+    return loadModuleConfig(moduleId).then(function (enabled) {
+      if (!enabled) {
+        debugLog('módulo ' + moduleId + ': deshabilitado por configuración/condición');
+        return false;
+      }
+
+      debugLog('módulo ' + moduleId + ': cargando implementación');
+      return loadScript(scriptUrlForModule(moduleId))
+        .then(function () {
+          // Los módulos que tienen una variante de texto por personaje/idioma
+          // pueden incluirla sin que Buddy necesite conocer su contenido.
+          var charData = getCharData();
+          var locale = charData && charData.perfil && charData.perfil.idioma;
+          var style = charData && charData.perfil && charData.perfil.estilo;
+          if (!locale || !style) return undefined;
+          return loadOptionalScript(scriptUrlForModuleText(moduleId, locale, style));
+        })
+        .then(function () {
+          debugLog('módulo ' + moduleId + ': inicializado');
+          return true;
+        });
+    });
+  }
+
+  function loadCharacterConfig() {
+    return loadScript(ASSET_BASE + 'modules/character/config.js').then(function () {
+      var config = window.BuddyCharacterConfig || {};
+      if (config.enabled === false) {
+        throw new Error('[BUDDY] El módulo character está deshabilitado en modules/character/config.js.');
+      }
+
+      if (typeof config.condition === 'function') {
+        var allowed = config.condition({
+          Buddy: window.Buddy,
+          config: config,
+          document: document,
+          location: window.location
+        });
+        if (allowed !== true) {
+          throw new Error('[BUDDY] La condición del módulo character impide inicializar Buddy.');
+        }
+      }
+
+      var requested = String(config.defaultCharacter || '').trim().toLowerCase();
+      var fallback = String(config.fallbackCharacter || 'raulito').trim().toLowerCase();
+      personajeActivo = requested || fallback;
+      if (!personajeActivo) personajeActivo = 'raulito';
+
+      window.Buddy.characterId = personajeActivo;
+      debugLog('character: personaje seleccionado', personajeActivo);
+      return personajeActivo;
+    });
+  }
+
+  function loadSaysModule() {
+    return loadModuleConfig('says').then(function (enabled) {
+      if (!enabled) return false;
+
+      return loadScript(ASSET_BASE + 'modules/says/buddy_says.js')
+        .then(function () { return loadSaysSources(); })
+        .then(function () {
+          var charData = getCharData();
+          var locale = charData && charData.perfil && charData.perfil.idioma;
+          var style = charData && charData.perfil && charData.perfil.estilo;
+          if (!locale || !style) {
+            throw new Error('[BUDDY] El personaje "' + personajeActivo + '" no define perfil.idioma/perfil.estilo.');
+          }
+          return loadScript(scriptUrlForSays(locale, style));
+        })
+        .then(function () {
+          debugLog('módulo says: inicializado');
+          return true;
+        });
+    });
+  }
+
   function initialize() {
     var entry = getEntryScript();
     if (!entry) {
       return Promise.reject(new Error('[BUDDY] No se encontró el <script> de entrada buddy.js.'));
     }
 
-    var characterId = (entry.getAttribute('data-buddy-character') || '').trim().toLowerCase();
-    var abilities = parseAbilities(entry.getAttribute('data-buddy-abilities'));
-
-    if (!characterId) {
-      return Promise.reject(new Error('[BUDDY] Falta data-buddy-character en el script de entrada.'));
-    }
-
-    personajeActivo = characterId;
-    modulosActivos = abilities;
-    debugLog('initialize: inicio', { character: characterId, abilities: abilities.slice(), assetBase: ASSET_BASE });
-    window.Buddy.characterId = characterId;
-    window.Buddy.abilities = abilities.slice();
+    debugLog('initialize: inicio', { assetBase: ASSET_BASE });
 
     return loadScript(ASSET_BASE + 'config.js')
       .then(function () {
+        window.Buddy.config = window.BuddyConfig || {};
         debugLog('config.js cargado', window.BuddyConfig || {});
       })
       .then(function () {
-        window.Buddy.config = window.BuddyConfig || {};
-        debugLog('BuddyConfig disponible. debug=' + (window.BuddyConfig.debug === true) + ' debugMode=' + (window.BuddyConfig.debugMode === true));
-        return loadOptionalScript(ASSET_BASE + 'modules/telemetry/config.js');
+        return loadCharacterConfig();
       })
-      .then(function () {
-        return loadOptionalScript(ASSET_BASE + 'modules/telemetry/buddy_telemetry.js');
-      })
-      .then(function () {
-        // wa_listener es un módulo transversal: Buddy lo carga siempre,
-        // independientemente de data-buddy-abilities.
-        return loadOptionalScript(ASSET_BASE + 'modules/wa_listener/config.js');
-      })
-      .then(function () {
-        return loadOptionalScript(ASSET_BASE + 'modules/wa_listener/buddy_wa_listener.js');
-      })
-      .then(function () {
-        return loadOptionalScript(ASSET_BASE + 'modules/user/config.js');
-      })
-      .then(function () {
-        return loadOptionalScript(ASSET_BASE + 'modules/user/buddy_user.js');
-      })
-      .then(function () {
+      .then(function (characterId) {
         return loadScript(scriptUrlForCharacter(characterId));
-      })
-      .then(function () {
-        // /says/config.js es el punto de configuración del módulo /says.
-        return loadScript(ASSET_BASE + 'modules/says/config.js');
       })
       .then(function () {
         var charData = getCharData();
         if (!charData) {
-          throw new Error('[BUDDY] El personaje "' + characterId +
-            '" no registró window.BuddyChars.' + characterId + '.');
+          throw new Error('[BUDDY] El personaje "' + personajeActivo + '" no registró window.BuddyChars.' + personajeActivo + '.');
         }
         window.Buddy.character = charData;
         return preloadCharacterAssets();
       })
       .then(function () {
-        return loadScript(ASSET_BASE + 'modules/says/buddy_says.js');
-      })
-      .then(function () {
-        return loadSaysSources();
-      })
-      .then(function () {
-        var charData = getCharData();
-        var locale = charData.perfil.idioma;
-        var style = charData.perfil.estilo;
-        if (!locale || !style) {
-          throw new Error('[BUDDY] El personaje "' + characterId +
-            '" no define perfil.idioma/perfil.estilo.');
-        }
-        return loadScript(scriptUrlForSays(locale, style));
-      })
-      .then(function () {
-        return loadChatModule();
-      })
-      .then(function () {
-        return abilities.reduce(function (chain, moduleId) {
-          return chain
-            // La configuración del módulo debe existir antes de ejecutar su
-            // implementación. Esto evita que módulos como Archery intenten
-            // leer window.BuddyArcheryConfig antes de que config.js haya sido
-            // cargado.
-            .then(function () { debugLog('módulo ' + moduleId + ': cargando config'); return loadScript(scriptUrlForModuleConfig(moduleId)); })
-            .then(function () { debugLog('módulo ' + moduleId + ': cargando implementación'); return loadScript(scriptUrlForModule(moduleId)); })
-            .then(function () {
-              var charData = getCharData();
-              debugLog('módulo ' + moduleId + ': cargando texto');
-              return loadScript(scriptUrlForModuleText(moduleId, charData.perfil.idioma, charData.perfil.estilo));
-            })
-            .then(function () {
-              debugLog('módulo ' + moduleId + ': precargando assets');
-              return preloadModuleAssets(moduleId);
+        var modules = getConfiguredModules();
+        modulosActivos = [];
+        window.Buddy.abilities = [];
+        debugLog('módulos configurados', modules.slice());
+
+        return modules.reduce(function (chain, moduleId) {
+          return chain.then(function () {
+            if (moduleId === 'says') {
+              return loadSaysModule().then(function (enabled) {
+                if (enabled) modulosActivos.push(moduleId);
+              });
+            }
+
+            // Telemetry debe estar disponible antes de wa_listener y de los
+            // demás módulos que puedan publicar eventos.
+            return loadStandardModule(moduleId).then(function (enabled) {
+              if (enabled) modulosActivos.push(moduleId);
             });
+          });
         }, Promise.resolve());
       })
       .then(function () {
-        // Todos los módulos activos deben estar inicializados ANTES de que
-        // Says pueda mostrar su primer mensaje. Así un mensaje automático
-        // que hace visible al personaje no puede adelantarse a Archery (u
-        // otro módulo) y dejarlo sin sus listeners de interacción.
         if (window.Buddy.says && typeof window.Buddy.says.iniciarFuentes === 'function') {
           window.Buddy.says.iniciarFuentes();
         }
@@ -925,10 +981,11 @@ window.Buddy = window.Buddy || {};
       .then(function () {
         ready = true;
         window.Buddy.ready = true;
-        debugLog('initialize: Buddy listo', { character: personajeActivo, abilities: modulosActivos.slice() });
+        window.Buddy.abilities = modulosActivos.slice();
+        debugLog('initialize: Buddy listo', { character: personajeActivo, modules: modulosActivos.slice() });
         window.Buddy.readyPromise = readyPromise;
         window.dispatchEvent(new CustomEvent('buddy:ready', {
-          detail: { character: personajeActivo, abilities: modulosActivos.slice() }
+          detail: { character: personajeActivo, modules: modulosActivos.slice() }
         }));
       });
   }

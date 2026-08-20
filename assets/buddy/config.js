@@ -13,4 +13,16 @@ window.BuddyConfig = Object.assign({
     siteId: 'arbat',
     email:  'arbat.archery@gmail.com'
   },
+
+  // Registro de módulos que Buddy descubre automáticamente.
+  // La activación real y cualquier condición se decide en cada config.js.
+  modules: [
+    'telemetry',
+    'wa_listener',
+    'user',
+    'auth',
+    'says',
+    'chat',
+    'archery'
+  ],
 }, window.BuddyConfig || {});
