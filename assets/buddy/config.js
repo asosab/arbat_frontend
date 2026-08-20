@@ -6,9 +6,9 @@
 window.BuddyConfig = window.BuddyConfig || {};
 window.BuddyConfig = Object.assign({
   // Debug global: todos los módulos Buddy deben usar esta bandera para sus trazas.
-  debug: true,
+  debug: false,
   // Compatibilidad con módulos existentes que todavía consultan debugMode.
-  debugMode: true,
+  debugMode: false,
   app: {
     siteId: 'arbat',
     email:  'arbat.archery@gmail.com'
