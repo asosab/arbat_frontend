@@ -5,5 +5,6 @@
  */
 window.BuddyWaListenerConfig = window.BuddyWaListenerConfig || {};
 window.BuddyWaListenerConfig = Object.assign({
-  enabled: true
+  enabled: true,
+  localization: { enabled: false },
 }, window.BuddyWaListenerConfig || {});

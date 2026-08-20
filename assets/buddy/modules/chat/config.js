@@ -6,6 +6,7 @@
 window.BuddyChatConfig = window.BuddyChatConfig || {};
 window.BuddyChatConfig = Object.assign({
   enabled: true,
+  localization: { enabled: false },
   keyboardKey: 't',
   urlParameter: 'chat',
   sendWithEnter: true,

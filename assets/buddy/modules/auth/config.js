@@ -7,6 +7,7 @@
 window.BuddyAuthConfig = window.BuddyAuthConfig || {};
 window.BuddyAuthConfig = Object.assign({
   enabled: true,
+  localization: { enabled: true },
   apiBaseUrl: 'https://api.statetty.com',
   apiService: 'auth',
   endpoints: {

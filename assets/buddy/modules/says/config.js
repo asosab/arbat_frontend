@@ -12,6 +12,8 @@
  * frequency: intervalo mínimo/máximo, en minutos, entre intentos de esa fuente.
  */
 window.BuddySaysConfig = window.BuddySaysConfig || {};
+window.BuddySaysConfig.enabled = window.BuddySaysConfig.enabled !== false;
+window.BuddySaysConfig.localization = { enabled: true };
 // Tiempo visible del globo. Se calcula automáticamente según el largo del texto.
 // Puedes ajustar estos valores sin tocar buddy_says.js.
 window.BuddySaysConfig.display = {

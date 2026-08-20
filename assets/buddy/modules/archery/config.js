@@ -6,6 +6,7 @@
  */
 window.BuddyArcheryConfig = window.BuddyArcheryConfig || {
       enabled: true,
+      localization: { enabled: true },
       // condition opcional: puede devolver true/false según URL, sitio, etc.
       // -------------------------------------------------------------------
       // Imágenes de las poses propias de Archery para Raulito.

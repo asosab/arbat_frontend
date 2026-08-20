@@ -8,6 +8,7 @@
 window.BuddyTelemetryConfig = window.BuddyTelemetryConfig || {};
 window.BuddyTelemetryConfig = Object.assign({
   enabled: true,
+  localization: { enabled: false },
   apiBaseUrls: { buddy: 'https://api.statetty.com'},
   apis: {
     telemetry: '/api/buddy/telemetry',

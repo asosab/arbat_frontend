@@ -859,10 +859,25 @@ window.Buddy = window.Buddy || {};
         .then(function () {
           // Los módulos que tienen una variante de texto por personaje/idioma
           // pueden incluirla sin que Buddy necesite conocer su contenido.
+          var config = getModuleConfig(moduleId);
+          var localization = config.localization || {};
+          if (localization.enabled !== true) {
+            debugLog('módulo ' + moduleId + ': sin archivos de idioma propios; se omite carga de localization');
+            return undefined;
+          }
+
           var charData = getCharData();
           var locale = charData && charData.perfil && charData.perfil.idioma;
           var style = charData && charData.perfil && charData.perfil.estilo;
-          if (!locale || !style) return undefined;
+          if (!locale || !style) {
+            debugLog('módulo ' + moduleId + ': localization habilitada pero falta idioma/estilo');
+            return undefined;
+          }
+
+          debugLog('módulo ' + moduleId + ': cargando archivo de idioma', {
+            locale: locale,
+            style: style
+          });
           return loadOptionalScript(scriptUrlForModuleText(moduleId, locale, style));
         })
         .then(function () {
