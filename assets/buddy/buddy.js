@@ -845,6 +845,14 @@ window.Buddy = window.Buddy || {};
         return loadOptionalScript(ASSET_BASE + 'modules/telemetry/buddy_telemetry.js');
       })
       .then(function () {
+        // wa_listener es un módulo transversal: Buddy lo carga siempre,
+        // independientemente de data-buddy-abilities.
+        return loadOptionalScript(ASSET_BASE + 'modules/wa_listener/config.js');
+      })
+      .then(function () {
+        return loadOptionalScript(ASSET_BASE + 'modules/wa_listener/buddy_wa_listener.js');
+      })
+      .then(function () {
         return loadOptionalScript(ASSET_BASE + 'modules/user/config.js');
       })
       .then(function () {
