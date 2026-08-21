@@ -111,8 +111,16 @@ window.Buddy = window.Buddy || {};
       '.buddy-says-interaction-layer{position:fixed;inset:0;z-index:2147483000;' +
       'display:none;pointer-events:none;background:transparent;' +
       '-webkit-tap-highlight-color:transparent;}' +
+      // El backdrop, por defecto, NO bloquea: los mensajes de sólo texto
+      // (unidireccionales) no necesitan foco, así que scroll/clicks/touch
+      // deben seguir llegando normalmente a lo que hay debajo del globo.
+      // Sólo cuando el layer recibe la clase "is-blocking" (mensajes
+      // interactivos con elección rápida, o formularios) el backdrop pasa
+      // a bloquear la página — ver setBackdropBlocking().
       '.buddy-says-interaction-backdrop{position:absolute;inset:0;' +
-      'background:transparent;pointer-events:auto;touch-action:none;}' +
+      'background:transparent;pointer-events:none;touch-action:auto;}' +
+      '.buddy-says-interaction-layer.is-blocking .buddy-says-interaction-backdrop{' +
+      'pointer-events:auto;touch-action:none;}' +
       '.buddy-says-bubble{position:fixed;max-width:230px;background:#ffffff;' +
       'color:#1a1a1a;font:600 14px/1.4 -apple-system,BlinkMacSystemFont,' +
       '"Segoe UI",Roboto,sans-serif;padding:10px 14px;border-radius:16px;' +
@@ -180,6 +188,18 @@ window.Buddy = window.Buddy || {};
     ensureInteractionLayer();
     interactionLayerEl.style.display = active ? 'block' : 'none';
     interactionLayerEl.setAttribute('aria-hidden', active ? 'false' : 'true');
+  }
+
+  // Controla si el backdrop bloquea clicks/scroll/touch del resto de la
+  // pantalla. Independiente de setInteractionLayer(): esa función sólo
+  // decide si el layer (y por lo tanto el globo, que es su hijo) se
+  // renderiza; ésta decide si, mientras el globo está visible, el resto
+  // de la página queda inhabilitado. Un mensaje de sólo texto activa el
+  // layer pero NO el bloqueo; un mensaje interactivo o un formulario
+  // activan ambos.
+  function setBackdropBlocking(active) {
+    ensureInteractionLayer();
+    interactionLayerEl.classList.toggle('is-blocking', !!active);
   }
 
   function ensureBubbleElement() {
@@ -260,6 +280,10 @@ window.Buddy = window.Buddy || {};
   }
 
   function clearInteractiveChoices() {
+    // Vuelve al estado seguro por defecto: no bloqueante. Si el mensaje
+    // que se está por mostrar sí requiere foco, renderInteractiveChoices()
+    // (o createUserForm(), para formularios) lo reactiva explícitamente.
+    setBackdropBlocking(false);
     if (!bubbleEl) return;
     var choices = bubbleEl.querySelectorAll('.buddy-says-choice');
     for (var i = 0; i < choices.length; i += 1) choices[i].remove();
@@ -314,6 +338,9 @@ window.Buddy = window.Buddy || {};
     interactiveHandler = typeof opciones.onChoice === 'function' ? opciones.onChoice : null;
     bubbleEl.classList.add('is-interactive');
     setInteractionLayer(true);
+    // Este mensaje sí necesita foco del usuario (espera una elección):
+    // ahora el backdrop debe bloquear el resto de la pantalla.
+    setBackdropBlocking(true);
     opciones.choices.forEach(function (choice) {
       if (!choice) return;
       var button = document.createElement('button');
@@ -341,8 +368,12 @@ window.Buddy = window.Buddy || {};
     renderInteractiveChoices(opciones);
     positionBubble(datosExpresion);
 
-    // La capa padre permanece oculta mientras no hay interacción.
-    // Activarla aquí es necesario para que el globo pueda renderizarse.
+    // La capa padre permanece oculta cuando no hay ningún globo activo.
+    // Activarla aquí es necesario para que el globo (su hijo) pueda
+    // renderizarse — pero esto YA NO implica bloquear la página: eso lo
+    // decide renderInteractiveChoices() de forma independiente, más
+    // arriba, según si el mensaje es de sólo texto (no bloqueante) o
+    // espera una elección del usuario (bloqueante).
     setInteractionLayer(true);
 
     bubbleEl.style.display = 'block';
@@ -500,6 +531,9 @@ window.Buddy = window.Buddy || {};
     bubbleEl.classList.remove('is-promo', 'is-interactive');
     bubbleEl.classList.add('is-form');
     setInteractionLayer(true);
+    // Un formulario siempre requiere foco del usuario: bloquea el resto
+    // de la pantalla hasta que se cancele o se envíe.
+    setBackdropBlocking(true);
 
     var form = document.createElement('form');
     form.className = 'buddy-says-form';
@@ -645,6 +679,7 @@ window.Buddy = window.Buddy || {};
     state.resolved = true;
     if (bubbleEl) bubbleEl.classList.remove('is-form');
     setInteractionLayer(false);
+    setBackdropBlocking(false);
     callToken++;
     hideBubble();
 
@@ -666,6 +701,7 @@ window.Buddy = window.Buddy || {};
     state.resolved = true;
     if (bubbleEl) bubbleEl.classList.remove('is-form');
     setInteractionLayer(false);
+    setBackdropBlocking(false);
     callToken++;
     hideBubble();
     var callback = typeof state.config.onResolved === 'function' ? state.config.onResolved : null;
