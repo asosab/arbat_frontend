@@ -340,6 +340,11 @@ window.Buddy = window.Buddy || {};
     bubbleEl.classList.toggle('is-promo', !!opciones.promo);
     renderInteractiveChoices(opciones);
     positionBubble(datosExpresion);
+
+    // La capa padre permanece oculta mientras no hay interacción.
+    // Activarla aquí es necesario para que el globo pueda renderizarse.
+    setInteractionLayer(true);
+
     bubbleEl.style.display = 'block';
     // Fuerza reflow para que la transición de entrada dispare siempre,
     // incluso si el globo ya estaba visible mostrando otro texto.
@@ -353,6 +358,7 @@ window.Buddy = window.Buddy || {};
     setTimeout(function () {
       if (bubbleEl && !bubbleEl.classList.contains('is-visible')) {
         bubbleEl.style.display = 'none';
+        setInteractionLayer(false);
       }
     }, 200);
   }
