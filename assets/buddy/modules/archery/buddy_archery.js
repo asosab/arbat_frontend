@@ -57,22 +57,32 @@
     }
   }
 
+  function escapeHtml(value) {
+    return String(value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/\"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
   function textoTop10(top10) {
-    var texto = 'Los mejores puntajes con flechas virtuales:\n\n';
+    var texto = 'Los mejores puntajes con flechas virtuales:<br><br>';
 
     if (!Array.isArray(top10) || top10.length === 0) {
-      return texto + '\nTodavía no hay puntajes registrados.';
+      return texto + 'Todavía no hay puntajes registrados.';
     }
 
-    return texto + '\n' + top10.map(function (item, index) {
+    return texto + top10.map(function (item, index) {
       var nombre = item && item.nombre ? String(item.nombre) : 'Sin nombre';
       var puntos = Number(item && item.puntos);
       var tiempo = Number(item && item.tiempo);
       var puntosTexto = Number.isFinite(puntos) ? String(puntos) : '0';
       var tiempoTexto = Number.isFinite(tiempo) ? tiempo.toFixed(3) : '—';
 
-      return (index + 1) + '. ' + nombre + ' — ' + puntosTexto + ' puntos — ' + tiempoTexto + ' segundos \n';
-    }).join('\n');
+      return '<strong>' + (index + 1) + '. ' + escapeHtml(nombre) + '</strong> — ' +
+        puntosTexto + ' puntos — ' + tiempoTexto + ' segundos';
+    }).join('<br>');
   }
 
   // ---------------------------------------------------------------------

@@ -121,7 +121,7 @@
               : 'Los mejores puntajes con flechas virtuales:';
 
             if (typeof window.buddy_says === 'function') {
-              window.buddy_says(texto);
+              window.buddy_says(texto, { html: true });
             }
           })
           .catch(function (error) {

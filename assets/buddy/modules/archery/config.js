@@ -554,7 +554,7 @@ window.BuddyArcheryConfig = window.BuddyArcheryConfig || {
           // Bastante más que 2800: hay mucho más texto
           // para leer y, a diferencia de los demás globos, éste tiene un
           // link que hay que llegar a tocar.
-          displayMs: 15000
+          displayMs: 12000
         }
       },
   
