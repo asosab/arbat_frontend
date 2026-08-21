@@ -58,7 +58,7 @@
   }
 
   function textoTop10(top10) {
-    var texto = 'Los mejores puntajes con flechas virtuales:</br></br>';
+    var texto = 'Los mejores puntajes con flechas virtuales:\n\n';
 
     if (!Array.isArray(top10) || top10.length === 0) {
       return texto + '\nTodavía no hay puntajes registrados.';
@@ -71,7 +71,7 @@
       var puntosTexto = Number.isFinite(puntos) ? String(puntos) : '0';
       var tiempoTexto = Number.isFinite(tiempo) ? tiempo.toFixed(3) : '—';
 
-      return (index + 1) + '. ' + nombre + ' — ' + puntosTexto + ' puntos — ' + tiempoTexto + ' segundos';
+      return (index + 1) + '. ' + nombre + ' — ' + puntosTexto + ' puntos — ' + tiempoTexto + ' segundos \n';
     }).join('\n');
   }
 
