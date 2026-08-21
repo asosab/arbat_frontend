@@ -693,6 +693,16 @@ window.Buddy = window.Buddy || {};
       cancelText: 'cancelar',
       onSubmit: function (data) {
         return requestLogin(data.email).then(function () {
+          // requestLogin confirma que el servidor aceptó el envío del enlace.
+          // En este flujo el formulario vive en Says, por lo que el mensaje
+          // de confirmación debe emitirse explícitamente desde Auth después
+          // de resolver el formulario.
+          if (typeof window.buddy_says === 'function') {
+            window.buddy_says(
+              CONFIG.emailSentMessage || 'Revisa tu correo y haz clic en el enlace para iniciar sesión.',
+              { emocion: 'sereno' }
+            );
+          }
           return true;
         });
       },

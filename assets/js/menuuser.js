@@ -114,16 +114,19 @@
           return;
         }
 
-        window.Buddy.archery.top10()
-          .then(function (top10) {
-            var texto = typeof window.Buddy.archery.top10Texto === 'function'
-              ? window.Buddy.archery.top10Texto(top10)
-              : 'Los mejores puntajes con flechas virtuales:';
+        var mostrarTop10 = typeof window.Buddy.archery.top10Mostrar === 'function'
+          ? window.Buddy.archery.top10Mostrar()
+          : window.Buddy.archery.top10().then(function (top10) {
+              var texto = typeof window.Buddy.archery.top10Texto === 'function'
+                ? window.Buddy.archery.top10Texto(top10)
+                : 'Los mejores puntajes con flechas virtuales:';
+              if (typeof window.buddy_says === 'function') {
+                window.buddy_says(texto, { html: true, emocion: 'sereno' });
+              }
+              return top10;
+            });
 
-            if (typeof window.buddy_says === 'function') {
-              window.buddy_says(texto, { html: true });
-            }
-          })
+        Promise.resolve(mostrarTop10)
           .catch(function (error) {
             if (window.BuddyConfig && window.BuddyConfig.debugMode === true) {
               console.error('[Buddy] No se pudo obtener archery/top10.', error);
