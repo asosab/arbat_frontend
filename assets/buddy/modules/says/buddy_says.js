@@ -106,7 +106,10 @@ window.Buddy = window.Buddy || {};
     var style = document.createElement('style');
     style.id = 'buddy-says-bubble-style';
     style.textContent =
-      '.buddy-says-bubble{position:fixed;max-width:230px;background:#ffffff;' +
+      '.buddy-says-interactive-layer{position:fixed;inset:0;z-index:2147483000;pointer-events:auto;background:transparent;}'+
+      '.buddy-says-interactive-layer[hidden]{display:none;}'+
+      '.buddy-says-bubble.is-interactive,.buddy-says-bubble.is-form,.buddy-says-bubble.is-promo{z-index:2147483001;}'+
+            '.buddy-says-bubble{position:fixed;max-width:230px;background:#ffffff;' +
       'color:#1a1a1a;font:600 14px/1.4 -apple-system,BlinkMacSystemFont,' +
       '"Segoe UI",Roboto,sans-serif;padding:10px 14px;border-radius:16px;' +
       'box-shadow:0 6px 18px rgba(0,0,0,.2);z-index:10000;pointer-events:none;' +
@@ -144,6 +147,7 @@ window.Buddy = window.Buddy || {};
   }
 
   var bubbleEl = null;
+  var interactiveLayerEl = null;
   var interactiveHandler = null;
   var userFormState = null;
 
@@ -156,6 +160,39 @@ window.Buddy = window.Buddy || {};
     bubbleEl.style.display = 'none';
     document.body.appendChild(bubbleEl);
     return bubbleEl;
+  }
+
+  // Capa modal SOLO para mensajes interactivos. Los mensajes normales
+  // permanecen completamente no bloqueantes: el usuario puede hacer scroll,
+  // pulsar elementos de la página o iniciar otros módulos.
+  function ensureInteractiveLayer() {
+    if (interactiveLayerEl) return interactiveLayerEl;
+    ensureBubbleStyles();
+
+    interactiveLayerEl = document.createElement('div');
+    interactiveLayerEl.id = 'buddy-says-interactive-layer';
+    interactiveLayerEl.className = 'buddy-says-interactive-layer';
+    interactiveLayerEl.hidden = true;
+
+    // La capa captura los eventos que ocurren fuera del globo para que
+    // nunca atraviesen hacia elementos de la página.
+    ['click', 'dblclick', 'mousedown', 'mouseup', 'pointerdown', 'pointerup',
+      'touchstart', 'touchend', 'contextmenu'].forEach(function (eventName) {
+      interactiveLayerEl.addEventListener(eventName, function (event) {
+        if (event.target === interactiveLayerEl) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+      });
+    });
+
+    document.body.appendChild(interactiveLayerEl);
+    return interactiveLayerEl;
+  }
+
+  function setInteractiveLayer(active) {
+    var layer = ensureInteractiveLayer();
+    layer.hidden = !active;
   }
 
   // -------------------------------------------------------------------
@@ -227,6 +264,7 @@ window.Buddy = window.Buddy || {};
     for (var i = 0; i < choices.length; i += 1) choices[i].remove();
     interactiveHandler = null;
     bubbleEl.classList.remove('is-interactive');
+    setInteractiveLayer(false);
   }
 
   function cancelInteractive() {
@@ -268,6 +306,7 @@ window.Buddy = window.Buddy || {};
     if (!opciones || opciones.interactive !== true || !Array.isArray(opciones.choices)) return;
     interactiveHandler = typeof opciones.onChoice === 'function' ? opciones.onChoice : null;
     bubbleEl.classList.add('is-interactive');
+    setInteractiveLayer(true);
     opciones.choices.forEach(function (choice) {
       if (!choice) return;
       var button = document.createElement('button');
@@ -293,6 +332,12 @@ window.Buddy = window.Buddy || {};
     }
     bubbleEl.classList.toggle('is-promo', !!opciones.promo);
     renderInteractiveChoices(opciones);
+
+    // HTML con promo/enlaces también es interactivo y debe quedar protegido
+    // contra clics que atraviesen el globo.
+    if (opciones.promo === true && !opciones.interactive) {
+      setInteractiveLayer(true);
+    }
     positionBubble(datosExpresion);
     bubbleEl.style.display = 'block';
     // Fuerza reflow para que la transición de entrada dispare siempre,
@@ -303,6 +348,7 @@ window.Buddy = window.Buddy || {};
 
   function hideBubble() {
     if (!bubbleEl) return;
+    setInteractiveLayer(false);
     bubbleEl.classList.remove('is-visible');
     setTimeout(function () {
       if (bubbleEl && !bubbleEl.classList.contains('is-visible')) {
@@ -567,6 +613,7 @@ window.Buddy = window.Buddy || {};
     userFormState = null;
     state.resolved = true;
     if (bubbleEl) bubbleEl.classList.remove('is-form');
+    setInteractiveLayer(false);
     callToken++;
     hideBubble();
 
@@ -585,6 +632,7 @@ window.Buddy = window.Buddy || {};
     userFormState = null;
     state.resolved = true;
     if (bubbleEl) bubbleEl.classList.remove('is-form');
+    setInteractiveLayer(false);
     callToken++;
     hideBubble();
     var callback = typeof state.config.onResolved === 'function' ? state.config.onResolved : null;
@@ -610,6 +658,7 @@ window.Buddy = window.Buddy || {};
     if (!datosExpresion || !datosExpresion.archivo) return false;
     window.Buddy.showCharacterImage(datosExpresion);
     createUserForm(config);
+    setInteractiveLayer(true);
     positionBubble(datosExpresion);
     bubbleEl.style.display = 'block';
     void bubbleEl.offsetWidth;
