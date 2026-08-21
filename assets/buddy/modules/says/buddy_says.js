@@ -477,7 +477,15 @@ window.Buddy = window.Buddy || {};
 
     if (next && next.type === 'form') {
       debugSource('[BUDDY SAYS] entregando formulario pendiente; pendientes=', speechQueue.length);
-      return frmUsr(next.config);
+      var formShown = frmUsr(next.config);
+      if (!formShown) {
+        // Mismo resguardo que ya existe para mensajes normales: si el
+        // formulario no pudo mostrarse ahora (por ejemplo, la expresión
+        // del personaje todavía no está disponible), no se pierde el
+        // turno — vuelve al frente de la cola para reintentarlo.
+        speechQueue.unshift(next);
+      }
+      return formShown;
     }
 
     debugSource('[BUDDY SAYS] entregando turno pendiente:', next && next.texto,
