@@ -385,17 +385,13 @@ window.Buddy = window.Buddy || {};
   var bubbleTimer = null;
   var callToken = 0;
 
-  // Cola de turnos de entrega con prioridad.
+  // Cola única de turnos de entrega.
   //
-  // Los mensajes provenientes de sources forman la cola planificada y
-  // conservan su orden de entrega. Los mensajes generados por acciones
-  // (formularios, login, respuestas de sí/no, información solicitada, etc.)
-  // tienen prioridad: se insertan delante de los mensajes de source que estén
-  // esperando. Así una acción no queda atrapada detrás de mensajes
-  // automáticos que llegaron antes.
-  //
-  // Si ya hay un mensaje visible, la acción toma el siguiente turno
-  // disponible; no se interrumpe el globo que ya está en pantalla.
+  // Acá confluyen TODOS los mensajes que deben hablarse: mensajes generados
+  // por acciones y mensajes provenientes de las fuentes. El orden de esta
+  // cola es el orden de los turnos de entrega. Un mensaje que llega mientras
+  // otro está visible se agrega al final y será entregado en el siguiente
+  // turno disponible.
   //
   // Los mensajes de fuente conservan su estado persistente separado; sólo se
   // incorporan a esta cola cuando su espera ya venció.
@@ -682,10 +678,8 @@ window.Buddy = window.Buddy || {};
 
     var entry = { type: 'form', config: config };
     if (userFormState || hasActiveSpeech()) {
-      // Los formularios son una acción del usuario y tienen prioridad sobre
-      // cualquier mensaje automático pendiente de las sources.
-      speechQueue.unshift(entry);
-      debugSource('[BUDDY SAYS] formulario de usuario agregado con prioridad; pendientes=', speechQueue.length);
+      speechQueue.push(entry);
+      debugSource('[BUDDY SAYS] formulario de usuario agregado al final de la cola de turnos; pendientes=', speechQueue.length);
       return true;
     }
 
@@ -711,17 +705,18 @@ window.Buddy = window.Buddy || {};
   function buddySays(texto, opciones) {
     opciones = Object.assign({}, opciones || {});
 
-    // Los mensajes generados por una acción tienen prioridad sobre las
-    // sources. Se colocan al frente de la cola para que una interacción del
-    // usuario no tenga que esperar detrás de mensajes automáticos.
-    speechQueue.unshift({
+    // Todo mensaje generado por una acción entra siempre en la misma cola de
+    // turnos. No se muestra directamente aunque Buddy esté libre: de esta
+    // forma la acción queda integrada con los mensajes de fuente y nunca
+    // puede saltarse el planificador.
+    speechQueue.push({
       type: 'message',
       texto: texto,
       opciones: opciones,
       source: 'action'
     });
 
-    debugSource('[BUDDY SAYS] turno generado por acción agregado con prioridad:', texto,
+    debugSource('[BUDDY SAYS] turno generado por acción encolado:', texto,
       'pendientes=', speechQueue.length);
 
     showNextQueuedSpeech();
@@ -957,7 +952,34 @@ window.Buddy = window.Buddy || {};
     stored.source = message.source;
     stored.recurrence = Math.max(0, Number(stored.recurrence) || 0);
     stored.espera = Math.max(0, Number(stored.espera) || 0);
-    stored.date = Number(stored.date) || 0;
+
+    // `date` es estado persistente de la entrega. Nunca debemos convertirlo
+    // silenciosamente a 0 sólo porque venga serializado como string (por
+    // ejemplo, una fecha ISO) o porque el valor haya sido creado por una
+    // versión anterior del módulo. Un 0 sólo significa "nunca entregado".
+    var persistedDate = stored.date;
+    var normalizedDate = 0;
+
+    if (typeof persistedDate === 'number' && isFinite(persistedDate)) {
+      normalizedDate = persistedDate > 0 ? persistedDate : 0;
+    } else if (typeof persistedDate === 'string' && persistedDate.trim()) {
+      var numericDate = Number(persistedDate);
+      if (isFinite(numericDate) && numericDate > 0) {
+        normalizedDate = numericDate;
+      } else {
+        var parsedDate = Date.parse(persistedDate);
+        if (isFinite(parsedDate) && parsedDate > 0) normalizedDate = parsedDate;
+      }
+    }
+
+    // Si había una fecha válida pero no pudimos normalizarla, conservar el
+    // valor original para evitar destruir el historial persistido.
+    if (normalizedDate > 0) {
+      stored.date = normalizedDate;
+    } else if (persistedDate === 0 || persistedDate == null || persistedDate === '') {
+      stored.date = 0;
+    }
+
     return stored;
   }
 
@@ -1196,7 +1218,7 @@ window.Buddy = window.Buddy || {};
       }
     });
 
-    debugSource('[BUDDY SAYS] turno de fuente agregado al final de la cola:',
+    debugSource('[BUDDY SAYS] turno de fuente agregado a la cola:',
       message.source, message.id, 'pendientes=', speechQueue.length);
 
     // Si no hay un mensaje activo, puede comenzar este turno inmediatamente.
@@ -1250,9 +1272,9 @@ window.Buddy = window.Buddy || {};
       queueIndex++;
     }
 
-    // Las acciones tienen prioridad sobre los mensajes de source. Si una
-    // acción ya estaba esperando su turno, permanecerá delante de este
-    // mensaje automático aunque la source haya sido incorporada antes.
+    // Si una acción ya estaba esperando su turno, permanece delante de este
+    // nuevo mensaje de fuente porque respeta el orden en que los turnos fueron
+    // incorporados a la cola.
     if (speechQueue.length && !hasActiveSpeech()) {
       showNextQueuedSpeech();
     }
