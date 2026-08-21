@@ -172,12 +172,51 @@ window.Buddy = window.Buddy || {};
     return interactionLayerEl;
   }
 
+  var interactionCaptureInstalled = false;
+  var interactionCaptureActive = false;
+
+  function isEventInsideInteractiveBubble(event) {
+    if (!bubbleEl || !bubbleEl.classList.contains('is-visible')) return false;
+    var target = event && event.target;
+    return !!(target && (target === bubbleEl || bubbleEl.contains(target)));
+  }
+
+  function installInteractionCapture() {
+    if (interactionCaptureInstalled) return;
+    interactionCaptureInstalled = true;
+
+    // IMPORTANTE: no usamos la capa transparente como receptor de eventos.
+    // En móviles, una capa fixed con pointer-events:auto puede interceptar
+    // los toques incluso cuando el globo visualmente está encima.
+    //
+    // En su lugar, el globo recibe los eventos normalmente y estos listeners
+    // en fase de captura bloquean únicamente los eventos cuyo target está
+    // fuera del globo. Así un input puede perder el foco, volver a recibir
+    // un tap y reabrir el teclado, mientras la página inferior permanece
+    // bloqueada.
+    ['pointerdown', 'pointerup', 'click', 'touchstart', 'touchend', 'touchmove'].forEach(function (eventName) {
+      document.addEventListener(eventName, function (event) {
+        if (!interactionCaptureActive) return;
+        if (isEventInsideInteractiveBubble(event)) return;
+
+        event.preventDefault();
+        event.stopPropagation();
+      }, { capture: true, passive: false });
+    });
+  }
+
   function setInteractionLayer(active) {
     var layer = ensureInteractionLayer();
-    layer.style.display = 'block';
-    layer.style.pointerEvents = active ? 'auto' : 'none';
-    layer.style.touchAction = active ? 'none' : 'auto';
+    installInteractionCapture();
+
+    // La capa existe sólo como estado visual/semántico. Nunca intercepta
+    // eventos; el bloqueo de la página se hace arriba, en fase de captura,
+    // para no interferir con los controles del globo.
+    layer.style.display = active ? 'block' : 'none';
+    layer.style.pointerEvents = 'none';
+    layer.style.touchAction = 'auto';
     layer.setAttribute('aria-hidden', active ? 'false' : 'true');
+    interactionCaptureActive = !!active;
   }
 
   function ensureBubbleElement() {
