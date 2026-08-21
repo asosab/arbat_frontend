@@ -56,6 +56,7 @@ arbat:
   longitud: -63.22014574535284
   google_maps_url: "https://maps.app.goo.gl/yrxjsFbNvWqtT6Bp9"
   telefono_whatsapp:
+    - "+591 64533014"
     - "+591 70885758"
     - "+591 76660577"
   telefono_whatsapp_reservas: "+591 64533014"
@@ -175,13 +176,3 @@ exclude:
   - assets/buddy/buddy-test.html
   - assets/buddy/modules/auth/auth-service-contract.md
   - assets/buddy/modules/says/sources/README.md
-
-# ---------------------------------------------------------------------------
-# Facebook Login (SDK JS) — usado por _includes/facebook-sdk.html y
-# assets/js/user.js. app_id no es secreto, puede vivir en el repo.
-# También alimenta el meta tag fb:app_id en head.html (ver ese archivo) —
-# mismo App ID, no hace falta crear una app separada para eso.
-# ---------------------------------------------------------------------------
-facebook:
-  app_id: "1662744362522934"
-  api_version: "v26.0"
