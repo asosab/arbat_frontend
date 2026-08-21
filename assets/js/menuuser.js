@@ -109,29 +109,17 @@
         evento.stopPropagation();
         btnTop10.disabled = true;
 
-        if (!window.Buddy || !window.Buddy.archery || typeof window.Buddy.archery.top10 !== 'function') {
+        var archery = window.Buddy && window.Buddy.archery;
+        if (!archery || typeof archery.top10Mostrar !== 'function') {
           btnTop10.disabled = false;
           return;
         }
 
-        var mostrarTop10 = typeof window.Buddy.archery.top10Mostrar === 'function'
-          ? window.Buddy.archery.top10Mostrar()
-          : window.Buddy.archery.top10().then(function (top10) {
-              var texto = typeof window.Buddy.archery.top10Texto === 'function'
-                ? window.Buddy.archery.top10Texto(top10)
-                : 'Los mejores puntajes con flechas virtuales:';
-              if (typeof window.buddy_says === 'function') {
-                window.buddy_says(texto, { html: true, emocion: 'sereno' });
-              }
-              return top10;
-            });
-
-        Promise.resolve(mostrarTop10)
+        archery.top10Mostrar()
           .catch(function (error) {
             if (window.BuddyConfig && window.BuddyConfig.debugMode === true) {
-              console.error('[Buddy] No se pudo obtener archery/top10.', error);
+              console.error('[Buddy] No se pudo mostrar archery/top10.', error);
             }
-
             if (typeof window.buddy_says === 'function') {
               window.buddy_says('No pude consultar el Top 10 en este momento.');
             }
