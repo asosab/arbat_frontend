@@ -106,13 +106,13 @@ window.Buddy = window.Buddy || {};
     var style = document.createElement('style');
     style.id = 'buddy-says-bubble-style';
     style.textContent =
-      '.buddy-says-interaction-layer{position:fixed;inset:0;z-index:9999;' +
-      'display:none;background:transparent;pointer-events:auto;touch-action:none;' +
+      '.buddy-says-interaction-layer{position:fixed;inset:0;z-index:2147483000;' +
+      'display:block;background:transparent;pointer-events:none;touch-action:auto;' +
       '-webkit-tap-highlight-color:transparent;}' +
       '.buddy-says-bubble{position:fixed;max-width:230px;background:#ffffff;' +
       'color:#1a1a1a;font:600 14px/1.4 -apple-system,BlinkMacSystemFont,' +
       '"Segoe UI",Roboto,sans-serif;padding:10px 14px;border-radius:16px;' +
-      'box-shadow:0 6px 18px rgba(0,0,0,.2);z-index:10000;pointer-events:none;' +
+      'box-shadow:0 6px 18px rgba(0,0,0,.2);z-index:2147483001;pointer-events:none;' +
       'user-select:none;opacity:0;transform:translateY(8px) scale(.96);' +
       'transition:opacity .18s ease,transform .18s ease;text-align:center;}' +
       '.buddy-says-bubble.is-visible{opacity:1;transform:translateY(0) scale(1);}' +
@@ -121,7 +121,7 @@ window.Buddy = window.Buddy || {};
       'transform:rotate(45deg);border-radius:2px;}' +
       // Globo "promo" (más ancho, con pointer-events habilitado para poder
       // tocar un <a> real adentro) — mismo criterio que raulito.js.
-      '.buddy-says-bubble.is-interactive{pointer-events:auto;user-select:none;max-width:300px;}'+
+      '.buddy-says-bubble.is-interactive{pointer-events:auto;user-select:none;max-width:300px;touch-action:auto;}'+
       '.buddy-says-bubble.is-interactive .buddy-says-choice{margin:8px 4px 0;padding:6px 12px;border:1px solid #888;' +
       'border-radius:8px;background:#f3f3f3;color:#1a1a1a;cursor:pointer;font:inherit;}'+
       '.buddy-says-bubble.is-interactive .buddy-says-choice:hover{background:#e8e8e8;}'+
@@ -129,7 +129,7 @@ window.Buddy = window.Buddy || {};
       'user-select:text;}' +
       '.buddy-says-bubble.is-promo a{color:#0d6efd;text-decoration:underline;' +
       'pointer-events:auto;}' +
-      '.buddy-says-bubble.is-form{max-width:310px;pointer-events:auto;user-select:text;text-align:left;padding:12px 14px;}' +
+      '.buddy-says-bubble.is-form{max-width:310px;pointer-events:auto;user-select:text;text-align:left;padding:12px 14px;touch-action:auto;}' +
       '.buddy-says-form{display:flex;flex-direction:column;gap:7px;}' +
       '.buddy-says-form-row{display:grid;grid-template-columns:72px minmax(0,1fr);align-items:center;gap:7px;}' +
       '.buddy-says-form-row label{font-weight:600;white-space:nowrap;}' +
@@ -157,10 +157,15 @@ window.Buddy = window.Buddy || {};
     interactionLayerEl = document.createElement('div');
     interactionLayerEl.id = 'buddy-says-interaction-layer';
     interactionLayerEl.className = 'buddy-says-interaction-layer';
+    // La capa es un contenedor del globo, no un hermano que se interpone
+    // delante de él. En modo interactivo captura los eventos fuera del
+    // globo; los controles del globo siguen siendo los targets reales.
     ['pointerdown', 'pointerup', 'click', 'touchstart', 'touchend'].forEach(function (eventName) {
       interactionLayerEl.addEventListener(eventName, function (event) {
-        event.preventDefault();
-        event.stopPropagation();
+        if (event.target === interactionLayerEl) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
       }, { passive: false });
     });
     document.body.appendChild(interactionLayerEl);
@@ -169,7 +174,9 @@ window.Buddy = window.Buddy || {};
 
   function setInteractionLayer(active) {
     var layer = ensureInteractionLayer();
-    layer.style.display = active ? 'block' : 'none';
+    layer.style.display = 'block';
+    layer.style.pointerEvents = active ? 'auto' : 'none';
+    layer.style.touchAction = active ? 'none' : 'auto';
     layer.setAttribute('aria-hidden', active ? 'false' : 'true');
   }
 
@@ -188,7 +195,10 @@ window.Buddy = window.Buddy || {};
         }
       }, { passive: false });
     });
-    document.body.appendChild(bubbleEl);
+    // El globo vive DENTRO de la capa. Esto evita cualquier problema de
+    // stacking context en móviles: la capa nunca puede quedar por encima
+    // de sus propios inputs/botones.
+    interactionLayerEl.appendChild(bubbleEl);
     return bubbleEl;
   }
 
