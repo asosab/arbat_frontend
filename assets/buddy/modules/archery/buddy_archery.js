@@ -58,7 +58,7 @@
   }
 
   function textoTop10(top10) {
-    var texto = 'Los mejores puntajes con flechas virtuales:';
+    var texto = 'Los mejores puntajes con flechas virtuales:</br></br>';
 
     if (!Array.isArray(top10) || top10.length === 0) {
       return texto + '\nTodavía no hay puntajes registrados.';
