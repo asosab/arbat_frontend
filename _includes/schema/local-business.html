@@ -5,13 +5,18 @@
   "@id": "{{ '/' | absolute_url }}#localbusiness",
   "name": "{{ site.arbat.nombre }}",
   "slogan": "{{ site.arbat.lema }}",
+  "description": "{{ site.description | strip_newlines | strip }}",
   "url": "{{ '/' | absolute_url }}",
   "email": "{{ site.arbat.email }}",
-  "image": "{{ '/assets/images/logo.png' | absolute_url }}",
-  "sameAs": ["{{ site.arbat.instagram }}"],
+  "telephone": "{{ site.arbat.telefono_whatsapp_reservas }}",
+  "priceRange": "Bs. 70 - Bs. 500",
+  "image": "{{ site.logo | absolute_url }}",
+  "sameAs": [
+    {% for link in site.social.links %}"{{ link }}"{% unless forloop.last %},{% endunless %}{% endfor %}
+  ],
   "address": {
     "@type": "PostalAddress",
-    "streetAddress": "Av. Roca y Coronado #1800",
+    "streetAddress": "Av. Roca y Coronado #1800, entre 4to y 5to anillo",
     "addressLocality": "Santa Cruz de la Sierra",
     "addressRegion": "Santa Cruz",
     "addressCountry": "BO"
@@ -22,7 +27,6 @@
     "longitude": {{ site.arbat.longitud }}
   },
   "hasMap": "{{ site.arbat.google_maps_url }}",
-  "telephone": "{{ site.arbat.telefono_whatsapp | first }}",
   "openingHoursSpecification": [
     {
       "@type": "OpeningHoursSpecification",
@@ -34,6 +38,12 @@
       "@type": "OpeningHoursSpecification",
       "dayOfWeek": "Saturday",
       "opens": "09:00",
+      "closes": "12:00"
+    },
+    {
+      "@type": "OpeningHoursSpecification",
+      "dayOfWeek": "Saturday",
+      "opens": "14:30",
       "closes": "17:00"
     }
   ]
