@@ -48,23 +48,17 @@
 
   function mostrarTop10(top10) {
     var datos = Array.isArray(top10) ? Promise.resolve(top10) : obtenerTop10();
+
     return datos.then(function (resultado) {
-      var texto = textoTop10(resultado);
-      var mostrar = function () {
-        if (typeof window.buddy_says !== 'function') {
-          throw new Error('window.buddy_says no está disponible.');
-        }
-        window.buddy_says(texto, { html: true, emocion: 'sereno' });
-      };
-      // Si acaba de cerrarse un formulario, esperar a que termine su
-      // transición CSS evita que el mensaje quede detrás del estado anterior.
-      if (window.Buddy && window.Buddy.says &&
-          typeof window.Buddy.says.formularioActivo === 'function' &&
-          window.Buddy.says.formularioActivo()) {
-        setTimeout(mostrar, 240);
-      } else {
-        mostrar();
+      if (typeof window.buddy_says !== 'function') {
+        throw new Error('window.buddy_says no está disponible.');
       }
+
+      window.buddy_says(textoTop10(resultado), {
+        html: true,
+        emocion: 'sereno'
+      });
+
       return resultado;
     });
   }
@@ -2770,7 +2764,6 @@ function init() {
   window.BuddyArchery.setAimBlurEnabled = setAimBlurEnabled;
   window.BuddyArchery.isAimBlurEnabled = isAimBlurRuntimeEnabled;
   window.BuddyArchery.top10 = obtenerTop10;
-  window.BuddyArchery.top10Mostrar = mostrarTop10;
   window.BuddyArchery.top10Local = obtenerTop10Local;
   window.BuddyArchery.top10Texto = textoTop10;
 

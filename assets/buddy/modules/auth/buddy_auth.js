@@ -693,6 +693,12 @@ window.Buddy = window.Buddy || {};
       cancelText: 'cancelar',
       onSubmit: function (data) {
         return requestLogin(data.email).then(function () {
+          if (typeof window.buddy_says === 'function') {
+            window.buddy_says(
+              CONFIG.emailSentMessage || 'Revisa tu correo y haz clic en el enlace para iniciar sesión.',
+              { emocion: 'sereno' }
+            );
+          }
           return true;
         });
       },

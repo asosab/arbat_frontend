@@ -106,55 +106,93 @@ window.Buddy = window.Buddy || {};
     var style = document.createElement('style');
     style.id = 'buddy-says-bubble-style';
     style.textContent =
+      // La raíz interactiva NO recibe eventos. Sus hijos sí: el backdrop
+      // bloquea la página y el globo queda por encima del backdrop.
+      '.buddy-says-interaction-layer{position:fixed;inset:0;z-index:2147483000;' +
+      'display:none;pointer-events:none;background:transparent;' +
+      '-webkit-tap-highlight-color:transparent;}' +
+      '.buddy-says-interaction-backdrop{position:absolute;inset:0;' +
+      'background:transparent;pointer-events:auto;touch-action:none;}' +
       '.buddy-says-bubble{position:fixed;max-width:230px;background:#ffffff;' +
       'color:#1a1a1a;font:600 14px/1.4 -apple-system,BlinkMacSystemFont,' +
       '"Segoe UI",Roboto,sans-serif;padding:10px 14px;border-radius:16px;' +
-      'box-shadow:0 6px 18px rgba(0,0,0,.2);z-index:10000;pointer-events:none;' +
-      'user-select:none;opacity:0;transform:translateY(8px) scale(.96);' +
+      'box-shadow:0 6px 18px rgba(0,0,0,.2);z-index:2147483001;' +
+      'pointer-events:none;user-select:none;opacity:0;transform:translateY(8px) scale(.96);' +
       'transition:opacity .18s ease,transform .18s ease;text-align:center;}' +
       '.buddy-says-bubble.is-visible{opacity:1;transform:translateY(0) scale(1);}' +
       '.buddy-says-bubble::after{content:"";position:absolute;bottom:-6px;' +
       'right:28px;width:14px;height:14px;background:#ffffff;' +
       'transform:rotate(45deg);border-radius:2px;}' +
-      // Globo "promo" (más ancho, con pointer-events habilitado para poder
-      // tocar un <a> real adentro) — mismo criterio que raulito.js.
-      '.buddy-says-bubble.is-interactive{pointer-events:auto;user-select:none;max-width:300px;}'+
+      '.buddy-says-bubble.is-interactive{pointer-events:auto;user-select:none;' +
+      'max-width:300px;touch-action:auto;}' +
       '.buddy-says-bubble.is-interactive .buddy-says-choice{margin:8px 4px 0;padding:6px 12px;border:1px solid #888;' +
-      'border-radius:8px;background:#f3f3f3;color:#1a1a1a;cursor:pointer;font:inherit;}'+
-      '.buddy-says-bubble.is-interactive .buddy-says-choice:hover{background:#e8e8e8;}'+
-      '.buddy-says-bubble.is-promo{max-width:300px;pointer-events:auto;'
-      'user-select:text;}' +
-      '.buddy-says-bubble.is-promo a{color:#0d6efd;text-decoration:underline;' +
-      'pointer-events:auto;}' +
-      '.buddy-says-bubble.is-form{max-width:310px;pointer-events:auto;user-select:text;text-align:left;padding:12px 14px;}' +
+      'border-radius:8px;background:#f3f3f3;color:#1a1a1a;cursor:pointer;font:inherit;}' +
+      '.buddy-says-bubble.is-interactive .buddy-says-choice:hover{background:#e8e8e8;}' +
+      '.buddy-says-bubble.is-promo{max-width:300px;pointer-events:auto;user-select:text;}' +
+      '.buddy-says-bubble.is-promo a{color:#0d6efd;text-decoration:underline;pointer-events:auto;}' +
+      '.buddy-says-bubble.is-form{max-width:310px;pointer-events:auto;user-select:text;' +
+      'text-align:left;padding:12px 14px;touch-action:auto;}' +
       '.buddy-says-form{display:flex;flex-direction:column;gap:7px;}' +
       '.buddy-says-form-row{display:grid;grid-template-columns:72px minmax(0,1fr);align-items:center;gap:7px;}' +
       '.buddy-says-form-row label{font-weight:600;white-space:nowrap;}' +
-      '.buddy-says-form-row input{width:100%;height:32px;box-sizing:border-box;padding:5px 8px;border:1px solid #bbb;border-radius:6px;font:inherit;outline:none;}' +
+      '.buddy-says-form-row input{width:100%;height:32px;box-sizing:border-box;padding:5px 8px;' +
+      'border:1px solid #bbb;border-radius:6px;font:inherit;outline:none;}' +
       '.buddy-says-form-row input:focus{border-color:#777;}' +
       '.buddy-says-form-row input[readonly]{background:#f1f1f1;color:#666;}' +
       '.buddy-says-form-actions{display:flex;justify-content:flex-end;gap:7px;margin-top:3px;}' +
-      '.buddy-says-form-submit{height:32px;padding:0 14px;border:1px solid #888;border-radius:6px;background:#f3f3f3;color:#1a1a1a;cursor:pointer;font:inherit;}' +
-      '.buddy-says-form-submit:hover{background:#e8e8e8;}' +
-       '.buddy-says-form-cancel{height:32px;padding:0 14px;border:1px solid #888;border-radius:6px;background:#ffffff;color:#1a1a1a;cursor:pointer;font:inherit;}' +
-       '.buddy-says-form-cancel:hover{background:#f0f0f0;}' +
+      '.buddy-says-form-submit,.buddy-says-form-cancel{height:32px;padding:0 14px;' +
+      'border:1px solid #888;border-radius:6px;cursor:pointer;font:inherit;}' +
+      '.buddy-says-form-submit{background:#f3f3f3;color:#1a1a1a;}' +
+      '.buddy-says-form-cancel{background:#fff;color:#1a1a1a;}' +
       '.buddy-says-form-submit:disabled{opacity:.6;cursor:wait;}' +
       '.buddy-says-form-error{display:none;margin-top:2px;color:#b00020;font-size:12px;text-align:left;}';
     document.head.appendChild(style);
   }
 
+  var interactionLayerEl = null;
+  var interactionBackdropEl = null;
   var bubbleEl = null;
   var interactiveHandler = null;
   var userFormState = null;
 
+  function ensureInteractionLayer() {
+    if (interactionLayerEl) return interactionLayerEl;
+    ensureBubbleStyles();
+
+    interactionLayerEl = document.createElement('div');
+    interactionLayerEl.id = 'buddy-says-interaction-layer';
+    interactionLayerEl.className = 'buddy-says-interaction-layer';
+
+    // El backdrop es el único elemento que bloquea la página. No se usan
+    // listeners globales de document/capture: el navegador puede entregar
+    // normalmente los eventos táctiles a inputs y botones del globo.
+    interactionBackdropEl = document.createElement('div');
+    interactionBackdropEl.id = 'buddy-says-interaction-backdrop';
+    interactionBackdropEl.className = 'buddy-says-interaction-backdrop';
+    interactionBackdropEl.setAttribute('aria-hidden', 'true');
+
+    interactionLayerEl.appendChild(interactionBackdropEl);
+    document.body.appendChild(interactionLayerEl);
+    return interactionLayerEl;
+  }
+
+  function setInteractionLayer(active) {
+    ensureInteractionLayer();
+    interactionLayerEl.style.display = active ? 'block' : 'none';
+    interactionLayerEl.setAttribute('aria-hidden', active ? 'false' : 'true');
+  }
+
   function ensureBubbleElement() {
     if (bubbleEl) return bubbleEl;
     ensureBubbleStyles();
+    ensureInteractionLayer();
     bubbleEl = document.createElement('div');
     bubbleEl.id = 'buddy-says-bubble';
     bubbleEl.className = 'buddy-says-bubble';
     bubbleEl.style.display = 'none';
-    document.body.appendChild(bubbleEl);
+    // El globo está por encima del backdrop dentro del mismo stacking
+    // context. No necesita listeners de captura ni document handlers.
+    interactionLayerEl.appendChild(bubbleEl);
     return bubbleEl;
   }
 
@@ -237,6 +275,7 @@ window.Buddy = window.Buddy || {};
     }
     callToken++;
     clearInteractiveChoices();
+    setInteractionLayer(false);
     hideBubble();
     showNextQueuedSpeech();
     return true;
@@ -251,15 +290,21 @@ window.Buddy = window.Buddy || {};
     }
     callToken++;
     clearInteractiveChoices();
+    setInteractionLayer(false);
     hideBubble();
     if (typeof handler === 'function') {
       var result = handler(value);
-      // El handler puede generar inmediatamente el siguiente mensaje; si no
-      // lo hizo, libera la cola que estaba esperando detrás de la interacción.
-      if (!hasActiveSpeech()) setTimeout(showNextQueuedSpeech, 220);
+      // El handler puede generar inmediatamente el siguiente mensaje. Como
+      // el globo anterior todavía está en transición de salida, liberamos la
+      // cola después de esa transición.
+      setTimeout(function () {
+        if (!hasActiveSpeech()) showNextQueuedSpeech();
+      }, 220);
       return result;
     }
-    setTimeout(showNextQueuedSpeech, 220);
+    setTimeout(function () {
+      showNextQueuedSpeech();
+    }, 220);
     return false;
   }
 
@@ -268,6 +313,7 @@ window.Buddy = window.Buddy || {};
     if (!opciones || opciones.interactive !== true || !Array.isArray(opciones.choices)) return;
     interactiveHandler = typeof opciones.onChoice === 'function' ? opciones.onChoice : null;
     bubbleEl.classList.add('is-interactive');
+    setInteractionLayer(true);
     opciones.choices.forEach(function (choice) {
       if (!choice) return;
       var button = document.createElement('button');
@@ -417,6 +463,7 @@ window.Buddy = window.Buddy || {};
     bubbleEl.innerHTML = '';
     bubbleEl.classList.remove('is-promo', 'is-interactive');
     bubbleEl.classList.add('is-form');
+    setInteractionLayer(true);
 
     var form = document.createElement('form');
     form.className = 'buddy-says-form';
@@ -508,12 +555,6 @@ window.Buddy = window.Buddy || {};
     // El formulario vive dentro del globo: las interacciones con sus
     // controles no deben propagarse a handlers externos que puedan cerrar
     // o reemplazar el globo.
-    ['click', 'mousedown', 'mouseup', 'pointerdown', 'pointerup'].forEach(function (eventName) {
-      form.addEventListener(eventName, function (event) {
-        event.stopPropagation();
-      });
-    });
-
     cancel.addEventListener('click', function (event) {
       event.preventDefault();
       event.stopPropagation();
@@ -567,6 +608,7 @@ window.Buddy = window.Buddy || {};
     userFormState = null;
     state.resolved = true;
     if (bubbleEl) bubbleEl.classList.remove('is-form');
+    setInteractionLayer(false);
     callToken++;
     hideBubble();
 
@@ -575,7 +617,7 @@ window.Buddy = window.Buddy || {};
       try { callback(); } catch (error) { console.error('[buddy_says] Error en onCancel:', error); }
     }
 
-    setTimeout(showNextQueuedSpeech, 220);
+    showNextQueuedSpeech();
     return true;
   }
 
@@ -585,11 +627,12 @@ window.Buddy = window.Buddy || {};
     userFormState = null;
     state.resolved = true;
     if (bubbleEl) bubbleEl.classList.remove('is-form');
+    setInteractionLayer(false);
     callToken++;
     hideBubble();
     var callback = typeof state.config.onResolved === 'function' ? state.config.onResolved : null;
     if (callback) callback(data);
-    setTimeout(showNextQueuedSpeech, 220);
+    showNextQueuedSpeech();
     return true;
   }
 
