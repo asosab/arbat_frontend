@@ -617,7 +617,9 @@ window.Buddy = window.Buddy || {};
       try { callback(); } catch (error) { console.error('[buddy_says] Error en onCancel:', error); }
     }
 
-    showNextQueuedSpeech();
+    setTimeout(function () {
+      showNextQueuedSpeech();
+    }, 220);
     return true;
   }
 
@@ -632,7 +634,9 @@ window.Buddy = window.Buddy || {};
     hideBubble();
     var callback = typeof state.config.onResolved === 'function' ? state.config.onResolved : null;
     if (callback) callback(data);
-    showNextQueuedSpeech();
+    setTimeout(function () {
+      showNextQueuedSpeech();
+    }, 220);
     return true;
   }
 
