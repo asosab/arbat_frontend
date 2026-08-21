@@ -385,11 +385,26 @@ window.Buddy = window.Buddy || {};
   var bubbleTimer = null;
   var callToken = 0;
 
-  // Cola prioritaria de mensajes solicitados directamente por los módulos.
-  // Si hay un mensaje en curso, cada nuevo buddy_says() se coloca de inmediato
-  // después del mensaje actual, por delante de los demás mensajes pendientes.
-  // Esto evita que una solicitud directa quede detrás de mensajes ya en cola.
+  // Cola de turnos de entrega con prioridad.
+  //
+  // Los mensajes provenientes de sources forman la cola planificada y
+  // conservan su orden de entrega. Los mensajes generados por acciones
+  // (formularios, login, respuestas de sí/no, información solicitada, etc.)
+  // tienen prioridad: se insertan delante de los mensajes de source que estén
+  // esperando. Así una acción no queda atrapada detrás de mensajes
+  // automáticos que llegaron antes.
+  //
+  // Si ya hay un mensaje visible, la acción toma el siguiente turno
+  // disponible; no se interrumpe el globo que ya está en pantalla.
+  //
+  // Los mensajes de fuente conservan su estado persistente separado; sólo se
+  // incorporan a esta cola cuando su espera ya venció.
   var speechQueue = [];
+
+  // Evita incorporar dos veces el mismo mensaje de fuente mientras está
+  // esperando su turno en speechQueue. La recurrencia sólo se descuenta cuando
+  // el mensaje realmente pasa a pantalla.
+  var queuedSourceMessages = {};
 
   function getBubbleDurationMs(texto, opciones) {
     if (opciones && typeof opciones.durationMs === 'number') {
@@ -426,13 +441,32 @@ window.Buddy = window.Buddy || {};
     if (userFormState || hasActiveSpeech() || !speechQueue.length) return false;
 
     var next = speechQueue.shift();
+
     if (next && next.type === 'form') {
       debugSource('[BUDDY SAYS] entregando formulario pendiente; pendientes=', speechQueue.length);
       return frmUsr(next.config);
     }
-    debugSource('[BUDDY SAYS] entregando mensaje pendiente:', next.texto,
+
+    debugSource('[BUDDY SAYS] entregando turno pendiente:', next && next.texto,
+      'source=', next && next.source || 'action',
       'pendientes=', speechQueue.length);
-    return showSpeechNow(next.texto, next.opciones);
+
+    var shown = showSpeechNow(next.texto, next.opciones);
+    if (!shown) {
+      // No perdemos el turno si la capa visual todavía no puede mostrarlo.
+      speechQueue.unshift(next);
+      return false;
+    }
+
+    if (typeof next.onDelivered === 'function') {
+      try {
+        next.onDelivered();
+      } catch (error) {
+        console.error('[buddy_says] Error al confirmar entrega:', error);
+      }
+    }
+
+    return true;
   }
 
   function normalizeFormField(field, defaults) {
@@ -648,8 +682,10 @@ window.Buddy = window.Buddy || {};
 
     var entry = { type: 'form', config: config };
     if (userFormState || hasActiveSpeech()) {
+      // Los formularios son una acción del usuario y tienen prioridad sobre
+      // cualquier mensaje automático pendiente de las sources.
       speechQueue.unshift(entry);
-      debugSource('[BUDDY SAYS] formulario de usuario colocado inmediatamente después del actual; pendientes=', speechQueue.length);
+      debugSource('[BUDDY SAYS] formulario de usuario agregado con prioridad; pendientes=', speechQueue.length);
       return true;
     }
 
@@ -675,14 +711,21 @@ window.Buddy = window.Buddy || {};
   function buddySays(texto, opciones) {
     opciones = Object.assign({}, opciones || {});
 
-    if (hasActiveSpeech()) {
-      speechQueue.unshift({ texto: texto, opciones: opciones });
-      debugSource('[BUDDY SAYS] mensaje directo colocado inmediatamente después del actual:', texto,
-        'pendientes=', speechQueue.length);
-      return true;
-    }
+    // Los mensajes generados por una acción tienen prioridad sobre las
+    // sources. Se colocan al frente de la cola para que una interacción del
+    // usuario no tenga que esperar detrás de mensajes automáticos.
+    speechQueue.unshift({
+      type: 'message',
+      texto: texto,
+      opciones: opciones,
+      source: 'action'
+    });
 
-    return showSpeechNow(texto, opciones);
+    debugSource('[BUDDY SAYS] turno generado por acción agregado con prioridad:', texto,
+      'pendientes=', speechQueue.length);
+
+    showNextQueuedSpeech();
+    return true;
   }
 
   function showSpeechNow(texto, opciones) {
@@ -966,7 +1009,9 @@ window.Buddy = window.Buddy || {};
     if (!state || !state.messages.length) return [];
 
     var available = state.messages.filter(function (message) {
-      return message.stored && Number(message.stored.recurrence) > 0;
+      return message.stored &&
+        Number(message.stored.recurrence) > 0 &&
+        !queuedSourceMessages[message.id];
     });
 
     if (config.selection === 'shuffle' || config.selection === 'random' ||
@@ -1110,26 +1155,52 @@ window.Buddy = window.Buddy || {};
     });
   }
 
-  function deliverMessage(message) {
+  function enqueueSourceMessage(message) {
     if (!message || !message.stored) return false;
 
-    // La entrega sólo se considera realizada si Says pudo resolver la
-    // expresión y hacer visible al personaje. Esto evita consumir una
-    // recurrencia persistente cuando la capa visual todavía no está lista.
-    if (!buddySays(message.texto, {
-      emocion: message.emocion
-    })) {
+    if (queuedSourceMessages[message.id]) {
       return false;
     }
 
-    var now = Date.now();
-    message.stored.date = now;
-    message.stored.recurrence = Math.max(0, Number(message.stored.recurrence) - 1);
-    lastDeliveryDate = now;
-    writeStore();
+    if (Number(message.stored.recurrence) <= 0) {
+      return false;
+    }
 
-    debugSource('[BUDDY SAYS] mensaje mostrado:', message.source, message.id,
-      'recurrence=', message.stored.recurrence, 'espera=', message.stored.espera);
+    // La fuente sólo selecciona el siguiente turno. La entrega real y el
+    // descuento de recurrence ocurren cuando showNextQueuedSpeech() logra
+    // poner el mensaje en pantalla.
+    queuedSourceMessages[message.id] = true;
+
+    speechQueue.push({
+      type: 'message',
+      texto: message.texto,
+      opciones: {
+        emocion: message.emocion
+      },
+      source: message.source,
+      sourceId: message.id,
+      onDelivered: function () {
+        var now = Date.now();
+
+        message.stored.date = now;
+        message.stored.recurrence =
+          Math.max(0, Number(message.stored.recurrence) - 1);
+
+        lastDeliveryDate = now;
+        delete queuedSourceMessages[message.id];
+        writeStore();
+
+        debugSource('[BUDDY SAYS] mensaje de fuente entregado:', message.source,
+          message.id, 'recurrence=', message.stored.recurrence,
+          'espera=', message.stored.espera);
+      }
+    });
+
+    debugSource('[BUDDY SAYS] turno de fuente agregado al final de la cola:',
+      message.source, message.id, 'pendientes=', speechQueue.length);
+
+    // Si no hay un mensaje activo, puede comenzar este turno inmediatamente.
+    showNextQueuedSpeech();
     return true;
   }
 
@@ -1167,15 +1238,23 @@ window.Buddy = window.Buddy || {};
     }
 
     if (!canSpeakPolitely()) {
-      // Si el mensaje ya está vencido pero Buddy está ocupado, no debemos
-      // perderlo ni dormir durante 30 s. Reintentamos pronto y dejamos que
-      // visibilitychange/focus también despierte el motor inmediatamente.
+      // El mensaje de fuente ya está listo, pero la presentación debe esperar
+      // a que Buddy quede libre. No se descuenta recurrence todavía.
       scheduleEngine(1000);
       return;
     }
 
-    if (deliverMessage(message)) {
+    // El motor de fuentes sólo incorpora el mensaje al tren de turnos.
+    // La cola única decide cuándo se presenta realmente.
+    if (enqueueSourceMessage(message)) {
       queueIndex++;
+    }
+
+    // Las acciones tienen prioridad sobre los mensajes de source. Si una
+    // acción ya estaba esperando su turno, permanecerá delante de este
+    // mensaje automático aunque la source haya sido incorporada antes.
+    if (speechQueue.length && !hasActiveSpeech()) {
+      showNextQueuedSpeech();
     }
 
     scheduleEngine(0);
