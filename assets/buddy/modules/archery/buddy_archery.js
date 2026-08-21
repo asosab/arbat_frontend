@@ -17,6 +17,64 @@
     throw new Error('Buddy Archery: no se encontró window.BuddyArcheryConfig. Carga modules/archery/config.js antes de buddy_archery.js.');
   }
 
+  var TOP10_STORAGE_KEY = 'buddy.archery.top10';
+
+  function guardarTop10Local(top10) {
+    try {
+      window.localStorage.setItem(TOP10_STORAGE_KEY, JSON.stringify(top10));
+    } catch (error) {
+      if (window.BuddyConfig && window.BuddyConfig.debugMode === true) {
+        console.warn('[Buddy] No se pudo guardar archery/top10 en localStorage.', error);
+      }
+    }
+    return top10;
+  }
+
+  function obtenerTop10() {
+    var telemetry = window.Buddy && window.Buddy.telemetry;
+    if (!telemetry || typeof telemetry.get !== 'function') {
+      return Promise.reject(new Error('Buddy Telemetry no está disponible.'));
+    }
+
+    return telemetry.get('archery', (telemetry.getApiConfig('archery') || {}).top10 || '/api/buddy/archery/top10')
+      .then(function (top10) {
+        if (!Array.isArray(top10)) {
+          throw new Error('La API archery/top10 no devolvió un array.');
+        }
+
+        return guardarTop10Local(top10);
+      });
+  }
+
+  function obtenerTop10Local() {
+    try {
+      var raw = window.localStorage.getItem(TOP10_STORAGE_KEY);
+      if (!raw) return null;
+      var top10 = JSON.parse(raw);
+      return Array.isArray(top10) ? top10 : null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function textoTop10(top10) {
+    var texto = 'Los mejores puntajes con flechas virtuales:';
+
+    if (!Array.isArray(top10) || top10.length === 0) {
+      return texto + '\nTodavía no hay puntajes registrados.';
+    }
+
+    return texto + '\n' + top10.map(function (item, index) {
+      var nombre = item && item.nombre ? String(item.nombre) : 'Sin nombre';
+      var puntos = Number(item && item.puntos);
+      var tiempo = Number(item && item.tiempo);
+      var puntosTexto = Number.isFinite(puntos) ? String(puntos) : '0';
+      var tiempoTexto = Number.isFinite(tiempo) ? tiempo.toFixed(3) : '—';
+
+      return (index + 1) + '. ' + nombre + ' — ' + puntosTexto + ' puntos — ' + tiempoTexto + ' segundos';
+    }).join('\n');
+  }
+
   // ---------------------------------------------------------------------
     // Estado interno
     // ---------------------------------------------------------------------
@@ -2438,6 +2496,19 @@ function resolve(outcome, reasonLabel, failBubbleText) {
           narrateAndanadaTotal(batchScoreSum);
           markPageTargetScoreSum();
           sendAndanadaTelemetry(andanada);
+
+          // Si la andanada alcanza el umbral de 55 puntos, actualizamos
+          // inmediatamente el ranking público después de comunicar el evento
+          // de telemetry. La API top10 también guarda automáticamente el
+          // resultado en localStorage.
+          if (batchScoreSum >= 55) {
+            obtenerTop10().catch(function (error) {
+              if (window.BuddyConfig && window.BuddyConfig.debugMode === true) {
+                console.warn('[Buddy] No se pudo actualizar archery/top10 después de la andanada.', error);
+              }
+            });
+          }
+
           arrowsInBatch = 0;
           batchScoreSum = 0;
           andanadaStartedAt = null;
@@ -2653,7 +2724,10 @@ function init() {
     },
     setAimBlurEnabled: setAimBlurEnabled,
     isAimBlurEnabled: isAimBlurRuntimeEnabled,
-    isHandlingAuthWelcome: isArcheryHandlingAuthWelcome
+    isHandlingAuthWelcome: isArcheryHandlingAuthWelcome,
+    top10: obtenerTop10,
+    top10Local: obtenerTop10Local,
+    top10Texto: textoTop10
   };
 
   // API directa para otros módulos que prefieran consultar/controlar
@@ -2661,6 +2735,9 @@ function init() {
   window.BuddyArchery = window.BuddyArchery || {};
   window.BuddyArchery.setAimBlurEnabled = setAimBlurEnabled;
   window.BuddyArchery.isAimBlurEnabled = isAimBlurRuntimeEnabled;
+  window.BuddyArchery.top10 = obtenerTop10;
+  window.BuddyArchery.top10Local = obtenerTop10Local;
+  window.BuddyArchery.top10Texto = textoTop10;
 
   // Si el usuario tuvo que autenticarse después de una andanada, el segundo
   // paso (nombre) comienza únicamente cuando Auth confirma la autenticación.

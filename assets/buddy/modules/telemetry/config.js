@@ -18,6 +18,10 @@ window.BuddyTelemetryConfig = Object.assign({
       login: '/api/buddy/auth/login',
       verify: '/api/buddy/auth/verify',
       logout: '/api/buddy/auth/logout'
+    },
+    archery: {
+      baseUrl: 'https://api.statetty.com',
+      top10: '/api/buddy/archery/top10'
     }
   },
   apiUrl: 'https://api.statetty.com/api/buddy/telemetry'

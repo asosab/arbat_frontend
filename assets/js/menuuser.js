@@ -12,6 +12,7 @@
   'use strict';
 
   var SALIR_ID = 'user-toolkit-salir';
+  var TOP10_ID = 'user-toolkit-top10';
 
   function crearMenu() {
     var menu = document.createElement('div');
@@ -21,6 +22,7 @@
 
     menu.innerHTML =
       '<ul class="user-toolkit-menu__lista" role="none">' +
+        '<li role="none"><button type="button" class="user-toolkit-menu__item" id="' + TOP10_ID + '" role="menuitem">🏹 Top 10</button></li>' +
       '</ul>' +
       '<div class="user-toolkit-menu__pie">' +
         '<button type="button" class="user-toolkit-menu__salir" id="' + SALIR_ID + '" role="menuitem">Cerrar sesión</button>' +
@@ -86,7 +88,58 @@
       }
     });
 
+    function configurarTop10() {
+      var btnTop10 = document.getElementById(TOP10_ID);
+      if (!btnTop10) return;
+
+      var archeryEnabled = !!(window.BuddyArcheryConfig && window.BuddyArcheryConfig.enabled !== false);
+      var archeryActivo = !!(window.Buddy && Array.isArray(window.Buddy.abilities) &&
+        window.Buddy.abilities.indexOf('archery') !== -1);
+
+      btnTop10.parentNode.hidden = !(archeryEnabled && archeryActivo);
+    }
+
+    configurarTop10();
+
+    window.addEventListener('buddy:ready', configurarTop10);
+
     menu.addEventListener('click', function (evento) {
+      var btnTop10 = evento.target.closest ? evento.target.closest('#' + TOP10_ID) : null;
+      if (btnTop10) {
+        evento.stopPropagation();
+        btnTop10.disabled = true;
+
+        if (!window.Buddy || !window.Buddy.archery || typeof window.Buddy.archery.top10 !== 'function') {
+          btnTop10.disabled = false;
+          return;
+        }
+
+        window.Buddy.archery.top10()
+          .then(function (top10) {
+            var texto = typeof window.Buddy.archery.top10Texto === 'function'
+              ? window.Buddy.archery.top10Texto(top10)
+              : 'Los mejores puntajes con flechas virtuales:';
+
+            if (typeof window.buddy_says === 'function') {
+              window.buddy_says(texto);
+            }
+          })
+          .catch(function (error) {
+            if (window.BuddyConfig && window.BuddyConfig.debugMode === true) {
+              console.error('[Buddy] No se pudo obtener archery/top10.', error);
+            }
+
+            if (typeof window.buddy_says === 'function') {
+              window.buddy_says('No pude consultar el Top 10 en este momento.');
+            }
+          })
+          .then(function () {
+            btnTop10.disabled = false;
+          });
+
+        return;
+      }
+
       var btnSalir = evento.target.closest ? evento.target.closest('#' + SALIR_ID) : null;
       if (!btnSalir) return;
 
