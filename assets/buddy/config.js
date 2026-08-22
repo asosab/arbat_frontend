@@ -21,6 +21,7 @@ window.BuddyConfig = Object.assign({
     'wa_listener',
     'user',
     'auth',
+    'admin',
     'says',
     'chat',
     'archery'

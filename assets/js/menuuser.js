@@ -13,6 +13,7 @@
 
   var SALIR_ID = 'user-toolkit-salir';
   var TOP10_ID = 'user-toolkit-top10';
+  var ADMIN_ID = 'user-toolkit-admin';
 
   function crearMenu() {
     var menu = document.createElement('div');
@@ -23,6 +24,7 @@
     menu.innerHTML =
       '<ul class="user-toolkit-menu__lista" role="none">' +
         '<li role="none"><button type="button" class="user-toolkit-menu__item" id="' + TOP10_ID + '" role="menuitem">🏹 Top 10</button></li>' +
+        '<li role="none" hidden><button type="button" class="user-toolkit-menu__item" id="' + ADMIN_ID + '" role="menuitem">admin</button></li>' +
       '</ul>' +
       '<div class="user-toolkit-menu__pie">' +
         '<button type="button" class="user-toolkit-menu__salir" id="' + SALIR_ID + '" role="menuitem">Cerrar sesión</button>' +
@@ -99,9 +101,23 @@
       btnTop10.parentNode.hidden = !(archeryEnabled && archeryActivo);
     }
 
+    function configurarAdmin() {
+      var btnAdmin = document.getElementById(ADMIN_ID);
+      if (!btnAdmin) return;
+
+      var item = btnAdmin.parentNode;
+      var visible = !!(window.Buddy && window.Buddy.admin &&
+        typeof window.Buddy.admin.isAdmin === 'function' &&
+        window.Buddy.admin.isAdmin());
+
+      item.hidden = !visible;
+    }
+
     configurarTop10();
+    configurarAdmin();
 
     window.addEventListener('buddy:ready', configurarTop10);
+    window.addEventListener('buddy:admin-visibility-changed', configurarAdmin);
 
     menu.addEventListener('click', function (evento) {
       var btnTop10 = evento.target.closest ? evento.target.closest('#' + TOP10_ID) : null;
@@ -137,6 +153,24 @@
           .then(function () {
             btnTop10.disabled = false;
           });
+
+        return;
+      }
+
+      var btnAdmin = evento.target.closest ? evento.target.closest('#' + ADMIN_ID) : null;
+      if (btnAdmin) {
+        evento.stopPropagation();
+        cerrarMenu();
+
+        if (!window.Buddy || !window.Buddy.admin || typeof window.Buddy.admin.open !== 'function') {
+          return;
+        }
+
+        Promise.resolve(window.Buddy.admin.open()).catch(function (error) {
+          if (window.BuddyConfig && window.BuddyConfig.debugMode === true) {
+            console.error('[Buddy] No se pudo abrir Admin.', error);
+          }
+        });
 
         return;
       }
