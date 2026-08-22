@@ -77,7 +77,7 @@ window.Buddy = window.Buddy || {};
     },
 
     // Separación vertical entre la base del globo y anclas.cabeza_superior.
-    bubbleGapPx: 20,
+    bubbleGapPx: 1,
     // Corrimiento del CUERPO del globo hacia la izquierda del punto de
     // cabeza_superior (la colita se queda apuntando cerca del punto real).
     bubbleLeftShiftPx: 17,
