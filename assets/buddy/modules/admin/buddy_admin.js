@@ -132,8 +132,7 @@ window.Buddy = window.Buddy || {};
       method: endpoint === 'get' ? 'GET' : 'POST',
       cache: 'no-store',
       headers: {
-        'Authorization': 'Bearer ' + token,
-        'Content-Type': 'application/json'
+        'Authorization': 'Bearer ' + token
       }
     };
 
@@ -147,6 +146,7 @@ window.Buddy = window.Buddy || {};
       query.set('context', JSON.stringify(payload.context || {}));
       path += (path.indexOf('?') === -1 ? '?' : '&') + query.toString();
     } else {
+      options.headers['Content-Type'] = 'application/json';
       options.body = JSON.stringify(payload);
     }
 
@@ -506,15 +506,21 @@ window.Buddy = window.Buddy || {};
     if (state.initialized) return;
     state.initialized = true;
 
-    // La comprobación se realiza después de que Auth haya restaurado/confirmado
-    // el JWT. Si Auth todavía no terminó, el evento volverá a disparar la
-    // comprobación.
-    function check() {
+    // Auth es la autoridad sobre la sesión. Admin no debe consultar su API
+    // mientras Auth todavía está restaurando/verificando el JWT: eso provoca
+    // llamadas duplicadas durante la inicialización. Esperamos a auth-ready
+    // y sólo después sincronizamos el acceso administrativo.
+    var authReady = false;
+
+    function check(detail) {
+      detail = detail || {};
+
       if (!window.Buddy.auth || typeof window.Buddy.auth.getAccessToken !== 'function') {
         return;
       }
 
-      if (!getAccessToken()) {
+      if (!detail.authenticated || !getAccessToken()) {
+        state.admins = [];
         state.isAdmin = false;
         notifyAdminVisibility();
         return;
@@ -525,9 +531,26 @@ window.Buddy = window.Buddy || {};
       });
     }
 
-    window.addEventListener('buddy:auth-state-changed', check);
-    window.addEventListener('buddy:auth-user-updated', check);
-    check();
+    // Durante el login inicial, Auth emite auth-state-changed antes de
+    // auth-ready. Ignoramos ese primer evento para evitar un GET duplicado.
+    window.addEventListener('buddy:auth-ready', function (event) {
+      authReady = true;
+      check(event && event.detail);
+    });
+
+    window.addEventListener('buddy:auth-state-changed', function (event) {
+      if (!authReady) return;
+      check(event && event.detail);
+    });
+
+    // Si Auth ya terminó antes de que Admin instalara los listeners, usamos
+    // el estado público de Auth para sincronizar una sola vez.
+    if (window.Buddy.auth &&
+        typeof window.Buddy.auth.isAuthenticated === 'function' &&
+        window.Buddy.auth.isAuthenticated()) {
+      authReady = true;
+      check({ authenticated: true });
+    }
   }
 
   window.Buddy.admin = {
