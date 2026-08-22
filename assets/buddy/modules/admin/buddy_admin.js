@@ -128,15 +128,29 @@ window.Buddy = window.Buddy || {};
 
     sendTelemetry(event, data);
 
-    return telemetry.request(CONFIG.apiService || 'admin', path, {
+    var options = {
       method: endpoint === 'get' ? 'GET' : 'POST',
       cache: 'no-store',
       headers: {
         'Authorization': 'Bearer ' + token,
         'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(payload)
-    }).catch(function (error) {
+      }
+    };
+
+    // GET no admite body. El contrato Buddy se transporta como query string;
+    // POST mantiene el payload JSON en el body.
+    if (endpoint === 'get') {
+      var query = new URLSearchParams();
+      query.set('event', payload.event);
+      query.set('module', payload.module);
+      query.set('data', JSON.stringify(payload.data == null ? {} : payload.data));
+      query.set('context', JSON.stringify(payload.context || {}));
+      path += (path.indexOf('?') === -1 ? '?' : '&') + query.toString();
+    } else {
+      options.body = JSON.stringify(payload);
+    }
+
+    return telemetry.request(CONFIG.apiService || 'admin', path, options).catch(function (error) {
       if (error && (error.status === 401 || error.status === 403)) {
         state.isAdmin = false;
         notifyAdminVisibility();
