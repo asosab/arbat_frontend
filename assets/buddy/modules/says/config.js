@@ -33,8 +33,9 @@ window.BuddySaysConfig.sources = [
     recurrence: 2, // cuantas veces se muestra al día
     frequency: { min: 0.3, max: 0.5 } //cada cuantos minutos se entregan mensajes de esta lista
   },  
-  {id: 'agenda',    enabled: true, selection: 'sequential',   recurrence: 1, frequency: { min: 0.5, max: 1 }},
-  {id: 'consejos',  enabled: true, selection: 'shuffle',      recurrence: 2, frequency: { min: 0.5, max: 1 }}
+  {id: 'agenda',        enabled: true, selection: 'sequential',   recurrence: 1, frequency: { min: 1, max: 2 }},
+  {id: 'consejos',      enabled: true, selection: 'shuffle',      recurrence: 2, frequency: { min: 1, max: 2 }},
+  {id: 'curiosidades',  enabled: true, selection: 'shuffle',      recurrence: 1, frequency: { min: 1, max: 4 }}
 ];
 
 window.BuddyAgendaConfig = Object.assign({
