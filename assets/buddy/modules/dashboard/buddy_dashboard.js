@@ -676,6 +676,65 @@ window.Buddy = window.Buddy || {};
     };
   }
 
+    function ensurePdfButton(dialog) {
+      if (!dialog || dialog.querySelector('.buddy-dashboard__pdf')) return;
+
+      var actions = dialog.querySelector('.buddy-dashboard__actions') ||
+        dialog.querySelector('.buddy-dashboard__header') ||
+        dialog.querySelector('[data-buddy-dashboard-actions]');
+
+      if (!actions) {
+        actions = document.createElement('div');
+        actions.className = 'buddy-dashboard__actions';
+        var header = dialog.querySelector('.buddy-dashboard__header') || dialog.firstElementChild;
+        if (header) header.appendChild(actions);
+        else dialog.insertBefore(actions, dialog.firstChild);
+      }
+
+      var button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'buddy-dashboard__pdf';
+      button.textContent = 'Mostrar como PDF';
+      button.setAttribute('aria-label', 'Mostrar Dashboard como PDF');
+      button.addEventListener('click', function () {
+        var root = dialog.querySelector('[data-buddy-dashboard]') || dialog;
+        var printWindow = window.open('', '_blank');
+        if (!printWindow) {
+          if (window.BuddyConfig && window.BuddyConfig.debugMode === true) {
+            console.error('[Buddy Dashboard] No se pudo abrir la ventana para PDF.');
+          }
+          return;
+        }
+
+        var styles = '';
+        document.querySelectorAll('link[rel="stylesheet"], style').forEach(function (node) {
+          styles += node.outerHTML;
+        });
+
+        printWindow.document.open();
+        printWindow.document.write(
+          '<!doctype html><html><head><meta charset="utf-8">' +
+          '<title>Dashboard</title>' + styles +
+          '<style>' +
+          '@page{size:A4;margin:12mm}' +
+          'body{background:#fff!important;margin:0;padding:0}' +
+          '.buddy-dashboard__pdf,.buddy-dashboard__actions{display:none!important}' +
+          '</style></head><body>' +
+          root.outerHTML +
+          '</body></html>'
+        );
+        printWindow.document.close();
+
+        setTimeout(function () {
+          printWindow.focus();
+          printWindow.print();
+        }, 500);
+      });
+
+      actions.appendChild(button);
+    }
+
+
   function open(options) {
     options = options || {};
 
