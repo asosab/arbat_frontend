@@ -22,6 +22,7 @@ window.BuddyConfig = Object.assign({
     'user',
     'auth',
     'admin',
+    'dashboard',
     'says',
     'chat',
     'archery'
