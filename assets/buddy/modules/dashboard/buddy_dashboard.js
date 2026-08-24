@@ -617,6 +617,7 @@ window.Buddy = window.Buddy || {};
   function ensureDashboardModal() {
     var existing = document.getElementById(DASHBOARD_MODAL_ID);
     if (existing) {
+      ensurePdfButton(existing);
       return {
         modal: existing,
         target: existing.querySelector('[data-buddy-dashboard]')
@@ -634,8 +635,10 @@ window.Buddy = window.Buddy || {};
         '.buddy-dashboard-toolbox{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;background:rgba(0,0,0,.45)}' +
         '.buddy-dashboard-toolbox[hidden]{display:none}' +
         '.buddy-dashboard-toolbox__panel{width:min(1280px,100%);height:min(900px,calc(100vh - 40px));overflow:auto;background:#fff;color:#202124;border-radius:14px;box-shadow:0 16px 60px rgba(0,0,0,.25);box-sizing:border-box}' +
-        '.buddy-dashboard-toolbox__head{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 20px;background:#fff;border-bottom:1px solid #e5e7eb}' +
-        '.buddy-dashboard-toolbox__title{margin:0;font:600 1.15rem system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}' +
+        '.buddy-dashboard-toolbox__head{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:flex-end;gap:10px;padding:14px 20px;background:#fff;border-bottom:1px solid #e5e7eb}' +
+        '.buddy-dashboard-toolbox__title{margin:0 auto 0 0;font:600 1.15rem system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}' +
+        '.buddy-dashboard-toolbox__pdf{border:1px solid #d0d4d9;background:#fff;border-radius:8px;padding:8px 12px;font:inherit;cursor:pointer;color:#202124}' +
+        '.buddy-dashboard-toolbox__pdf:hover{background:#f6f7f8}' +
         '.buddy-dashboard-toolbox__close{border:0;background:transparent;font-size:1.5rem;line-height:1;cursor:pointer;padding:4px 8px;color:#444}' +
         '.buddy-dashboard-toolbox__body{min-height:100%;box-sizing:border-box}' +
         '@media(max-width:600px){.buddy-dashboard-toolbox{padding:8px}.buddy-dashboard-toolbox__panel{height:calc(100vh - 16px);border-radius:10px}}';
@@ -670,69 +673,80 @@ window.Buddy = window.Buddy || {};
       if (event.target === modal) close();
     });
 
+    ensurePdfButton(modal);
+
     return {
       modal: modal,
       target: modal.querySelector('[data-buddy-dashboard]')
     };
   }
 
-    function ensurePdfButton(dialog) {
-      if (!dialog || dialog.querySelector('.buddy-dashboard__pdf')) return;
+  function ensurePdfButton(dialog) {
+    if (!dialog || dialog.querySelector('[data-dashboard-pdf]')) return;
 
-      var actions = dialog.querySelector('.buddy-dashboard__actions') ||
-        dialog.querySelector('.buddy-dashboard__header') ||
-        dialog.querySelector('[data-buddy-dashboard-actions]');
+    var header = dialog.querySelector('.buddy-dashboard-toolbox__head');
+    if (!header) return;
 
-      if (!actions) {
-        actions = document.createElement('div');
-        actions.className = 'buddy-dashboard__actions';
-        var header = dialog.querySelector('.buddy-dashboard__header') || dialog.firstElementChild;
-        if (header) header.appendChild(actions);
-        else dialog.insertBefore(actions, dialog.firstChild);
+    var closeButton = header.querySelector('[data-dashboard-close]');
+    var button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'buddy-dashboard-toolbox__pdf';
+    button.setAttribute('data-dashboard-pdf', '');
+    button.textContent = 'Mostrar como PDF';
+    button.setAttribute('aria-label', 'Mostrar Dashboard como PDF');
+
+    if (closeButton) {
+      header.insertBefore(button, closeButton);
+    } else {
+      header.appendChild(button);
+    }
+
+    button.addEventListener('click', function () {
+      var root = dialog.querySelector('[data-buddy-dashboard]');
+      if (!root) return;
+
+      var printWindow = window.open('', '_blank');
+      if (!printWindow) {
+        debugLog('No se pudo abrir la ventana para PDF. El navegador puede estar bloqueando ventanas emergentes.');
+        return;
       }
 
-      var button = document.createElement('button');
-      button.type = 'button';
-      button.className = 'buddy-dashboard__pdf';
-      button.textContent = 'Mostrar como PDF';
-      button.setAttribute('aria-label', 'Mostrar Dashboard como PDF');
-      button.addEventListener('click', function () {
-        var root = dialog.querySelector('[data-buddy-dashboard]') || dialog;
-        var printWindow = window.open('', '_blank');
-        if (!printWindow) {
-          if (window.BuddyConfig && window.BuddyConfig.debugMode === true) {
-            console.error('[Buddy Dashboard] No se pudo abrir la ventana para PDF.');
-          }
-          return;
-        }
-
-        var styles = '';
-        document.querySelectorAll('link[rel="stylesheet"], style').forEach(function (node) {
-          styles += node.outerHTML;
-        });
-
-        printWindow.document.open();
-        printWindow.document.write(
-          '<!doctype html><html><head><meta charset="utf-8">' +
-          '<title>Dashboard</title>' + styles +
-          '<style>' +
-          '@page{size:A4;margin:12mm}' +
-          'body{background:#fff!important;margin:0;padding:0}' +
-          '.buddy-dashboard__pdf,.buddy-dashboard__actions{display:none!important}' +
-          '</style></head><body>' +
-          root.outerHTML +
-          '</body></html>'
-        );
-        printWindow.document.close();
-
-        setTimeout(function () {
-          printWindow.focus();
-          printWindow.print();
-        }, 500);
+      var styles = '';
+      document.querySelectorAll('link[rel="stylesheet"], style').forEach(function (node) {
+        styles += node.outerHTML;
       });
 
-      actions.appendChild(button);
-    }
+      printWindow.document.open();
+      printWindow.document.write(
+        '<!doctype html><html><head><meta charset="utf-8">' +
+        '<meta name="viewport" content="width=device-width, initial-scale=1">' +
+        '<title>Buddy Dashboard</title>' + styles +
+        '<style>' +
+        '@page{size:A4;margin:12mm}' +
+        'html,body{margin:0!important;padding:0!important;background:#fff!important}' +
+        'body{width:auto!important;overflow:visible!important}' +
+        '.buddy-dashboard-toolbox,.buddy-dashboard-toolbox__panel,.buddy-dashboard-toolbox__body{' +
+          'position:static!important;width:auto!important;height:auto!important;max-height:none!important;' +
+          'min-height:0!important;overflow:visible!important;display:block!important;' +
+          'background:#fff!important;box-shadow:none!important;border-radius:0!important;padding:0!important;margin:0!important' +
+        '}' +
+        '.buddy-dashboard{max-width:none!important;width:100%!important;overflow:visible!important}' +
+        '.buddy-dashboard__pdf,.buddy-dashboard-toolbox__pdf,.buddy-dashboard-toolbox__close,.buddy-dashboard__actions{display:none!important}' +
+        '.buddy-dashboard table{page-break-inside:auto}' +
+        '.buddy-dashboard tr,.buddy-dashboard-card,.buddy-dashboard-panel,.buddy-dashboard-section{break-inside:avoid;page-break-inside:avoid}' +
+        '.buddy-dashboard-section{break-before:auto;page-break-before:auto}' +
+        '</style></head><body>' +
+        root.innerHTML +
+        '</body></html>'
+      );
+      printWindow.document.close();
+
+      setTimeout(function () {
+        printWindow.focus();
+        printWindow.print();
+      }, 700);
+    });
+  }
 
 
   function open(options) {
