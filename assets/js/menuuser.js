@@ -172,12 +172,12 @@
         if (!isAdmin ||
             !window.Buddy ||
             !window.Buddy.dashboard ||
-            typeof window.Buddy.dashboard.get !== 'function') {
+            typeof window.Buddy.dashboard.open !== 'function') {
           btnDashboard.disabled = false;
           return;
         }
 
-        Promise.resolve(window.Buddy.dashboard.get({
+        Promise.resolve(window.Buddy.dashboard.open({
           view: 'admin',
           force: true
         })).catch(function (error) {

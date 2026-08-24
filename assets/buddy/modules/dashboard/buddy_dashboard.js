@@ -605,45 +605,124 @@ window.Buddy = window.Buddy || {};
     if (state.initialized) return;
     state.initialized = true;
 
-    function start(detail) {
-      if (!detail || detail.authenticated !== true || !getAccessToken()) {
-        return;
-      }
-
-      // Buddy sólo tiene el anclaje de buddy.js. La vista crea su propio
-      // contenedor cuando la página ya dispone de <body>.
-      var mountWhenReady = function () {
-        if (!findTarget({})) return;
-        get().catch(function (error) {
-          debugLog('Dashboard no pudo cargar sus datos:', error);
-        });
-      };
-
-      if (document.body) {
-        mountWhenReady();
-      } else {
-        document.addEventListener('DOMContentLoaded', mountWhenReady, { once: true });
-      }
-    }
-
-    window.addEventListener('buddy:auth-ready', function (event) {
-      start(event && event.detail);
-    });
-
-    window.addEventListener('buddy:auth-state-changed', function (event) {
-      start(event && event.detail);
-    });
-
-    if (window.Buddy.auth &&
-        typeof window.Buddy.auth.isAuthenticated === 'function' &&
-        window.Buddy.auth.isAuthenticated()) {
-      start({ authenticated: true });
-    }
+    // Dashboard es una sección navegable del menú. No se abre ni consulta la
+    // API durante la inicialización de Buddy: el menú decide cuándo abrirlo.
+    // Esto evita una petición/renderizado invisible antes de que exista un
+    // destino de interfaz.
   }
+
+  var DASHBOARD_MODAL_ID = 'buddy-dashboard-toolbox';
+  var DASHBOARD_STYLE_ID = 'buddy-dashboard-toolbox-style';
+
+  function ensureDashboardModal() {
+    var existing = document.getElementById(DASHBOARD_MODAL_ID);
+    if (existing) {
+      return {
+        modal: existing,
+        target: existing.querySelector('[data-buddy-dashboard]')
+      };
+    }
+
+    if (!document.body) {
+      throw new Error('No se puede abrir el Dashboard antes de que exista document.body.');
+    }
+
+    if (!document.getElementById(DASHBOARD_STYLE_ID)) {
+      var style = document.createElement('style');
+      style.id = DASHBOARD_STYLE_ID;
+      style.textContent =
+        '.buddy-dashboard-toolbox{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;background:rgba(0,0,0,.45)}' +
+        '.buddy-dashboard-toolbox[hidden]{display:none}' +
+        '.buddy-dashboard-toolbox__panel{width:min(1280px,100%);height:min(900px,calc(100vh - 40px));overflow:auto;background:#fff;color:#202124;border-radius:14px;box-shadow:0 16px 60px rgba(0,0,0,.25);box-sizing:border-box}' +
+        '.buddy-dashboard-toolbox__head{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 20px;background:#fff;border-bottom:1px solid #e5e7eb}' +
+        '.buddy-dashboard-toolbox__title{margin:0;font:600 1.15rem system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}' +
+        '.buddy-dashboard-toolbox__close{border:0;background:transparent;font-size:1.5rem;line-height:1;cursor:pointer;padding:4px 8px;color:#444}' +
+        '.buddy-dashboard-toolbox__body{min-height:100%;box-sizing:border-box}' +
+        '@media(max-width:600px){.buddy-dashboard-toolbox{padding:8px}.buddy-dashboard-toolbox__panel{height:calc(100vh - 16px);border-radius:10px}}';
+      document.head.appendChild(style);
+    }
+
+    var modal = document.createElement('div');
+    modal.id = DASHBOARD_MODAL_ID;
+    modal.className = 'buddy-dashboard-toolbox';
+    modal.hidden = true;
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-labelledby', 'buddy-dashboard-toolbox-title');
+
+    modal.innerHTML =
+      '<div class="buddy-dashboard-toolbox__panel">' +
+        '<div class="buddy-dashboard-toolbox__head">' +
+          '<h2 class="buddy-dashboard-toolbox__title" id="buddy-dashboard-toolbox-title">Dashboard</h2>' +
+          '<button type="button" class="buddy-dashboard-toolbox__close" data-dashboard-close aria-label="Cerrar Dashboard">×</button>' +
+        '</div>' +
+        '<div class="buddy-dashboard-toolbox__body" data-buddy-dashboard></div>' +
+      '</div>';
+
+    document.body.appendChild(modal);
+
+    var closeButton = modal.querySelector('[data-dashboard-close]');
+    if (closeButton) {
+      closeButton.addEventListener('click', close);
+    }
+
+    modal.addEventListener('click', function (event) {
+      if (event.target === modal) close();
+    });
+
+    return {
+      modal: modal,
+      target: modal.querySelector('[data-buddy-dashboard]')
+    };
+  }
+
+  function open(options) {
+    options = options || {};
+
+    if (!window.Buddy.admin ||
+        typeof window.Buddy.admin.isAdmin !== 'function' ||
+        !window.Buddy.admin.isAdmin()) {
+      return Promise.reject(new Error('El Dashboard requiere permisos de administrador.'));
+    }
+
+    var ui;
+    try {
+      ui = ensureDashboardModal();
+    } catch (error) {
+      return Promise.reject(error);
+    }
+
+    ui.modal.hidden = false;
+
+    var requestOptions = Object.assign({}, options, {
+      view: options.view || 'admin',
+      target: ui.target,
+      force: options.force === true
+    });
+
+    debugLog('Abriendo Dashboard desde el menú:', {
+      target: ui.target,
+      view: requestOptions.view
+    });
+
+    return get(requestOptions).catch(function (error) {
+      // get() ya intenta renderizar el error en el target. Propagamos el
+      // rechazo para que el menú pueda registrar el fallo.
+      throw error;
+    });
+  }
+
+  function close() {
+    var modal = document.getElementById(DASHBOARD_MODAL_ID);
+    if (modal) modal.hidden = true;
+  }
+
 
   window.Buddy.dashboard = {
     config: CONFIG,
     get: get,
+    open: open,
+    close: close,
     refresh: refresh,
     render: render,
     setView: setView,
