@@ -73,6 +73,71 @@ window.BuddyDashboardViews = window.BuddyDashboardViews || {};
       '</article>';
   }
 
+  function formatDuration(value) {
+    var seconds = Number(value);
+    if (!isFinite(seconds) || seconds <= 0) return '0 s';
+    if (seconds < 60) return Math.round(seconds) + ' s';
+    var minutes = Math.floor(seconds / 60);
+    var rest = Math.round(seconds % 60);
+    return minutes + 'm ' + rest + 's';
+  }
+
+  function lowSampleTag(entry) {
+    return (entry && entry.lowSample)
+      ? ' <span class="buddy-dashboard-lowsample">muestra baja</span>'
+      : '';
+  }
+
+  // Tarjeta que compara dos tasas de conversión (p.ej. jugó vs no jugó),
+  // cada una con su propio tamaño de muestra visible junto al número.
+  function comparisonCard(title, a, b, labelA, labelB) {
+    a = a || {};
+    b = b || {};
+    return '<article class="buddy-dashboard-card">' +
+      '<div class="buddy-dashboard-card__label">' + escapeHtml(title) + '</div>' +
+      '<div class="buddy-dashboard-card__value">' +
+        formatPercent(a.conversionRate) +
+        ' <span style="font-size:.85rem;font-weight:400;color:#5f6368">vs</span> ' +
+        formatPercent(b.conversionRate) +
+      '</div>' +
+      '<div class="buddy-dashboard-card__samples">' +
+        '<span>' + escapeHtml(labelA) + ': n=' + formatNumber(a.n) + lowSampleTag(a) + '</span>' +
+        '<span>' + escapeHtml(labelB) + ': n=' + formatNumber(b.n) + lowSampleTag(b) + '</span>' +
+      '</div>' +
+    '</article>';
+  }
+
+  function durationCard(title, entry) {
+    entry = entry || {};
+    return '<article class="buddy-dashboard-card">' +
+      '<div class="buddy-dashboard-card__label">' + escapeHtml(title) + '</div>' +
+      '<div class="buddy-dashboard-card__value">' + formatDuration(entry.value) + '</div>' +
+      '<div class="buddy-dashboard-card__samples">' +
+        '<span>n=' + formatNumber(entry.n) + lowSampleTag(entry) + '</span>' +
+      '</div>' +
+    '</article>';
+  }
+
+  // Tabla propia (no listRows) porque necesita insertar la etiqueta de
+  // muestra baja como HTML dentro de la celda, y listRows escapa todo valor.
+  function conversionByLevelTable(items) {
+    if (!Array.isArray(items) || !items.length) {
+      return '<div class="buddy-dashboard-muted">Sin datos en este período.</div>';
+    }
+
+    return '<div class="buddy-dashboard-table-wrap"><table>' +
+      '<thead><tr><th>Nivel</th><th>Actores</th><th>Conversión a WhatsApp</th></tr></thead><tbody>' +
+      items.map(function (item) {
+        item = item || {};
+        return '<tr>' +
+          '<td>' + escapeHtml(item.label || item.level || '—') + '</td>' +
+          '<td>' + formatNumber(item.n) + '</td>' +
+          '<td>' + formatPercent(item.conversionRate) + lowSampleTag(item) + '</td>' +
+        '</tr>';
+      }).join('') +
+      '</tbody></table></div>';
+  }
+
   function section(title, body, className) {
     return '<section class="buddy-dashboard-section ' + (className || '') + '">' +
       '<h2>' + escapeHtml(title) + '</h2>' +
@@ -131,6 +196,8 @@ window.BuddyDashboardViews = window.BuddyDashboardViews || {};
       '.buddy-dashboard-card__value{font-size:2rem;font-weight:650;line-height:1.15;margin-top:7px}' +
       '.buddy-dashboard-card__change{font-size:.9rem;margin-top:7px;color:#176b36}' +
       '.buddy-dashboard-card__projection{font-size:.78rem;color:#777;margin-top:7px}' +
+      '.buddy-dashboard-card__samples{font-size:.78rem;color:#777;margin-top:7px;display:flex;gap:10px;flex-wrap:wrap}' +
+      '.buddy-dashboard-lowsample{font-size:.72rem;color:#9a6b12;background:#fdf3e0;padding:1px 6px;border-radius:5px}' +
       '.buddy-dashboard-panel__title{font-weight:650;margin-bottom:14px}' +
       '.buddy-dashboard-mini-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}' +
       '.buddy-dashboard-mini{padding:12px;border-radius:9px;background:#f7f8f9}' +
@@ -242,6 +309,7 @@ window.BuddyDashboardViews = window.BuddyDashboardViews || {};
     var funnel = data.funnel || {};
     var acquisition = data.acquisition || {};
     var technology = data.technology || {};
+    var archeryConversion = data.archeryConversion || {};
 
     var summary =
       '<div class="buddy-dashboard-grid">' +
@@ -408,6 +476,36 @@ window.BuddyDashboardViews = window.BuddyDashboardViews || {};
         '</div>' +
       '</div>';
 
+    // Cruce archery ↔ WhatsApp: demuestra si el minijuego canaliza hacia el
+    // CTA. Si el backend todavía no envía este bloque (versión previa de la
+    // API), se omite la sección en vez de mostrar tarjetas vacías.
+    var hasArcheryConversion = archeryConversion.playedVsNotPlayed ||
+      archeryConversion.identifiedVsAnonymous ||
+      archeryConversion.avgSecondsBeforeClick ||
+      (Array.isArray(archeryConversion.conversionByPlayLevel) && archeryConversion.conversionByPlayLevel.length);
+
+    var archeryConversionHtml = hasArcheryConversion
+      ? '<div class="buddy-dashboard-grid buddy-dashboard-grid--3">' +
+          comparisonCard(
+            'Conversión: jugó vs no jugó',
+            archeryConversion.playedVsNotPlayed && archeryConversion.playedVsNotPlayed.played,
+            archeryConversion.playedVsNotPlayed && archeryConversion.playedVsNotPlayed.notPlayed,
+            'Jugó', 'No jugó'
+          ) +
+          comparisonCard(
+            'Conversión: registrado vs anónimo',
+            archeryConversion.identifiedVsAnonymous && archeryConversion.identifiedVsAnonymous.identified,
+            archeryConversion.identifiedVsAnonymous && archeryConversion.identifiedVsAnonymous.anonymous,
+            'Registrado', 'Anónimo'
+          ) +
+          durationCard('Tiempo medio jugando antes del click', archeryConversion.avgSecondsBeforeClick) +
+        '</div>' +
+        '<div style="margin-top:14px">' +
+          '<div class="buddy-dashboard-panel__title" style="margin-bottom:10px">Conversión por nivel de juego</div>' +
+          conversionByLevelTable(archeryConversion.conversionByPlayLevel) +
+        '</div>'
+      : '<div class="buddy-dashboard-muted">Sin datos suficientes en este período.</div>';
+
     target.innerHTML =
       '<div class="buddy-dashboard">' +
         '<header class="buddy-dashboard__header">' +
@@ -437,6 +535,7 @@ window.BuddyDashboardViews = window.BuddyDashboardViews || {};
         section('Acciones de valor', whatsappHtml) +
         section('Embudo', funnelHtml) +
         section('Actividades', activitiesHtml) +
+        section('Archery → WhatsApp', archeryConversionHtml) +
         section('Adquisición', acquisitionHtml) +
         section('Tecnología', technologyHtml) +
       '</div>';
