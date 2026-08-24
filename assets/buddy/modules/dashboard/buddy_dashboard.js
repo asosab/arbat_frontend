@@ -404,31 +404,55 @@ window.Buddy = window.Buddy || {};
     return typeof loader === 'function' ? loader : null;
   }
 
+  /*
+   * La vista pertenece al módulo Dashboard, por lo que su ubicación debe
+   * resolverse respecto de este propio script y no respecto de la instalación
+   * global de Buddy.
+   *
+   * Se captura durante la evaluación del módulo porque document.currentScript
+   * deja de apuntar a buddy_dashboard.js cuando loadView() se ejecuta de forma
+   * asíncrona.
+   */
+  var MODULE_SCRIPT_URL = (function () {
+    var currentScript = document.currentScript;
+
+    if (currentScript && currentScript.src) {
+      return currentScript.src;
+    }
+
+    // Fallback para entornos que no expongan document.currentScript durante
+    // la evaluación inicial. La búsqueda sigue estando limitada al recurso
+    // propio del módulo; no depende de la ubicación de buddy.js.
+    var scripts = document.getElementsByTagName('script');
+    for (var i = scripts.length - 1; i >= 0; i--) {
+      var src = scripts[i].src || '';
+      if (/(?:^|\/)buddy_dashboard\.js(?:[?#]|$)/.test(src)) {
+        return src;
+      }
+    }
+
+    return null;
+  })();
+
   function loadView(viewId) {
     var id = String(viewId || 'admin').trim().toLowerCase();
     var existing = getViewLoader(id);
     if (existing) return Promise.resolve(existing);
 
-    var base = (window.BUDDY_ASSET_BASE || '').replace(/\/?$/, '/');
-    if (!base) {
-      // buddy.js expone su base internamente, pero no la publica como API.
-      // En una instalación estándar, resolver desde el script de entrada es
-      // más robusto que asumir una ruta absoluta.
-      var scripts = document.getElementsByTagName('script');
-      for (var i = scripts.length - 1; i >= 0; i--) {
-        var src = scripts[i].src || '';
-        if (/(?:^|\/)buddy\.js(?:[?#]|$)/.test(src)) {
-          base = src.substring(0, src.lastIndexOf('/') + 1);
-          break;
-        }
-      }
+    if (!MODULE_SCRIPT_URL) {
+      return Promise.reject(new Error(
+        'No se pudo determinar la ubicación del módulo Dashboard.'
+      ));
     }
 
-    if (!base) {
-      return Promise.reject(new Error('No se pudo determinar la base de assets de Buddy.'));
+    var url;
+    try {
+      url = new URL('views/' + id + '.js', MODULE_SCRIPT_URL).href;
+    } catch (error) {
+      return Promise.reject(new Error(
+        'No se pudo resolver la ubicación de la vista Dashboard "' + id + '".'
+      ));
     }
-
-    var url = base + 'modules/dashboard/views/' + id + '.js';
     return new Promise(function (resolve, reject) {
       var script = document.createElement('script');
       script.src = url;
