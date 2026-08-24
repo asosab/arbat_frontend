@@ -14,6 +14,7 @@
   var SALIR_ID = 'user-toolkit-salir';
   var TOP10_ID = 'user-toolkit-top10';
   var ADMIN_ID = 'user-toolkit-admin';
+  var DASHBOARD_ID = 'user-toolkit-dashboard';
 
   function crearMenu() {
     var menu = document.createElement('div');
@@ -25,6 +26,7 @@
       '<ul class="user-toolkit-menu__lista" role="none">' +
         '<li role="none"><button type="button" class="user-toolkit-menu__item" id="' + TOP10_ID + '" role="menuitem">🏹 Top 10</button></li>' +
         '<li role="none" hidden><button type="button" class="user-toolkit-menu__item" id="' + ADMIN_ID + '" role="menuitem">admin</button></li>' +
+        '<li role="none" hidden><button type="button" class="user-toolkit-menu__item" id="' + DASHBOARD_ID + '" role="menuitem">dashboard</button></li>' +
       '</ul>' +
       '<div class="user-toolkit-menu__pie">' +
         '<button type="button" class="user-toolkit-menu__salir" id="' + SALIR_ID + '" role="menuitem">Cerrar sesión</button>' +
@@ -103,14 +105,14 @@
 
     function configurarAdmin() {
       var btnAdmin = document.getElementById(ADMIN_ID);
-      if (!btnAdmin) return;
+      var btnDashboard = document.getElementById(DASHBOARD_ID);
 
-      var item = btnAdmin.parentNode;
       var visible = !!(window.Buddy && window.Buddy.admin &&
         typeof window.Buddy.admin.isAdmin === 'function' &&
         window.Buddy.admin.isAdmin());
 
-      item.hidden = !visible;
+      if (btnAdmin) btnAdmin.parentNode.hidden = !visible;
+      if (btnDashboard) btnDashboard.parentNode.hidden = !visible;
     }
 
     configurarTop10();
@@ -153,6 +155,38 @@
           .then(function () {
             btnTop10.disabled = false;
           });
+
+        return;
+      }
+
+      var btnDashboard = evento.target.closest ? evento.target.closest('#' + DASHBOARD_ID) : null;
+      if (btnDashboard) {
+        evento.stopPropagation();
+        btnDashboard.disabled = true;
+        cerrarMenu();
+
+        var isAdmin = !!(window.Buddy && window.Buddy.admin &&
+          typeof window.Buddy.admin.isAdmin === 'function' &&
+          window.Buddy.admin.isAdmin());
+
+        if (!isAdmin ||
+            !window.Buddy ||
+            !window.Buddy.dashboard ||
+            typeof window.Buddy.dashboard.get !== 'function') {
+          btnDashboard.disabled = false;
+          return;
+        }
+
+        Promise.resolve(window.Buddy.dashboard.get({
+          view: 'admin',
+          force: true
+        })).catch(function (error) {
+          if (window.BuddyConfig && window.BuddyConfig.debugMode === true) {
+            console.error('[Buddy] No se pudo abrir Dashboard admin.', error);
+          }
+        }).then(function () {
+          btnDashboard.disabled = false;
+        });
 
         return;
       }
