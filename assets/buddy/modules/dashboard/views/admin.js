@@ -318,16 +318,60 @@ window.BuddyDashboardViews = window.BuddyDashboardViews || {};
       }).join('') +
       '</div>';
 
+    /*
+     * Las tres secciones siguientes consumen colecciones que vienen de la API
+     * con una forma distinta a las métricas simples:
+     *   - activities.users/sessions son métricas { value, ... }
+     *     y sus métricas específicas viven en activity.activity.
+     *   - acquisition.topReferrers usa source/percentage.
+     *   - technology.* usa percentage.
+     *
+     * No debemos pasar esos objetos directamente a Number(): Number({}) === NaN
+     * y la vista terminaba mostrando 0%. Aquí adaptamos exclusivamente la
+     * presentación al contrato real de la API.
+     */
+    function collectionMetricValue(metric, fallback) {
+      if (metric && typeof metric === 'object' && metric.value != null) {
+        return metric.value;
+      }
+      if (metric != null && typeof metric !== 'object') {
+        return metric;
+      }
+      return fallback == null ? 0 : fallback;
+    }
+
+    function collectionPercentValue(item) {
+      if (!item) return 0;
+      if (item.percentage != null) return item.percentage;
+      if (item.share != null) return item.share;
+      if (item.rate != null) return item.rate;
+      if (item.value != null && typeof item.value !== 'object') return item.value;
+      return 0;
+    }
+
     var activitiesHtml = Array.isArray(data.activities) && data.activities.length
       ? '<div class="buddy-dashboard-grid buddy-dashboard-grid--2">' +
           data.activities.slice(0, 6).map(function (activity) {
+            var activityMetrics = activity.activity || {};
+            var users = collectionMetricValue(activity.users, activity.userCount);
+            var sessions = collectionMetricValue(activity.sessions, null);
+            var games = collectionMetricValue(activity.games, activityMetrics.games);
+            var arrows = collectionMetricValue(activity.arrows, activityMetrics.arrows);
+            var activeSeconds = collectionMetricValue(activity.activeSeconds, activityMetrics.activeSeconds);
+            var score = collectionMetricValue(activity.score, activityMetrics.score);
+
             return '<div class="buddy-dashboard-panel">' +
               '<div class="buddy-dashboard-panel__title">' + escapeHtml(activity.name || activity.label || activity.module || 'Actividad') + '</div>' +
               '<div>' +
-                escapeHtml(formatNumber(activity.users != null ? activity.users : activity.userCount || 0)) + ' usuarios' +
-                (activity.sessions != null ? ' · ' + escapeHtml(formatNumber(activity.sessions)) + ' sesiones' : '') +
-                (activity.games != null ? ' · ' + escapeHtml(formatNumber(activity.games)) + ' partidas' : '') +
+                escapeHtml(formatNumber(users)) + ' usuarios' +
+                (sessions != null ? ' · ' + escapeHtml(formatNumber(sessions)) + ' sesiones' : '') +
+                (games != null ? ' · ' + escapeHtml(formatNumber(games)) + ' partidas' : '') +
               '</div>' +
+              ((arrows != null || activeSeconds != null || score != null) ? '<div style="margin-top:8px;color:#5f6368">' +
+                (arrows != null ? escapeHtml(formatNumber(arrows)) + ' flechas' : '') +
+                (activeSeconds != null ? (arrows != null ? ' · ' : '') + escapeHtml(formatNumber(activeSeconds)) + ' s activos' : '') +
+                (score != null ? ((arrows != null || activeSeconds != null) ? ' · ' : '') + escapeHtml(formatNumber(score)) + ' puntos' : '') +
+              '</div>' : '') +
               (activity.ctaConversion ? '<div style="margin-top:8px">Conversión asistida: <strong>' +
                 escapeHtml(formatPercent(activity.ctaConversion.value != null ? activity.ctaConversion.value : activity.ctaConversion)) +
                 '</strong></div>' : '') +
@@ -337,9 +381,15 @@ window.BuddyDashboardViews = window.BuddyDashboardViews || {};
       : '<div class="buddy-dashboard-muted">Sin actividad específica en este período.</div>';
 
     var acquisitionHtml = listRows(acquisition.topReferrers, [
-      { label: 'Fuente', value: function (item) { return item.label || item.name || item.referrer; } },
-      { label: 'Visitantes', value: function (item) { return formatNumber(item.visitors != null ? item.visitors : item.value); } },
-      { label: 'Participación', value: function (item) { return formatPercent(item.share != null ? item.share : item.rate); } }
+      { label: 'Fuente', value: function (item) {
+          return item.source || item.label || item.name || item.referrer || '—';
+        } },
+      { label: 'Visitantes', value: function (item) {
+          return formatNumber(item.visitors != null ? item.visitors : item.value);
+        } },
+      { label: 'Participación', value: function (item) {
+          return formatPercent(collectionPercentValue(item));
+        } }
     ]);
 
     var technologyHtml =
@@ -347,13 +397,13 @@ window.BuddyDashboardViews = window.BuddyDashboardViews || {};
         '<div class="buddy-dashboard-panel"><div class="buddy-dashboard-panel__title">Dispositivos</div>' +
           listRows(technology.devices, [
             { label: 'Dispositivo', value: function (item) { return item.label || item.name || item.key; } },
-            { label: '%', value: function (item) { return formatPercent(item.share != null ? item.share : item.value); } }
+            { label: '%', value: function (item) { return formatPercent(collectionPercentValue(item)); } }
           ]) +
         '</div>' +
         '<div class="buddy-dashboard-panel"><div class="buddy-dashboard-panel__title">Navegadores</div>' +
           listRows(technology.browsers, [
             { label: 'Navegador', value: function (item) { return item.label || item.name || item.key; } },
-            { label: '%', value: function (item) { return formatPercent(item.share != null ? item.share : item.value); } }
+            { label: '%', value: function (item) { return formatPercent(collectionPercentValue(item)); } }
           ]) +
         '</div>' +
       '</div>';
