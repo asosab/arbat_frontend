@@ -114,9 +114,9 @@ window.BuddyDashboardViews = window.BuddyDashboardViews || {};
     '</span>';
   }
 
-  function metricCard(title, metric, formatter, termKey) {
+  function metricCard(title, metric, formatter, termKey, highlight) {
     metric = metric || {};
-    return '<article class="buddy-dashboard-card">' +
+    return '<article class="buddy-dashboard-card' + (highlight ? ' buddy-dashboard-card--primary' : '') + '">' +
       '<div class="buddy-dashboard-card__label">' + withTooltip(title, termKey) + '</div>' +
       '<div class="buddy-dashboard-card__value">' + metricValue(metric, formatter) + '</div>' +
       '<div class="buddy-dashboard-card__change">' +
@@ -202,6 +202,43 @@ window.BuddyDashboardViews = window.BuddyDashboardViews || {};
         '</tr>';
       }).join('') +
       '</tbody></table></div>';
+  }
+
+  // Traduce la tabla "conversión por nivel de juego" a una frase en lenguaje
+  // llano para el dueño del sitio. Es la comparación que el propio glosario
+  // marca como más confiable de las cuatro (porque compara varios niveles en
+  // vez de un solo par), así que acá vive el mensaje central de la sección
+  // Archery → WhatsApp. Solo usa niveles SIN la etiqueta "muestra baja": si
+  // quedan menos de dos, no arriesga ninguna lectura direccional.
+  function archeryLevelInsight(items) {
+    if (!Array.isArray(items) || !items.length) return null;
+
+    var reliable = items.filter(function (item) { return item && !item.lowSample; });
+    if (reliable.length < 2) {
+      return 'Todavía no hay suficientes niveles con muestra confiable (n≥5) para leer una tendencia — esperá más datos antes de sacar conclusiones sobre el efecto del juego.';
+    }
+
+    var first = reliable[0];
+    var last = reliable[reliable.length - 1];
+    var firstRate = Number(first.conversionRate) || 0;
+    var lastRate = Number(last.conversionRate) || 0;
+    var firstLabel = escapeHtml(first.label || first.level || '—');
+    var lastLabel = escapeHtml(last.label || last.level || '—');
+
+    if (lastRate > firstRate) {
+      var multiple = firstRate > 0 ? (lastRate / firstRate) : null;
+      var multipleText = (multiple && multiple >= 1.3)
+        ? ' (' + multiple.toLocaleString('es-BO', { maximumFractionDigits: 1 }) + '× más)'
+        : '';
+      return 'Entre los niveles con muestra confiable, <strong>&ldquo;' + lastLabel + '&rdquo; convierte más que &ldquo;' +
+        firstLabel + '&rdquo;' + multipleText + '</strong> — una señal de que jugar más está asociado a más ' +
+        'contactos por WhatsApp.';
+    }
+    if (lastRate < firstRate) {
+      return 'Entre los niveles con muestra confiable, <strong>la conversión no aumenta con más partidas jugadas</strong> ' +
+        '— todavía no hay evidencia de que jugar más ayude a convertir.';
+    }
+    return 'Entre los niveles con muestra confiable, la conversión se mantiene similar sin importar cuánto se jugó.';
   }
 
   function section(title, body, className) {
@@ -412,6 +449,11 @@ window.BuddyDashboardViews = window.BuddyDashboardViews || {};
       '.buddy-dashboard-grid--3{grid-template-columns:repeat(3,minmax(0,1fr))}' +
       '.buddy-dashboard-grid--2{grid-template-columns:repeat(2,minmax(0,1fr))}' +
       '.buddy-dashboard-card,.buddy-dashboard-panel{border:1px solid #e2e5e9;border-radius:12px;padding:18px;background:#fff}' +
+      '.buddy-dashboard-card--primary{border-color:#25923f;background:#f1faf3}' +
+      '.buddy-dashboard-card--primary .buddy-dashboard-card__value{color:#176b36}' +
+      '.buddy-dashboard-section-intro{color:#5f6368;margin:0 0 14px;font-size:.92rem}' +
+      '.buddy-dashboard-badge{font-size:.68rem;font-weight:600;text-transform:none;letter-spacing:0;color:#176b36;background:#e3f5e8;padding:2px 8px;border-radius:20px;margin-left:8px;vertical-align:middle}' +
+      '.buddy-dashboard-insight{border:1px solid #cfe8d6;background:#f1faf3;border-radius:10px;padding:12px 16px;margin-bottom:18px;font-size:.92rem;color:#1e4726}' +
       '.buddy-dashboard-card__label{font-size:.82rem;color:#5f6368;text-transform:uppercase;letter-spacing:.04em}' +
       '.buddy-dashboard-card__value{font-size:2rem;font-weight:650;line-height:1.15;margin-top:7px}' +
       '.buddy-dashboard-card__change{font-size:.9rem;margin-top:7px;color:#176b36}' +
@@ -552,12 +594,15 @@ window.BuddyDashboardViews = window.BuddyDashboardViews || {};
     var technology = data.technology || {};
     var archeryConversion = data.archeryConversion || {};
 
+    // El objetivo principal del dueño del sitio es "cuánta gente me escribe
+    // por WhatsApp", así que esas dos tarjetas (personas + tasa) van primero
+    // y resaltadas; Identificados queda como detalle en Audiencia, no acá.
     var summary =
       '<div class="buddy-dashboard-grid">' +
         metricCard('Visitantes', audience.visitors || audience.anonymous, formatNumber, 'visitantes') +
-        metricCard('Identificados', audience.registered, formatNumber, 'identificados') +
+        metricCard('Te escriben por WhatsApp', whatsapp.uniqueUsers || whatsapp.clicks, formatNumber, 'intencionResumen', true) +
+        metricCard('Conversión a WhatsApp', whatsapp.conversionRate, formatPercent, 'conversionWhatsapp', true) +
         metricCard('Engagement', engagement.engagedUsers || engagement.engagementRate, formatPercent, 'engagementResumen') +
-        metricCard('Intención', whatsapp.uniqueUsers || whatsapp.clicks, formatNumber, 'intencionResumen') +
       '</div>';
 
     var registered =
@@ -649,6 +694,25 @@ window.BuddyDashboardViews = window.BuddyDashboardViews || {};
       return fallback == null ? 0 : fallback;
     }
 
+    // Variante de collectionMetricValue para métricas que solo aplican a
+    // módulos de juego (partidas, flechas, segundos activos, puntaje): a
+    // diferencia de usuarios/sesiones, estas NO existen para módulos que no
+    // son minijuegos (p.ej. "Admin"), así que ausencia de dato debe quedar
+    // como null (y ocultarse en el render) en vez de mostrarse como "0" —
+    // ese "0" falso es justamente el bug que hacía ver "0 partidas · 0
+    // flechas · 0 s activos · 0 puntos" en un módulo que no tiene nada que
+    // ver con archery. Un cero real enviado por el backend (juego con
+    // actividad nula en el período) sí se preserva y se muestra.
+    function gameplayMetricValue(metric, fallback) {
+      if (metric && typeof metric === 'object' && metric.value != null) {
+        return metric.value;
+      }
+      if (metric != null && typeof metric !== 'object') {
+        return metric;
+      }
+      return fallback != null ? fallback : null;
+    }
+
     function collectionPercentValue(item) {
       if (!item) return 0;
       if (item.percentage != null) return item.percentage;
@@ -664,10 +728,10 @@ window.BuddyDashboardViews = window.BuddyDashboardViews || {};
             var activityMetrics = activity.activity || {};
             var users = collectionMetricValue(activity.users, activity.userCount);
             var sessions = collectionMetricValue(activity.sessions, null);
-            var games = collectionMetricValue(activity.games, activityMetrics.games);
-            var arrows = collectionMetricValue(activity.arrows, activityMetrics.arrows);
-            var activeSeconds = collectionMetricValue(activity.activeSeconds, activityMetrics.activeSeconds);
-            var score = collectionMetricValue(activity.score, activityMetrics.score);
+            var games = gameplayMetricValue(activity.games, activityMetrics.games);
+            var arrows = gameplayMetricValue(activity.arrows, activityMetrics.arrows);
+            var activeSeconds = gameplayMetricValue(activity.activeSeconds, activityMetrics.activeSeconds);
+            var score = gameplayMetricValue(activity.score, activityMetrics.score);
 
             return '<div class="buddy-dashboard-panel">' +
               '<div class="buddy-dashboard-panel__title">' + escapeHtml(activity.name || activity.label || activity.module || 'Actividad') + '</div>' +
@@ -725,8 +789,18 @@ window.BuddyDashboardViews = window.BuddyDashboardViews || {};
       archeryConversion.avgSecondsBeforeClick ||
       (Array.isArray(archeryConversion.conversionByPlayLevel) && archeryConversion.conversionByPlayLevel.length);
 
+    var archeryLevelItems = archeryConversion.conversionByPlayLevel;
+    var archeryInsight = archeryLevelInsight(archeryLevelItems);
+
     var archeryConversionHtml = hasArcheryConversion
-      ? '<div class="buddy-dashboard-grid buddy-dashboard-grid--3">' +
+      ? '<p class="buddy-dashboard-section-intro">Cruza la actividad del minijuego con los clicks a WhatsApp para ver si jugar realmente ayuda a conseguir más contactos.</p>' +
+        (archeryInsight
+          ? '<div class="buddy-dashboard-insight">' + archeryInsight + '</div>'
+          : '') +
+        '<div class="buddy-dashboard-panel__title" style="margin-bottom:10px">Conversión por nivel de juego <span class="buddy-dashboard-badge">vista más confiable</span></div>' +
+        conversionByLevelTable(archeryLevelItems) +
+        '<div class="buddy-dashboard-panel__title" style="margin:22px 0 10px">Otras comparaciones</div>' +
+        '<div class="buddy-dashboard-grid buddy-dashboard-grid--3">' +
           comparisonCard(
             'Conversión: jugó vs no jugó',
             archeryConversion.playedVsNotPlayed && archeryConversion.playedVsNotPlayed.played,
@@ -740,10 +814,6 @@ window.BuddyDashboardViews = window.BuddyDashboardViews || {};
             'Registrado', 'Anónimo', 'archeryRegistradoAnonimo'
           ) +
           durationCard('Tiempo medio jugando antes del click', archeryConversion.avgSecondsBeforeClick, 'archeryTiempoAntesClick') +
-        '</div>' +
-        '<div style="margin-top:14px">' +
-          '<div class="buddy-dashboard-panel__title" style="margin-bottom:10px">Conversión por nivel de juego</div>' +
-          conversionByLevelTable(archeryConversion.conversionByPlayLevel) +
         '</div>' +
         '<div class="buddy-dashboard-muted" style="padding:10px 0 0;font-size:.85rem">' +
           'Con pocos actores en un grupo (etiqueta "muestra baja"), un solo caso puede mover el % varios puntos — leé estas comparaciones como tendencia, no como certeza. Más detalle en el anexo del dashboard.' +
@@ -774,12 +844,12 @@ window.BuddyDashboardViews = window.BuddyDashboardViews || {};
         '</header>' +
 
         section('Resumen', summary) +
+        section('Embudo', funnelHtml) +
+        section('Contactos por WhatsApp', whatsappHtml) +
+        section('Archery → WhatsApp', archeryConversionHtml) +
+        section('Actividades', activitiesHtml) +
         section('Audiencia', '<div class="buddy-dashboard-grid buddy-dashboard-grid--2">' + registered + anonymous + '</div>') +
         section('Engagement', engagementHtml) +
-        section('Acciones de valor', whatsappHtml) +
-        section('Embudo', funnelHtml) +
-        section('Actividades', activitiesHtml) +
-        section('Archery → WhatsApp', archeryConversionHtml) +
         section('Adquisición', acquisitionHtml) +
         section('Tecnología', technologyHtml) +
         printGlossaryHtml() +
