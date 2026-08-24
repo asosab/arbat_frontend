@@ -416,16 +416,27 @@ window.Buddy = window.Buddy || {};
   var MODULE_SCRIPT_URL = (function () {
     var currentScript = document.currentScript;
 
-    if (currentScript && currentScript.src) {
-      return currentScript.src;
+    // buddy.js proporciona explícitamente la URL con la que cargó el módulo.
+    // Preferimos ese valor porque conserva la identidad exacta del recurso
+    // incluso cuando la ejecución del módulo ocurre mediante carga dinámica.
+    if (currentScript) {
+      if (currentScript.dataset && currentScript.dataset.buddyModuleScriptUrl) {
+        return currentScript.dataset.buddyModuleScriptUrl;
+      }
+      if (currentScript.src) {
+        return currentScript.src;
+      }
     }
 
-    // Fallback para entornos que no expongan document.currentScript durante
-    // la evaluación inicial. La búsqueda sigue estando limitada al recurso
-    // propio del módulo; no depende de la ubicación de buddy.js.
+    // Fallback limitado al propio recurso Dashboard. Nunca se deriva la base
+    // desde buddy.js ni desde una ruta absoluta de la instalación.
     var scripts = document.getElementsByTagName('script');
     for (var i = scripts.length - 1; i >= 0; i--) {
-      var src = scripts[i].src || '';
+      var script = scripts[i];
+      var src = script.src || '';
+      if (script.dataset && script.dataset.buddyModuleId === 'dashboard' && src) {
+        return src;
+      }
       if (/(?:^|\/)buddy_dashboard\.js(?:[?#]|$)/.test(src)) {
         return src;
       }
@@ -453,11 +464,14 @@ window.Buddy = window.Buddy || {};
         'No se pudo resolver la ubicación de la vista Dashboard "' + id + '".'
       ));
     }
+    debugLog('Cargando vista:', { id: id, url: url, moduleScriptUrl: MODULE_SCRIPT_URL });
+
     return new Promise(function (resolve, reject) {
       var script = document.createElement('script');
       script.src = url;
       script.async = false;
       script.onload = function () {
+        debugLog('Vista cargada:', { id: id, url: url });
         var view = getViewLoader(id);
         if (!view) {
           reject(new Error('La vista Dashboard "' + id + '" no registró su implementación.'));
@@ -466,6 +480,7 @@ window.Buddy = window.Buddy || {};
         resolve(view);
       };
       script.onerror = function () {
+        debugLog('Error cargando vista:', { id: id, url: url });
         reject(new Error('No se pudo cargar la vista Dashboard "' + id + '".'));
       };
       document.head.appendChild(script);

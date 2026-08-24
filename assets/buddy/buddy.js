@@ -602,7 +602,7 @@ window.Buddy = window.Buddy || {};
     return null;
   }
 
-  function loadScript(url) {
+  function loadScript(url, metadata) {
     return new Promise(function (resolve, reject) {
       // La versión del script de entrada se propaga a cada JS dinámico antes
       // de comparar/cargar, para que cada versión sea una identidad distinta.
@@ -635,6 +635,13 @@ window.Buddy = window.Buddy || {};
       script.async = false;
       script.dataset.buddyLoadedSrc = url;
       script.dataset.buddyLoadState = 'loading';
+      // Expone al módulo la URL exacta con la que Buddy lo está cargando.
+      // Esto permite que el módulo resuelva sus propios recursos relativos
+      // sin conocer ASSET_BASE ni la instalación de Buddy.
+      if (metadata && metadata.moduleId) {
+        script.dataset.buddyModuleId = String(metadata.moduleId);
+        script.dataset.buddyModuleScriptUrl = url;
+      }
       script.onload = function () {
         script.dataset.buddyLoadState = 'loaded';
         resolve();
@@ -855,7 +862,7 @@ window.Buddy = window.Buddy || {};
       }
 
       debugLog('módulo ' + moduleId + ': cargando implementación');
-      return loadScript(scriptUrlForModule(moduleId))
+      return loadScript(scriptUrlForModule(moduleId), { moduleId: moduleId })
         .then(function () {
           // Los módulos que tienen una variante de texto por personaje/idioma
           // pueden incluirla sin que Buddy necesite conocer su contenido.
