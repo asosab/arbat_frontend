@@ -1,16 +1,16 @@
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
-  "@type": "LocalBusiness",
+  "@type": "SportsActivityLocation",
   "@id": "{{ '/' | absolute_url }}#localbusiness",
   "name": "{{ site.arbat.nombre }}",
   "slogan": "{{ site.arbat.lema }}",
-  "description": "{{ site.description | strip_newlines | strip }}",
   "url": "{{ '/' | absolute_url }}",
+  "description": "{{ site.description }}",
+  "image": "{{ '/assets/images/logo.png' | absolute_url }}",
   "email": "{{ site.arbat.email }}",
-  "telephone": "{{ site.arbat.telefono_whatsapp_reservas }}",
+  "telephone": "{{ site.arbat.telefono_whatsapp_reservas | remove: ' ' }}",
   "priceRange": "Bs. 70 - Bs. 500",
-  "image": "{{ site.logo | absolute_url }}",
   "sameAs": [
     {% for link in site.social.links %}"{{ link }}"{% unless forloop.last %},{% endunless %}{% endfor %}
   ],
