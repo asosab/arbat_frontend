@@ -40,16 +40,26 @@ window.BuddyDashboardViews = window.BuddyDashboardViews || {};
     }) + '%';
   }
 
+  // Bug #3: antes devolvía solo texto y el CSS pintaba TODO cambio de verde
+  // (.buddy-dashboard-card__change{color:#176b36}), sin distinguir subas de
+  // bajas. Ahora se envuelve en un <span> con una clase según el signo, y
+  // metricCard ya no escapa el resultado (ver más abajo) porque acá mismo
+  // se escapa el texto interno antes de insertarlo.
   function formatChange(value, percentagePoints) {
     var number = Number(value);
-    if (!isFinite(number) || number === 0) return '—';
+    if (!isFinite(number) || number === 0) {
+      return '<span class="buddy-dashboard-change--flat">—</span>';
+    }
 
+    var direction = number > 0 ? 'up' : 'down';
     var sign = number > 0 ? '↑ ' : '↓ ';
     var suffix = percentagePoints ? ' pp' : '%';
-    return sign + Math.abs(number).toLocaleString('es-BO', {
+    var text = sign + Math.abs(number).toLocaleString('es-BO', {
       minimumFractionDigits: 0,
       maximumFractionDigits: 1
     }) + suffix;
+
+    return '<span class="buddy-dashboard-change--' + direction + '">' + escapeHtml(text) + '</span>';
   }
 
   function metricValue(metric, formatter) {
@@ -67,7 +77,6 @@ window.BuddyDashboardViews = window.BuddyDashboardViews || {};
     intencionResumen: 'Usuarios únicos que hicieron click en el link de WhatsApp.',
     registradosTotal: 'Usuarios identificados (con cuenta) activos en el período.',
     registradosNuevos: 'Usuarios identificados cuyo primer evento en el sitio ocurrió en este período.',
-    registradosActivos: 'Usuarios identificados con al menos un evento en el período.',
     registradosRecurrentes: 'Usuarios identificados activos también en el período de comparación inmediato anterior.',
     anonimosVisitantes: 'Sesiones sin usuario identificado en el período.',
     anonimosSesiones: 'Total de sesiones del sitio, identificadas y anónimas.',
@@ -100,6 +109,11 @@ window.BuddyDashboardViews = window.BuddyDashboardViews || {};
     adquisicionFuente: 'Sitio o app desde donde llegó la sesión ("direct" = sin referencia, típicamente escritura directa de la URL o apps).',
     adquisicionVisitantes: 'Sesiones que llegaron desde esa fuente.',
     adquisicionParticipacion: 'Porcentaje de las sesiones totales que llegó desde esa fuente.',
+    adquisicionConversion: 'De los actores atribuidos a esa fuente (según su primera sesión del período), qué porcentaje hizo click en WhatsApp.',
+    paginaPagina: 'Página de entrada, según su ruta dentro del sitio (sin el dominio).',
+    paginaVisitantes: 'Sesiones distintas que pasaron por esa página en el período.',
+    paginaConversionWhatsapp: 'De los usuarios activos en esa página, qué porcentaje hizo click en WhatsApp.',
+    paginaParticipacionClicks: 'Qué porcentaje de todos los clicks de WhatsApp del período se originó en esa página.',
     tecnologiaDispositivo: 'Tipo de dispositivo detectado a partir del user-agent del navegador.',
     tecnologiaPorcentaje: 'Porcentaje de sesiones con ese dispositivo o navegador.'
   };
@@ -120,7 +134,7 @@ window.BuddyDashboardViews = window.BuddyDashboardViews || {};
       '<div class="buddy-dashboard-card__label">' + withTooltip(title, termKey) + '</div>' +
       '<div class="buddy-dashboard-card__value">' + metricValue(metric, formatter) + '</div>' +
       '<div class="buddy-dashboard-card__change">' +
-        escapeHtml(formatChange(metric.change, formatter === formatPercent)) +
+        formatChange(metric.change, formatter === formatPercent) +
       '</div>' +
       (metric.projection != null
         ? '<div class="buddy-dashboard-card__projection">Proyección ' +
@@ -348,8 +362,8 @@ window.BuddyDashboardViews = window.BuddyDashboardViews || {};
 
         '<h3>Embudo</h3>' +
         '<p>Seis escalones, cada uno subconjunto del anterior: Visitantes → Identificados → Activos → ' +
-        'Comprometidos → Intención (clicks en WhatsApp) → Conversiones (usuarios únicos que clickearon). ' +
-        'Sirve para ver en qué punto se pierde más gente.</p>' +
+        'Comprometidos → Clicks WA (clicks en WhatsApp, sin deduplicar por persona) → Usuarios WA ' +
+        '(usuarios únicos que clickearon al menos una vez). Sirve para ver en qué punto se pierde más gente.</p>' +
 
         '<h3>Actividades</h3>' +
         '<p>Por cada módulo de Buddy (por ejemplo archery), se muestra: usuarios y sesiones que lo usaron, ' +
@@ -403,12 +417,23 @@ window.BuddyDashboardViews = window.BuddyDashboardViews || {};
         'niveles — no como un solo número aislado.</p>' +
 
         '<h3>Adquisición</h3>' +
+        '<p><strong>Por fuente</strong> — de dónde llegó la sesión.</p>' +
         '<ul>' +
-          '<li>Fuente: de dónde llegó la sesión. &ldquo;direct&rdquo; significa que no había referencia — ' +
+          '<li>Fuente: &ldquo;direct&rdquo; significa que no había referencia — ' +
           'típicamente alguien que escribió la URL directamente, la tenía guardada, o llegó desde una app ' +
           'que no pasa esa información (WhatsApp, Gmail, etc.).</li>' +
           '<li>Visitantes / Participación: cuántas sesiones y qué porcentaje del total llegó desde esa ' +
           'fuente.</li>' +
+          '<li>Conversión: de los actores atribuidos a esa fuente (según la fuente de su primera sesión ' +
+          'del período), qué porcentaje hizo click en WhatsApp. Es una atribución de &ldquo;primer toque&rdquo;, ' +
+          'no &ldquo;último toque&rdquo;.</li>' +
+        '</ul>' +
+        '<p><strong>Rendimiento por página</strong> — qué página convierte mejor, para decidir dónde ' +
+        'reforzar el link o botón de WhatsApp.</p>' +
+        '<ul>' +
+          '<li>Conversión WhatsApp: de los usuarios activos en esa página, qué porcentaje hizo click.</li>' +
+          '<li>Participación en clicks: qué porcentaje de todos los clicks de WhatsApp del período se ' +
+          'originó en esa página.</li>' +
         '</ul>' +
 
         '<h3>Tecnología</h3>' +
@@ -456,7 +481,10 @@ window.BuddyDashboardViews = window.BuddyDashboardViews || {};
       '.buddy-dashboard-insight{border:1px solid #cfe8d6;background:#f1faf3;border-radius:10px;padding:12px 16px;margin-bottom:18px;font-size:.92rem;color:#1e4726}' +
       '.buddy-dashboard-card__label{font-size:.82rem;color:#5f6368;text-transform:uppercase;letter-spacing:.04em}' +
       '.buddy-dashboard-card__value{font-size:2rem;font-weight:650;line-height:1.15;margin-top:7px}' +
-      '.buddy-dashboard-card__change{font-size:.9rem;margin-top:7px;color:#176b36}' +
+      '.buddy-dashboard-card__change{font-size:.9rem;margin-top:7px}' +
+      '.buddy-dashboard-change--up{color:#176b36}' +
+      '.buddy-dashboard-change--down{color:#c5221f}' +
+      '.buddy-dashboard-change--flat{color:#5f6368}' +
       '.buddy-dashboard-card__projection{font-size:.78rem;color:#777;margin-top:7px}' +
       '.buddy-dashboard-card__samples{font-size:.78rem;color:#777;margin-top:7px;display:flex;gap:10px;flex-wrap:wrap}' +
       '.buddy-dashboard-lowsample{font-size:.72rem;color:#9a6b12;background:#fdf3e0;padding:1px 6px;border-radius:5px}' +
@@ -599,10 +627,18 @@ window.BuddyDashboardViews = window.BuddyDashboardViews || {};
     // y resaltadas; Identificados queda como detalle en Audiencia, no acá.
     var summary =
       '<div class="buddy-dashboard-grid">' +
-        metricCard('Visitantes', audience.visitors || audience.anonymous, formatNumber, 'visitantes') +
+        // Bug #1: audience.visitors ahora viene explícito del backend con el
+        // total de sesiones del período; se mantiene el fallback a
+        // funnel.visitors solo por si el backend desplegado todavía no
+        // incluye el campo. Antes caía a audience.anonymous (32 en vez de 65).
+        metricCard('Visitantes', audience.visitors || funnel.visitors, formatNumber, 'visitantes') +
         metricCard('Te escriben por WhatsApp', whatsapp.uniqueUsers || whatsapp.clicks, formatNumber, 'intencionResumen', true) +
         metricCard('Conversión a WhatsApp', whatsapp.conversionRate, formatPercent, 'conversionWhatsapp', true) +
-        metricCard('Engagement', engagement.engagedUsers || engagement.engagementRate, formatPercent, 'engagementResumen') +
+        // Bug #2: engagement.engagementRate ahora viene precalculado del
+        // backend (engagedUsers / activeUsers). Antes engagement.engagedUsers
+        // (un conteo, siempre truthy) ganaba el `||` y formatPercent(13)
+        // mostraba "13%" en vez de la tasa real (~31%).
+        metricCard('Engagement', engagement.engagementRate, formatPercent, 'engagementResumen') +
       '</div>';
 
     var registered =
@@ -613,10 +649,16 @@ window.BuddyDashboardViews = window.BuddyDashboardViews || {};
             metricValue(audience.registered) + '</div></div>' +
           '<div class="buddy-dashboard-mini"><div class="buddy-dashboard-mini__label">' + withTooltip('Nuevos', 'registradosNuevos') + '</div><div class="buddy-dashboard-mini__value">' +
             metricValue(audience.newUsers) + '</div></div>' +
-          '<div class="buddy-dashboard-mini"><div class="buddy-dashboard-mini__label">' + withTooltip('Activos', 'registradosActivos') + '</div><div class="buddy-dashboard-mini__value">' +
-            metricValue(audience.activeUsers) + '</div></div>' +
+          // Bug #5: se quitó el tile "Activos" (audience.activeUsers). El
+          // backend retiró ese campo del contrato porque, con el modelo
+          // actual, siempre era idéntico a "Total" (un usuario solo entra
+          // al set de registrados si tuvo al menos un evento) — mostrarlo
+          // era ruido, no un dato adicional.
           '<div class="buddy-dashboard-mini"><div class="buddy-dashboard-mini__label">' + withTooltip('Recurrentes', 'registradosRecurrentes') + '</div><div class="buddy-dashboard-mini__value">' +
-            metricValue(audience.returningUsers) + '</div></div>' +
+            // Bug #4: el dato vive en engagement.returningUsers, no en
+            // audience.returningUsers (ese campo nunca existió en el
+            // contrato; siempre mostraba "0").
+            metricValue(engagement.returningUsers) + '</div></div>' +
         '</div>' +
       '</div>';
 
@@ -636,13 +678,21 @@ window.BuddyDashboardViews = window.BuddyDashboardViews || {};
       '</div>';
 
     var engagementHtml =
-      '<div class="buddy-dashboard-grid buddy-dashboard-grid--3">' +
+      // Bug #8: se pasa de grid--3 a la grilla base (4 columnas) para sumar
+      // la tarjeta "Recurrentes" sin apretar las otras tres.
+      '<div class="buddy-dashboard-grid">' +
         metricCard('Sesiones', engagement.sessions, formatNumber, 'sesiones') +
         metricCard('Usuarios activos', engagement.activeUsers, formatNumber, 'usuariosActivos') +
         metricCard('Usuarios comprometidos', engagement.engagedUsers, formatNumber, 'usuariosComprometidos') +
+        metricCard('Recurrentes', engagement.returningUsers, formatNumber, 'registradosRecurrentes') +
       '</div>' +
       '<div class="buddy-dashboard-status" style="margin-top:12px">' +
-        withTooltip('Sesiones por usuario', 'sesionesPorUsuario') + ': <strong>' + escapeHtml(metricValue(engagement.sessionsPerUser)) +
+        // Bug #11: la etiqueta decía "por usuario" a secas; el cálculo es
+        // sesiones / usuarios REGISTRADOS (65/10 ≈ 6.5), una cifra que puede
+        // sorprender si se compara mentalmente contra el total de usuarios
+        // activos (42). Se deja explícito en el texto visible, no solo en
+        // el tooltip.
+        withTooltip('Sesiones por usuario registrado', 'sesionesPorUsuario') + ': <strong>' + escapeHtml(metricValue(engagement.sessionsPerUser)) +
         '</strong> · ' + withTooltip('Eventos por sesión', 'eventosPorSesion') + ': <strong>' + escapeHtml(metricValue(engagement.eventsPerSession)) + '</strong>' +
       '</div>';
 
@@ -653,13 +703,17 @@ window.BuddyDashboardViews = window.BuddyDashboardViews || {};
         metricCard('Conversión', whatsapp.conversionRate, formatPercent, 'conversionWhatsapp') +
       '</div>';
 
+    // Bug #12: "Intención" para clicks totales confundía en el visual del
+    // embudo (parecía "10 intentan → 7 convierten" cuando los 7 son
+    // subconjunto de los que clickearon). Se renombra a Clicks WA / Usuarios
+    // WA, que deja explícito qué se está contando en cada escalón.
     var funnelKeys = [
       ['visitors', 'Visitantes', 'embudoVisitantes'],
       ['identified', 'Identificados', 'embudoIdentificados'],
       ['active', 'Activos', 'embudoActivos'],
       ['engaged', 'Comprometidos', 'embudoComprometidos'],
-      ['intent', 'Intención', 'embudoIntencion'],
-      ['conversions', 'Conversiones', 'embudoConversiones']
+      ['intent', 'Clicks WA', 'embudoIntencion'],
+      ['conversions', 'Usuarios WA', 'embudoConversiones']
     ];
 
     var funnelHtml =
@@ -753,20 +807,50 @@ window.BuddyDashboardViews = window.BuddyDashboardViews || {};
         '</div>'
       : '<div class="buddy-dashboard-muted">Sin actividad específica en este período.</div>';
 
-    var acquisitionHtml = listRows(acquisition.topReferrers, [
-      { label: 'Fuente', term: 'adquisicionFuente', value: function (item) {
-          return item.source || item.label || item.name || item.referrer || '—';
-        } },
-      { label: 'Visitantes', term: 'adquisicionVisitantes', value: function (item) {
-          return formatNumber(item.visitors != null ? item.visitors : item.value);
-        } },
-      { label: 'Participación', term: 'adquisicionParticipacion', value: function (item) {
-          return formatPercent(collectionPercentValue(item));
-        } }
-    ]);
+    // Bug #13: el backend ahora manda conversions/conversionRate por fuente
+    // (cruce byActor ↔ referrer); se agrega como columna en vez de dejar el
+    // dato calculado sin mostrar, igual que ya pasaba con pagePerformance.
+    var acquisitionHtml =
+      '<div class="buddy-dashboard-panel__title">Por fuente</div>' +
+      listRows(acquisition.topReferrers, [
+        { label: 'Fuente', term: 'adquisicionFuente', value: function (item) {
+            return item.source || item.label || item.name || item.referrer || '—';
+          } },
+        { label: 'Visitantes', term: 'adquisicionVisitantes', value: function (item) {
+            return formatNumber(item.visitors != null ? item.visitors : item.value);
+          } },
+        { label: 'Participación', term: 'adquisicionParticipacion', value: function (item) {
+            return formatPercent(collectionPercentValue(item));
+          } },
+        { label: 'Conversión', term: 'adquisicionConversion', value: function (item) {
+            return item.conversionRate != null ? formatPercent(item.conversionRate) : '—';
+          } }
+      ]) +
+      // Bug #6: acquisition.pagePerformance ya traía whatsappRate/whatsappShare
+      // por página desde el backend — el dato más accionable del dashboard
+      // (qué página convierte mejor) — pero nunca se renderizaba.
+      '<div class="buddy-dashboard-panel__title" style="margin-top:26px">Rendimiento por página</div>' +
+      '<p class="buddy-dashboard-section-intro">Qué página convierte mejor a WhatsApp, para saber dónde reforzar el CTA.</p>' +
+      listRows(acquisition.pagePerformance, [
+        { label: 'Página', term: 'paginaPagina', value: function (item) {
+            return item.title || item.url || '—';
+          } },
+        { label: 'Visitantes', term: 'paginaVisitantes', value: function (item) {
+            return formatNumber(item.visitors);
+          } },
+        { label: 'Conversión WhatsApp', term: 'paginaConversionWhatsapp', value: function (item) {
+            return formatPercent(item.whatsappRate);
+          } },
+        { label: 'Participación en clicks', term: 'paginaParticipacionClicks', value: function (item) {
+            return formatPercent(item.whatsappShare);
+          } }
+      ]);
 
+    // Bug #7: technology.operatingSystems llegaba calculado desde el
+    // backend pero el grid solo tenía Dispositivos y Navegadores. Se pasa a
+    // 3 columnas para sumar Sistema operativo.
     var technologyHtml =
-      '<div class="buddy-dashboard-grid buddy-dashboard-grid--2">' +
+      '<div class="buddy-dashboard-grid buddy-dashboard-grid--3">' +
         '<div class="buddy-dashboard-panel"><div class="buddy-dashboard-panel__title">Dispositivos</div>' +
           listRows(technology.devices, [
             { label: 'Dispositivo', term: 'tecnologiaDispositivo', value: function (item) { return item.label || item.name || item.key; } },
@@ -776,6 +860,12 @@ window.BuddyDashboardViews = window.BuddyDashboardViews || {};
         '<div class="buddy-dashboard-panel"><div class="buddy-dashboard-panel__title">Navegadores</div>' +
           listRows(technology.browsers, [
             { label: 'Navegador', term: 'tecnologiaDispositivo', value: function (item) { return item.label || item.name || item.key; } },
+            { label: '%', term: 'tecnologiaPorcentaje', value: function (item) { return formatPercent(collectionPercentValue(item)); } }
+          ]) +
+        '</div>' +
+        '<div class="buddy-dashboard-panel"><div class="buddy-dashboard-panel__title">Sistema operativo</div>' +
+          listRows(technology.operatingSystems, [
+            { label: 'Sistema', term: 'tecnologiaDispositivo', value: function (item) { return item.label || item.name || item.key; } },
             { label: '%', term: 'tecnologiaPorcentaje', value: function (item) { return formatPercent(collectionPercentValue(item)); } }
           ]) +
         '</div>' +
