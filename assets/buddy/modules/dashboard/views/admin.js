@@ -57,10 +57,67 @@ window.BuddyDashboardViews = window.BuddyDashboardViews || {};
     return (formatter || formatNumber)(metric.value);
   }
 
-  function metricCard(title, metric, formatter) {
+  // Definiciones cortas para los tooltips (atributo title, sin dependencias).
+  // La explicación completa, con fórmulas y cómo interpretar cada dato, vive
+  // en el anexo "glosario-dashboard-buddy.md" — el tooltip es solo el resumen.
+  var TERM_DEFINITIONS = {
+    visitantes: 'Sesiones distintas en el sitio durante el período, con o sin registro.',
+    identificados: 'Visitantes que iniciaron sesión o se registraron durante el período.',
+    engagementResumen: 'Porcentaje de usuarios activos que cumplió el mínimo de eventos o hizo click en WhatsApp.',
+    intencionResumen: 'Usuarios únicos que hicieron click en el link de WhatsApp.',
+    registradosTotal: 'Usuarios identificados (con cuenta) activos en el período.',
+    registradosNuevos: 'Usuarios identificados cuyo primer evento en el sitio ocurrió en este período.',
+    registradosActivos: 'Usuarios identificados con al menos un evento en el período.',
+    registradosRecurrentes: 'Usuarios identificados activos también en el período de comparación inmediato anterior.',
+    anonimosVisitantes: 'Sesiones sin usuario identificado en el período.',
+    anonimosSesiones: 'Total de sesiones del sitio, identificadas y anónimas.',
+    anonimosEventos: 'Total de eventos registrados por Buddy en el período (todas las sesiones).',
+    anonimosIdentificacion: 'Porcentaje de usuarios que se identificaron sobre el total (identificados + anónimos).',
+    sesiones: 'Total de sesiones del sitio en el período.',
+    usuariosActivos: 'Usuarios (identificados o anónimos) con al menos un evento en el período.',
+    usuariosComprometidos: 'Usuarios que superaron el mínimo de eventos configurado o hicieron click en WhatsApp.',
+    sesionesPorUsuario: 'Promedio de sesiones por cada usuario identificado.',
+    eventosPorSesion: 'Promedio de eventos registrados por sesión.',
+    clicksWhatsapp: 'Total de clicks en links de WhatsApp durante el período.',
+    usuariosUnicosWhatsapp: 'Usuarios distintos que hicieron al menos un click en WhatsApp.',
+    conversionWhatsapp: 'Usuarios únicos con click en WhatsApp sobre el total de sesiones del período.',
+    embudoVisitantes: 'Total de sesiones del período (primer escalón del embudo).',
+    embudoIdentificados: 'De esas sesiones, cuántas correspondían a un usuario identificado.',
+    embudoActivos: 'Usuarios (identificados o anónimos) con actividad registrada.',
+    embudoComprometidos: 'Usuarios que superaron el umbral de compromiso definido.',
+    embudoIntencion: 'Clicks en WhatsApp registrados en el período.',
+    embudoConversiones: 'Usuarios únicos que efectivamente hicieron click en WhatsApp.',
+    actividadUsuarios: 'Usuarios distintos que interactuaron con este módulo.',
+    actividadSesiones: 'Sesiones distintas en las que se usó este módulo.',
+    actividadPartidas: 'Andanadas de archery completadas.',
+    actividadFlechas: 'Total de flechas disparadas en el módulo archery.',
+    actividadSegundosActivos: 'Segundos acumulados jugando (desde que se inicia hasta que se completa cada andanada).',
+    actividadPuntos: 'Puntaje acumulado de todas las andanadas completadas.',
+    archeryJugoNoJugo: 'Compara, entre quienes jugaron archery y quienes no, qué porcentaje hizo click en WhatsApp. Con pocos actores en un grupo, un solo caso puede mover el % varios puntos — revisa el "n" de cada fila.',
+    archeryRegistradoAnonimo: 'Compara la tasa de click en WhatsApp entre usuarios identificados y anónimos.',
+    archeryTiempoAntesClick: 'Tiempo promedio jugando archery antes del primer click en WhatsApp, solo entre quienes hicieron ambas cosas y en ese orden.',
+    archeryNivel: 'Tasa de click en WhatsApp según cuántas partidas de archery jugó cada actor (0, 1, o 2 o más).',
+    adquisicionFuente: 'Sitio o app desde donde llegó la sesión ("direct" = sin referencia, típicamente escritura directa de la URL o apps).',
+    adquisicionVisitantes: 'Sesiones que llegaron desde esa fuente.',
+    adquisicionParticipacion: 'Porcentaje de las sesiones totales que llegó desde esa fuente.',
+    tecnologiaDispositivo: 'Tipo de dispositivo detectado a partir del user-agent del navegador.',
+    tecnologiaPorcentaje: 'Porcentaje de sesiones con ese dispositivo o navegador.'
+  };
+
+  // Envuelve un texto en un span con subrayado punteado y tooltip nativo
+  // (atributo title). Sin dependencias externas ni iconos.
+  function withTooltip(text, termKey) {
+    var definition = termKey ? TERM_DEFINITIONS[termKey] : null;
+    if (!definition) return escapeHtml(text);
+    return '<span class="buddy-dashboard-term" tabindex="0" title="' + escapeHtml(definition) + '">' +
+      escapeHtml(text) +
+    '</span>';
+  }
+
+  function metricCard(title, metric, formatter, termKey) {
     metric = metric || {};
     return '<article class="buddy-dashboard-card">' +
-      '<div class="buddy-dashboard-card__label">' + escapeHtml(title) + '</div>' +
+      '<div class="buddy-dashboard-card__label">' + withTooltip(title, termKey) + '</div>' +
       '<div class="buddy-dashboard-card__value">' + metricValue(metric, formatter) + '</div>' +
       '<div class="buddy-dashboard-card__change">' +
         escapeHtml(formatChange(metric.change, formatter === formatPercent)) +
@@ -77,9 +134,14 @@ window.BuddyDashboardViews = window.BuddyDashboardViews || {};
     var seconds = Number(value);
     if (!isFinite(seconds) || seconds <= 0) return '0 s';
     if (seconds < 60) return Math.round(seconds) + ' s';
-    var minutes = Math.floor(seconds / 60);
-    var rest = Math.round(seconds % 60);
-    return minutes + 'm ' + rest + 's';
+    var totalMinutes = Math.floor(seconds / 60);
+    if (totalMinutes < 60) {
+      var rest = Math.round(seconds % 60);
+      return totalMinutes + 'm ' + rest + 's';
+    }
+    var hours = Math.floor(totalMinutes / 60);
+    var minutes = totalMinutes % 60;
+    return hours + 'h ' + minutes + 'm';
   }
 
   function lowSampleTag(entry) {
@@ -88,29 +150,31 @@ window.BuddyDashboardViews = window.BuddyDashboardViews || {};
       : '';
   }
 
-  // Tarjeta que compara dos tasas de conversión (p.ej. jugó vs no jugó),
-  // cada una con su propio tamaño de muestra visible junto al número.
-  function comparisonCard(title, a, b, labelA, labelB) {
+  // Tarjeta que compara dos tasas de conversión (p.ej. jugó vs no jugó).
+  // Cada lado va en su propia fila con su etiqueta pegada al número — evita
+  // la ambigüedad de un formato "A% vs B%" donde no queda claro cuál es cuál.
+  function comparisonCard(title, a, b, labelA, labelB, termKey) {
     a = a || {};
     b = b || {};
     return '<article class="buddy-dashboard-card">' +
-      '<div class="buddy-dashboard-card__label">' + escapeHtml(title) + '</div>' +
-      '<div class="buddy-dashboard-card__value">' +
-        formatPercent(a.conversionRate) +
-        ' <span style="font-size:.85rem;font-weight:400;color:#5f6368">vs</span> ' +
-        formatPercent(b.conversionRate) +
+      '<div class="buddy-dashboard-card__label">' + withTooltip(title, termKey) + '</div>' +
+      '<div class="buddy-dashboard-compare-row">' +
+        '<span class="buddy-dashboard-compare-row__label">' + escapeHtml(labelA) + '</span>' +
+        '<span class="buddy-dashboard-compare-row__value">' + formatPercent(a.conversionRate) + '</span>' +
+        '<span class="buddy-dashboard-compare-row__n">n=' + formatNumber(a.n) + lowSampleTag(a) + '</span>' +
       '</div>' +
-      '<div class="buddy-dashboard-card__samples">' +
-        '<span>' + escapeHtml(labelA) + ': n=' + formatNumber(a.n) + lowSampleTag(a) + '</span>' +
-        '<span>' + escapeHtml(labelB) + ': n=' + formatNumber(b.n) + lowSampleTag(b) + '</span>' +
+      '<div class="buddy-dashboard-compare-row">' +
+        '<span class="buddy-dashboard-compare-row__label">' + escapeHtml(labelB) + '</span>' +
+        '<span class="buddy-dashboard-compare-row__value">' + formatPercent(b.conversionRate) + '</span>' +
+        '<span class="buddy-dashboard-compare-row__n">n=' + formatNumber(b.n) + lowSampleTag(b) + '</span>' +
       '</div>' +
     '</article>';
   }
 
-  function durationCard(title, entry) {
+  function durationCard(title, entry, termKey) {
     entry = entry || {};
     return '<article class="buddy-dashboard-card">' +
-      '<div class="buddy-dashboard-card__label">' + escapeHtml(title) + '</div>' +
+      '<div class="buddy-dashboard-card__label">' + withTooltip(title, termKey) + '</div>' +
       '<div class="buddy-dashboard-card__value">' + formatDuration(entry.value) + '</div>' +
       '<div class="buddy-dashboard-card__samples">' +
         '<span>n=' + formatNumber(entry.n) + lowSampleTag(entry) + '</span>' +
@@ -126,7 +190,9 @@ window.BuddyDashboardViews = window.BuddyDashboardViews || {};
     }
 
     return '<div class="buddy-dashboard-table-wrap"><table>' +
-      '<thead><tr><th>Nivel</th><th>Actores</th><th>Conversión a WhatsApp</th></tr></thead><tbody>' +
+      '<thead><tr><th>Nivel</th><th>Actores</th><th>' +
+        withTooltip('Conversión a WhatsApp', 'archeryNivel') +
+      '</th></tr></thead><tbody>' +
       items.map(function (item) {
         item = item || {};
         return '<tr>' +
@@ -153,7 +219,7 @@ window.BuddyDashboardViews = window.BuddyDashboardViews || {};
     return '<div class="buddy-dashboard-table-wrap"><table>' +
       '<thead><tr>' +
       columns.map(function (column) {
-        return '<th>' + escapeHtml(column.label) + '</th>';
+        return '<th>' + withTooltip(column.label, column.term) + '</th>';
       }).join('') +
       '</tr></thead><tbody>' +
       items.slice(0, 10).map(function (item) {
@@ -167,6 +233,160 @@ window.BuddyDashboardViews = window.BuddyDashboardViews || {};
           '</tr>';
       }).join('') +
       '</tbody></table></div>';
+  }
+
+  // Anexo del glosario completo (glosario-dashboard-buddy.md), pensado
+  // exclusivamente para cuando el dashboard se imprime o exporta a PDF: en
+  // pantalla ese rol ya lo cumplen los tooltips (withTooltip), así que este
+  // bloque se mantiene oculto ahí y solo se muestra vía @media print (ver
+  // ensureStyles). No usa escapeHtml porque es contenido fijo, no datos de
+  // la API.
+  function printGlossaryHtml() {
+    return '<div class="buddy-dashboard-glossary">' +
+      '<section class="buddy-dashboard-section buddy-dashboard-glossary__section">' +
+        '<h2>Glosario del dashboard</h2>' +
+        '<p>Este anexo explica qué mide cada número del dashboard y cómo leerlo. ' +
+        'En la versión en línea, cada dato tiene además un tooltip corto (pasá el ' +
+        'mouse o, en celular, tocá y mantené presionado sobre el texto subrayado ' +
+        'con puntitos) con un resumen de una línea; acá está la versión completa ' +
+        'de esa explicación.</p>' +
+
+        '<h3>Cómo leer cualquier número de este dashboard</h3>' +
+        '<ol>' +
+          '<li><strong>Mirá siempre el tamaño de muestra (<em>n</em>).</strong> Cuando un ' +
+          'grupo tiene pocos usuarios o sesiones, un solo caso puede mover el ' +
+          'porcentaje varios puntos. El dashboard marca esto con la etiqueta ' +
+          '<strong>&ldquo;muestra baja&rdquo;</strong> cuando el grupo tiene menos de 5 ' +
+          'actores. Un porcentaje con esa etiqueta es una pista, no una conclusión.</li>' +
+          '<li><strong>Los primeros días después de publicar el sitio son ruidosos.</strong> ' +
+          'Con pocas semanas de datos, es normal que aparezcan porcentajes que a ' +
+          'primera vista no tienen sentido (ver el ejemplo real más abajo). No es ' +
+          'necesariamente un error del sistema — casi siempre es que todavía no hay ' +
+          'suficiente volumen para que los promedios se estabilicen.</li>' +
+        '</ol>' +
+
+        '<h3>Resumen</h3>' +
+        '<div class="buddy-dashboard-table-wrap"><table>' +
+          '<thead><tr><th>Dato</th><th>Qué mide</th></tr></thead>' +
+          '<tbody>' +
+            '<tr><td>Visitantes</td><td>Sesiones distintas en el sitio durante el período, con o sin registro.</td></tr>' +
+            '<tr><td>Identificados</td><td>Visitantes que iniciaron sesión o se registraron durante el período.</td></tr>' +
+            '<tr><td>Engagement</td><td>Porcentaje de usuarios activos que cumplió el mínimo de eventos configurado o hizo click en WhatsApp.</td></tr>' +
+            '<tr><td>Intención</td><td>Usuarios únicos que hicieron click en el link de WhatsApp.</td></tr>' +
+          '</tbody>' +
+        '</table></div>' +
+
+        '<h3>Audiencia</h3>' +
+        '<p><strong>Registrados</strong> — usuarios con cuenta en el sitio.</p>' +
+        '<ul>' +
+          '<li>Total / Activos: usuarios identificados con actividad en el período.</li>' +
+          '<li>Nuevos: su primer evento en el sitio ocurrió dentro de este período (antes no existían en el sistema).</li>' +
+          '<li>Recurrentes: estuvieron activos también en el período de comparación inmediato anterior.</li>' +
+        '</ul>' +
+        '<p><strong>Visitantes anónimos</strong> — todo lo que pasa en el sitio sin que la persona se haya identificado.</p>' +
+        '<ul>' +
+          '<li>Identificación: qué porcentaje del total de visitantes (identificados + anónimos) se registró. ' +
+          'Es una métrica de negocio útil para saber si vale la pena insistir con el registro.</li>' +
+        '</ul>' +
+
+        '<h3>Engagement</h3>' +
+        '<ul>' +
+          '<li>Sesiones: total de sesiones del sitio en el período.</li>' +
+          '<li>Usuarios activos: usuarios (identificados o anónimos) con al menos un evento.</li>' +
+          '<li>Usuarios comprometidos: usuarios que superaron el mínimo de eventos configurado (por defecto 5) ' +
+          '<strong>o</strong> hicieron click en WhatsApp — el click cuenta como compromiso aunque la persona ' +
+          'no haya generado muchos eventos antes.</li>' +
+          '<li>Sesiones por usuario / Eventos por sesión: promedios simples, útiles para comparar entre ' +
+          'períodos más que para leer en aislado.</li>' +
+        '</ul>' +
+
+        '<h3>Acciones de valor (WhatsApp)</h3>' +
+        '<ul>' +
+          '<li>Clicks WhatsApp: total de clicks en el link, sin deduplicar por persona (una misma persona ' +
+          'puede aparecer varias veces).</li>' +
+          '<li>Usuarios únicos: cuántas personas distintas hicieron al menos un click.</li>' +
+          '<li>Conversión: usuarios únicos con click sobre el total de sesiones del período. Es la métrica ' +
+          'de referencia para saber &ldquo;de cada 100 visitas, cuántas terminan escribiendo&rdquo;.</li>' +
+        '</ul>' +
+
+        '<h3>Embudo</h3>' +
+        '<p>Seis escalones, cada uno subconjunto del anterior: Visitantes → Identificados → Activos → ' +
+        'Comprometidos → Intención (clicks en WhatsApp) → Conversiones (usuarios únicos que clickearon). ' +
+        'Sirve para ver en qué punto se pierde más gente.</p>' +
+
+        '<h3>Actividades</h3>' +
+        '<p>Por cada módulo de Buddy (por ejemplo archery), se muestra: usuarios y sesiones que lo usaron, ' +
+        'partidas jugadas (andanadas completadas), flechas disparadas, segundos activos jugando y puntaje ' +
+        'acumulado. Estos números son sobre el minijuego en sí — no dicen todavía si eso ayuda a la ' +
+        'conversión. Para eso está la siguiente sección.</p>' +
+
+        '<h3>Archery → WhatsApp</h3>' +
+        '<p>Esta sección cruza la actividad del minijuego con los clicks a WhatsApp, para responder si ' +
+        'jugar realmente empuja a la gente a escribir.</p>' +
+
+        '<h4>Conversión: jugó vs no jugó</h4>' +
+        '<p>Compara la tasa de click a WhatsApp entre quienes jugaron al menos una partida de archery y ' +
+        'quienes no jugaron ninguna. La expectativa de negocio es que quienes jugaron conviertan ' +
+        '<strong>más</strong> — es la hipótesis que este dashboard existe para probar o refutar.</p>' +
+        '<p><strong>Ejemplo real de este sitio, primeros días tras la publicación:</strong> jugó 9,1% ' +
+        '(n=44) vs no jugó 75% (n=4, muestra baja). A primera vista parece indicar lo contrario de lo ' +
+        'esperado. Con estos números concretos, lo más probable es una combinación de dos cosas:</p>' +
+        '<ul>' +
+          '<li>El grupo &ldquo;no jugó&rdquo; tiene solo 4 personas — con una muestra así, que 3 de esas 4 ' +
+          'hayan clickeado WhatsApp (75%) puede deberse a un puñado de visitantes ya muy decididos (por ' +
+          'ejemplo, alguien que llegó directo a la página de precios buscando el contacto) y no a un ' +
+          'patrón real del resto de tus visitantes.</li>' +
+          '<li>El grupo &ldquo;jugó&rdquo; es mucho más grande (44) y probablemente incluye visitantes más ' +
+          'exploratorios, que llegaron por curiosidad y todavía no estaban listos para escribir.</li>' +
+        '</ul>' +
+        '<p>Ninguna de las dos lecturas es una alarma por sí sola. Lo que hace falta es más volumen: con ' +
+        'más semanas de datos, si la tasa de &ldquo;jugó&rdquo; empieza a superar consistentemente a la de ' +
+        '&ldquo;no jugó&rdquo;, ahí sí hay evidencia real de que el juego ayuda. Si se mantiene invertida ' +
+        'con muestras ya grandes en ambos lados, sería señal de revisar el diseño del minijuego o dónde ' +
+        'está ubicado en el sitio.</p>' +
+
+        '<h4>Conversión: registrado vs anónimo</h4>' +
+        '<p>Compara la tasa de click a WhatsApp entre usuarios que se identificaron (tienen cuenta) y los ' +
+        'que no. Ayuda a decidir si vale la pena empujar el registro como paso previo a la conversión, o ' +
+        'si el registro no está relacionado con la decisión de escribir.</p>' +
+
+        '<h4>Tiempo medio jugando antes del click</h4>' +
+        '<p>Promedio de tiempo jugando archery antes del primer click a WhatsApp, contado solo entre las ' +
+        'personas que hicieron ambas cosas y en ese orden (primero jugaron, después escribieron). Un ' +
+        'número muy alto con muestra baja (como en el ejemplo de este sitio, con solo 4 casos) no debe ' +
+        'leerse como &ldquo;la gente juega horas antes de escribir&rdquo; — es más probable que sea el ' +
+        'resultado de un par de sesiones atípicas (por ejemplo alguien que dejó la pestaña abierta) ' +
+        'promediadas entre muy pocos casos.</p>' +
+
+        '<h4>Conversión por nivel de juego</h4>' +
+        '<p>Divide a los actores en tres grupos según cuánto jugaron (no jugó / 1 partida / 2 o más ' +
+        'partidas) y muestra la tasa de click a WhatsApp de cada uno. Esta es la vista más confiable de ' +
+        'las cuatro para detectar el efecto del juego, porque si existe una relación real (&ldquo;jugar ' +
+        'más ayuda a convertir&rdquo;), acá debería verse como una tendencia creciente entre los tres ' +
+        'niveles — no como un solo número aislado.</p>' +
+
+        '<h3>Adquisición</h3>' +
+        '<ul>' +
+          '<li>Fuente: de dónde llegó la sesión. &ldquo;direct&rdquo; significa que no había referencia — ' +
+          'típicamente alguien que escribió la URL directamente, la tenía guardada, o llegó desde una app ' +
+          'que no pasa esa información (WhatsApp, Gmail, etc.).</li>' +
+          '<li>Visitantes / Participación: cuántas sesiones y qué porcentaje del total llegó desde esa ' +
+          'fuente.</li>' +
+        '</ul>' +
+
+        '<h3>Tecnología</h3>' +
+        '<p>Desglose de dispositivo, navegador y sistema operativo, calculado a partir del user-agent del ' +
+        'navegador de cada sesión (nunca se guarda ni se muestra el user-agent completo, solo la ' +
+        'clasificación).</p>' +
+
+        '<h3>Sobre las etiquetas &ldquo;muestra baja&rdquo;</h3>' +
+        '<p>Se marca así cualquier grupo con menos de 5 actores. El umbral es una convención de este ' +
+        'dashboard, no una regla estadística estricta — con menos de 5 casos casi cualquier porcentaje ' +
+        'puede cambiar drásticamente con un solo caso más o menos, así que es la señal para tratar ese ' +
+        'número como preliminar y esperar más datos antes de sacar conclusiones o tomar decisiones basadas ' +
+        'en él.</p>' +
+      '</section>' +
+    '</div>';
   }
 
   function ensureStyles() {
@@ -198,6 +418,13 @@ window.BuddyDashboardViews = window.BuddyDashboardViews || {};
       '.buddy-dashboard-card__projection{font-size:.78rem;color:#777;margin-top:7px}' +
       '.buddy-dashboard-card__samples{font-size:.78rem;color:#777;margin-top:7px;display:flex;gap:10px;flex-wrap:wrap}' +
       '.buddy-dashboard-lowsample{font-size:.72rem;color:#9a6b12;background:#fdf3e0;padding:1px 6px;border-radius:5px}' +
+      '.buddy-dashboard-term{border-bottom:1px dotted #9aa0a6;cursor:help}' +
+      '.buddy-dashboard-term:focus{outline:2px solid #185fa5;outline-offset:2px;border-radius:2px}' +
+      '.buddy-dashboard-compare-row{display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid #f1f2f3}' +
+      '.buddy-dashboard-compare-row:last-child{border-bottom:none}' +
+      '.buddy-dashboard-compare-row__label{font-size:.85rem;color:#5f6368;flex:1}' +
+      '.buddy-dashboard-compare-row__value{font-size:1.25rem;font-weight:650}' +
+      '.buddy-dashboard-compare-row__n{font-size:.72rem;color:#777;white-space:nowrap}' +
       '.buddy-dashboard-panel__title{font-weight:650;margin-bottom:14px}' +
       '.buddy-dashboard-mini-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}' +
       '.buddy-dashboard-mini{padding:12px;border-radius:9px;background:#f7f8f9}' +
@@ -217,7 +444,21 @@ window.BuddyDashboardViews = window.BuddyDashboardViews || {};
       '.buddy-dashboard-skeleton{height:100px;border-radius:12px;background:linear-gradient(90deg,#f2f3f4,#fafafa,#f2f3f4);background-size:200% 100%;animation:buddy-dashboard-loading 1.3s infinite}' +
       '@keyframes buddy-dashboard-loading{from{background-position:200% 0}to{background-position:-200% 0}}' +
       '@media(max-width:900px){.buddy-dashboard-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.buddy-dashboard__header{flex-direction:column}.buddy-dashboard__controls{justify-content:flex-start}.buddy-dashboard__period{text-align:left}}' +
-      '@media(max-width:600px){.buddy-dashboard{padding:18px 14px}.buddy-dashboard-grid,.buddy-dashboard-grid--2,.buddy-dashboard-grid--3{grid-template-columns:1fr}.buddy-dashboard__title{font-size:1.45rem}.buddy-dashboard-funnel{display:grid;grid-template-columns:1fr 1fr}}';
+      '@media(max-width:600px){.buddy-dashboard{padding:18px 14px}.buddy-dashboard-grid,.buddy-dashboard-grid--2,.buddy-dashboard-grid--3{grid-template-columns:1fr}.buddy-dashboard__title{font-size:1.45rem}.buddy-dashboard-funnel{display:grid;grid-template-columns:1fr 1fr}}' +
+      // El glosario completo es redundante en pantalla (ahí está withTooltip),
+      // así que se mantiene oculto por defecto y solo aparece al imprimir /
+      // exportar a PDF.
+      '.buddy-dashboard-glossary{display:none}' +
+      '@media print{' +
+        '.buddy-dashboard-glossary{display:block;page-break-before:always}' +
+        '.buddy-dashboard-glossary__section h2{font-size:1.2rem;margin-bottom:14px}' +
+        '.buddy-dashboard-glossary__section h3{font-size:1rem;margin:22px 0 8px}' +
+        '.buddy-dashboard-glossary__section h4{font-size:.92rem;margin:16px 0 6px;color:#3c4043}' +
+        '.buddy-dashboard-glossary__section p,.buddy-dashboard-glossary__section li{font-size:.88rem;line-height:1.5;color:#3c4043}' +
+        '.buddy-dashboard-glossary__section ul,.buddy-dashboard-glossary__section ol{margin:6px 0 14px;padding-left:22px}' +
+        '.buddy-dashboard-glossary__section table{font-size:.85rem}' +
+        '.buddy-dashboard__controls{display:none}' +
+      '}';
 
     document.head.appendChild(style);
   }
@@ -313,23 +554,23 @@ window.BuddyDashboardViews = window.BuddyDashboardViews || {};
 
     var summary =
       '<div class="buddy-dashboard-grid">' +
-        metricCard('Visitantes', audience.visitors || audience.anonymous, formatNumber) +
-        metricCard('Identificados', audience.registered, formatNumber) +
-        metricCard('Engagement', engagement.engagedUsers || engagement.engagementRate, formatPercent) +
-        metricCard('Intención', whatsapp.uniqueUsers || whatsapp.clicks, formatNumber) +
+        metricCard('Visitantes', audience.visitors || audience.anonymous, formatNumber, 'visitantes') +
+        metricCard('Identificados', audience.registered, formatNumber, 'identificados') +
+        metricCard('Engagement', engagement.engagedUsers || engagement.engagementRate, formatPercent, 'engagementResumen') +
+        metricCard('Intención', whatsapp.uniqueUsers || whatsapp.clicks, formatNumber, 'intencionResumen') +
       '</div>';
 
     var registered =
       '<div class="buddy-dashboard-panel">' +
         '<div class="buddy-dashboard-panel__title">Registrados</div>' +
         '<div class="buddy-dashboard-mini-grid">' +
-          '<div class="buddy-dashboard-mini"><div class="buddy-dashboard-mini__label">Total</div><div class="buddy-dashboard-mini__value">' +
+          '<div class="buddy-dashboard-mini"><div class="buddy-dashboard-mini__label">' + withTooltip('Total', 'registradosTotal') + '</div><div class="buddy-dashboard-mini__value">' +
             metricValue(audience.registered) + '</div></div>' +
-          '<div class="buddy-dashboard-mini"><div class="buddy-dashboard-mini__label">Nuevos</div><div class="buddy-dashboard-mini__value">' +
+          '<div class="buddy-dashboard-mini"><div class="buddy-dashboard-mini__label">' + withTooltip('Nuevos', 'registradosNuevos') + '</div><div class="buddy-dashboard-mini__value">' +
             metricValue(audience.newUsers) + '</div></div>' +
-          '<div class="buddy-dashboard-mini"><div class="buddy-dashboard-mini__label">Activos</div><div class="buddy-dashboard-mini__value">' +
+          '<div class="buddy-dashboard-mini"><div class="buddy-dashboard-mini__label">' + withTooltip('Activos', 'registradosActivos') + '</div><div class="buddy-dashboard-mini__value">' +
             metricValue(audience.activeUsers) + '</div></div>' +
-          '<div class="buddy-dashboard-mini"><div class="buddy-dashboard-mini__label">Recurrentes</div><div class="buddy-dashboard-mini__value">' +
+          '<div class="buddy-dashboard-mini"><div class="buddy-dashboard-mini__label">' + withTooltip('Recurrentes', 'registradosRecurrentes') + '</div><div class="buddy-dashboard-mini__value">' +
             metricValue(audience.returningUsers) + '</div></div>' +
         '</div>' +
       '</div>';
@@ -338,49 +579,49 @@ window.BuddyDashboardViews = window.BuddyDashboardViews || {};
       '<div class="buddy-dashboard-panel">' +
         '<div class="buddy-dashboard-panel__title">Visitantes anónimos</div>' +
         '<div class="buddy-dashboard-mini-grid">' +
-          '<div class="buddy-dashboard-mini"><div class="buddy-dashboard-mini__label">Visitantes</div><div class="buddy-dashboard-mini__value">' +
+          '<div class="buddy-dashboard-mini"><div class="buddy-dashboard-mini__label">' + withTooltip('Visitantes', 'anonimosVisitantes') + '</div><div class="buddy-dashboard-mini__value">' +
             metricValue(audience.anonymous) + '</div></div>' +
-          '<div class="buddy-dashboard-mini"><div class="buddy-dashboard-mini__label">Sesiones</div><div class="buddy-dashboard-mini__value">' +
+          '<div class="buddy-dashboard-mini"><div class="buddy-dashboard-mini__label">' + withTooltip('Sesiones', 'anonimosSesiones') + '</div><div class="buddy-dashboard-mini__value">' +
             metricValue(engagement.sessions) + '</div></div>' +
-          '<div class="buddy-dashboard-mini"><div class="buddy-dashboard-mini__label">Eventos</div><div class="buddy-dashboard-mini__value">' +
+          '<div class="buddy-dashboard-mini"><div class="buddy-dashboard-mini__label">' + withTooltip('Eventos', 'anonimosEventos') + '</div><div class="buddy-dashboard-mini__value">' +
             metricValue(engagement.events) + '</div></div>' +
-          '<div class="buddy-dashboard-mini"><div class="buddy-dashboard-mini__label">Identificación</div><div class="buddy-dashboard-mini__value">' +
+          '<div class="buddy-dashboard-mini"><div class="buddy-dashboard-mini__label">' + withTooltip('Identificación', 'anonimosIdentificacion') + '</div><div class="buddy-dashboard-mini__value">' +
             metricValue(audience.identificationRate, formatPercent) + '</div></div>' +
         '</div>' +
       '</div>';
 
     var engagementHtml =
       '<div class="buddy-dashboard-grid buddy-dashboard-grid--3">' +
-        metricCard('Sesiones', engagement.sessions) +
-        metricCard('Usuarios activos', engagement.activeUsers) +
-        metricCard('Usuarios comprometidos', engagement.engagedUsers) +
+        metricCard('Sesiones', engagement.sessions, formatNumber, 'sesiones') +
+        metricCard('Usuarios activos', engagement.activeUsers, formatNumber, 'usuariosActivos') +
+        metricCard('Usuarios comprometidos', engagement.engagedUsers, formatNumber, 'usuariosComprometidos') +
       '</div>' +
       '<div class="buddy-dashboard-status" style="margin-top:12px">' +
-        'Sesiones por usuario: <strong>' + escapeHtml(metricValue(engagement.sessionsPerUser)) +
-        '</strong> · Eventos por sesión: <strong>' + escapeHtml(metricValue(engagement.eventsPerSession)) + '</strong>' +
+        withTooltip('Sesiones por usuario', 'sesionesPorUsuario') + ': <strong>' + escapeHtml(metricValue(engagement.sessionsPerUser)) +
+        '</strong> · ' + withTooltip('Eventos por sesión', 'eventosPorSesion') + ': <strong>' + escapeHtml(metricValue(engagement.eventsPerSession)) + '</strong>' +
       '</div>';
 
     var whatsappHtml =
       '<div class="buddy-dashboard-grid buddy-dashboard-grid--3">' +
-        metricCard('Clicks WhatsApp', whatsapp.clicks) +
-        metricCard('Usuarios únicos', whatsapp.uniqueUsers) +
-        metricCard('Conversión', whatsapp.conversionRate, formatPercent) +
+        metricCard('Clicks WhatsApp', whatsapp.clicks, formatNumber, 'clicksWhatsapp') +
+        metricCard('Usuarios únicos', whatsapp.uniqueUsers, formatNumber, 'usuariosUnicosWhatsapp') +
+        metricCard('Conversión', whatsapp.conversionRate, formatPercent, 'conversionWhatsapp') +
       '</div>';
 
     var funnelKeys = [
-      ['visitors', 'Visitantes'],
-      ['identified', 'Identificados'],
-      ['active', 'Activos'],
-      ['engaged', 'Comprometidos'],
-      ['intent', 'Intención'],
-      ['conversions', 'Conversiones']
+      ['visitors', 'Visitantes', 'embudoVisitantes'],
+      ['identified', 'Identificados', 'embudoIdentificados'],
+      ['active', 'Activos', 'embudoActivos'],
+      ['engaged', 'Comprometidos', 'embudoComprometidos'],
+      ['intent', 'Intención', 'embudoIntencion'],
+      ['conversions', 'Conversiones', 'embudoConversiones']
     ];
 
     var funnelHtml =
       '<div class="buddy-dashboard-funnel">' +
       funnelKeys.map(function (item) {
         return '<div class="buddy-dashboard-funnel__item">' +
-          '<div class="buddy-dashboard-funnel__label">' + escapeHtml(item[1]) + '</div>' +
+          '<div class="buddy-dashboard-funnel__label">' + withTooltip(item[1], item[2]) + '</div>' +
           '<div class="buddy-dashboard-funnel__value">' + metricValue(funnel[item[0]]) + '</div>' +
         '</div>';
       }).join('') +
@@ -431,14 +672,14 @@ window.BuddyDashboardViews = window.BuddyDashboardViews || {};
             return '<div class="buddy-dashboard-panel">' +
               '<div class="buddy-dashboard-panel__title">' + escapeHtml(activity.name || activity.label || activity.module || 'Actividad') + '</div>' +
               '<div>' +
-                escapeHtml(formatNumber(users)) + ' usuarios' +
-                (sessions != null ? ' · ' + escapeHtml(formatNumber(sessions)) + ' sesiones' : '') +
-                (games != null ? ' · ' + escapeHtml(formatNumber(games)) + ' partidas' : '') +
+                escapeHtml(formatNumber(users)) + ' ' + withTooltip('usuarios', 'actividadUsuarios') +
+                (sessions != null ? ' · ' + escapeHtml(formatNumber(sessions)) + ' ' + withTooltip('sesiones', 'actividadSesiones') : '') +
+                (games != null ? ' · ' + escapeHtml(formatNumber(games)) + ' ' + withTooltip('partidas', 'actividadPartidas') : '') +
               '</div>' +
               ((arrows != null || activeSeconds != null || score != null) ? '<div style="margin-top:8px;color:#5f6368">' +
-                (arrows != null ? escapeHtml(formatNumber(arrows)) + ' flechas' : '') +
-                (activeSeconds != null ? (arrows != null ? ' · ' : '') + escapeHtml(formatNumber(activeSeconds)) + ' s activos' : '') +
-                (score != null ? ((arrows != null || activeSeconds != null) ? ' · ' : '') + escapeHtml(formatNumber(score)) + ' puntos' : '') +
+                (arrows != null ? escapeHtml(formatNumber(arrows)) + ' ' + withTooltip('flechas', 'actividadFlechas') : '') +
+                (activeSeconds != null ? (arrows != null ? ' · ' : '') + escapeHtml(formatNumber(activeSeconds)) + ' ' + withTooltip('s activos', 'actividadSegundosActivos') : '') +
+                (score != null ? ((arrows != null || activeSeconds != null) ? ' · ' : '') + escapeHtml(formatNumber(score)) + ' ' + withTooltip('puntos', 'actividadPuntos') : '') +
               '</div>' : '') +
               (activity.ctaConversion ? '<div style="margin-top:8px">Conversión asistida: <strong>' +
                 escapeHtml(formatPercent(activity.ctaConversion.value != null ? activity.ctaConversion.value : activity.ctaConversion)) +
@@ -449,13 +690,13 @@ window.BuddyDashboardViews = window.BuddyDashboardViews || {};
       : '<div class="buddy-dashboard-muted">Sin actividad específica en este período.</div>';
 
     var acquisitionHtml = listRows(acquisition.topReferrers, [
-      { label: 'Fuente', value: function (item) {
+      { label: 'Fuente', term: 'adquisicionFuente', value: function (item) {
           return item.source || item.label || item.name || item.referrer || '—';
         } },
-      { label: 'Visitantes', value: function (item) {
+      { label: 'Visitantes', term: 'adquisicionVisitantes', value: function (item) {
           return formatNumber(item.visitors != null ? item.visitors : item.value);
         } },
-      { label: 'Participación', value: function (item) {
+      { label: 'Participación', term: 'adquisicionParticipacion', value: function (item) {
           return formatPercent(collectionPercentValue(item));
         } }
     ]);
@@ -464,14 +705,14 @@ window.BuddyDashboardViews = window.BuddyDashboardViews || {};
       '<div class="buddy-dashboard-grid buddy-dashboard-grid--2">' +
         '<div class="buddy-dashboard-panel"><div class="buddy-dashboard-panel__title">Dispositivos</div>' +
           listRows(technology.devices, [
-            { label: 'Dispositivo', value: function (item) { return item.label || item.name || item.key; } },
-            { label: '%', value: function (item) { return formatPercent(collectionPercentValue(item)); } }
+            { label: 'Dispositivo', term: 'tecnologiaDispositivo', value: function (item) { return item.label || item.name || item.key; } },
+            { label: '%', term: 'tecnologiaPorcentaje', value: function (item) { return formatPercent(collectionPercentValue(item)); } }
           ]) +
         '</div>' +
         '<div class="buddy-dashboard-panel"><div class="buddy-dashboard-panel__title">Navegadores</div>' +
           listRows(technology.browsers, [
-            { label: 'Navegador', value: function (item) { return item.label || item.name || item.key; } },
-            { label: '%', value: function (item) { return formatPercent(collectionPercentValue(item)); } }
+            { label: 'Navegador', term: 'tecnologiaDispositivo', value: function (item) { return item.label || item.name || item.key; } },
+            { label: '%', term: 'tecnologiaPorcentaje', value: function (item) { return formatPercent(collectionPercentValue(item)); } }
           ]) +
         '</div>' +
       '</div>';
@@ -490,19 +731,22 @@ window.BuddyDashboardViews = window.BuddyDashboardViews || {};
             'Conversión: jugó vs no jugó',
             archeryConversion.playedVsNotPlayed && archeryConversion.playedVsNotPlayed.played,
             archeryConversion.playedVsNotPlayed && archeryConversion.playedVsNotPlayed.notPlayed,
-            'Jugó', 'No jugó'
+            'Jugó', 'No jugó', 'archeryJugoNoJugo'
           ) +
           comparisonCard(
             'Conversión: registrado vs anónimo',
             archeryConversion.identifiedVsAnonymous && archeryConversion.identifiedVsAnonymous.identified,
             archeryConversion.identifiedVsAnonymous && archeryConversion.identifiedVsAnonymous.anonymous,
-            'Registrado', 'Anónimo'
+            'Registrado', 'Anónimo', 'archeryRegistradoAnonimo'
           ) +
-          durationCard('Tiempo medio jugando antes del click', archeryConversion.avgSecondsBeforeClick) +
+          durationCard('Tiempo medio jugando antes del click', archeryConversion.avgSecondsBeforeClick, 'archeryTiempoAntesClick') +
         '</div>' +
         '<div style="margin-top:14px">' +
           '<div class="buddy-dashboard-panel__title" style="margin-bottom:10px">Conversión por nivel de juego</div>' +
           conversionByLevelTable(archeryConversion.conversionByPlayLevel) +
+        '</div>' +
+        '<div class="buddy-dashboard-muted" style="padding:10px 0 0;font-size:.85rem">' +
+          'Con pocos actores en un grupo (etiqueta "muestra baja"), un solo caso puede mover el % varios puntos — leé estas comparaciones como tendencia, no como certeza. Más detalle en el anexo del dashboard.' +
         '</div>'
       : '<div class="buddy-dashboard-muted">Sin datos suficientes en este período.</div>';
 
@@ -538,6 +782,7 @@ window.BuddyDashboardViews = window.BuddyDashboardViews || {};
         section('Archery → WhatsApp', archeryConversionHtml) +
         section('Adquisición', acquisitionHtml) +
         section('Tecnología', technologyHtml) +
+        printGlossaryHtml() +
       '</div>';
 
     var refreshButton = target.querySelector('[data-dashboard-refresh]');
