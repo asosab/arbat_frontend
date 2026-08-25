@@ -263,6 +263,9 @@ window.Buddy = window.Buddy || {};
         params.set(key, String(normalizedData[key]).trim());
       }
     });
+    if (Array.isArray(normalizedData.condicionesFisicasPermanentes)) {
+      params.set('condicionesFisicasPermanentes', JSON.stringify(normalizedData.condicionesFisicasPermanentes));
+    }
     if (!params.toString()) return Promise.reject(new Error('No hay datos de usuario para actualizar.'));
 
     return request(CONFIG.endpoints.update, {

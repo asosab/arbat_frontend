@@ -22,7 +22,8 @@ window.BuddyUserConfig = Object.assign({
       lastName: 'Sosa',
       name: 'Alejandro Sosa',
       phone: '+591 70000000',
-      locale: 'es'
+      locale: 'es',
+      condicionesFisicasPermanentes: []
     }
   },
   endpoints: {
