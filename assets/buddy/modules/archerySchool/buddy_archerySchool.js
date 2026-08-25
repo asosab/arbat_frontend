@@ -70,7 +70,7 @@ window.Buddy = window.Buddy || {};
     }
   }
   function resetMock() {
-    var data = mockLoad();
+    var data = mockSeed();
     state.profile = data.profile;
     state.enrollment = data.enrollment;
     state.attributes = Array.isArray(data.attributes) ? data.attributes : [];
@@ -253,9 +253,11 @@ window.Buddy = window.Buddy || {};
     options = options || {};
     if (mockEnabled()) {
       var list = state.equipment.slice();
-      if (options.personaId) {
+      if (options.personaId || options.empresa) {
         var ownedOrLoaned = state.equipmentRelations.filter(function (r) {
-          return r && r.personaId === options.personaId && !r.vigenteHasta;
+          if (!r || r.vigenteHasta) return false;
+          if (options.personaId) return r.parteTipo === 'persona' && String(r.personaId) === String(options.personaId);
+          return r.parteTipo === 'empresa' && String(r.empresa || '') === String(options.empresa || '');
         }).map(function (r) { return r.equipoId; });
         list = list.filter(function (item) { return ownedOrLoaned.indexOf(item.id || item._id) !== -1; });
       }
@@ -263,6 +265,7 @@ window.Buddy = window.Buddy || {};
     }
     var query = '?siteId=' + encodeURIComponent(siteId());
     if (options.personaId) query += '&personaId=' + encodeURIComponent(options.personaId);
+    if (options.empresa) query += '&empresa=' + encodeURIComponent(options.empresa);
     return request(CONFIG.endpoints.equipment + query, 'GET').then(function (r) {
       state.equipment = Array.isArray(r) ? r : (r && (r.equipment || r.data)) || [];
       return state.equipment;
@@ -305,6 +308,7 @@ window.Buddy = window.Buddy || {};
     var query = '?siteId=' + encodeURIComponent(siteId());
     if (equipoId) query += '&equipoId=' + encodeURIComponent(equipoId);
     if (options.personaId) query += '&personaId=' + encodeURIComponent(options.personaId);
+    if (options.empresa) query += '&empresa=' + encodeURIComponent(options.empresa);
     return request(CONFIG.endpoints.equipmentRelations + query, 'GET');
   }
   function createEquipmentRelation(data) {

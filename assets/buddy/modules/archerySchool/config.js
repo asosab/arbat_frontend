@@ -5,6 +5,7 @@ window.BuddyArcherySchoolConfig = Object.assign({
   enabled: true,
   siteId: null,
   schoolName: null,
+  schoolOwnerCompany: 'arbatarchery.com',
   apiBaseUrl: 'https://api.statetty.com',
   apiService: 'archerySchool',
 
@@ -25,9 +26,9 @@ window.BuddyArcherySchoolConfig = Object.assign({
       activo: true
     },
     students: [
-      { id: 'mock-archery-profile-001', buddyUserId: 'mock-user-001', nombreCompleto: 'Alejandro Sosa', fechaNacimiento: '1990-05-15', activo: true },
-      { id: 'mock-archery-profile-002', buddyUserId: 'mock-user-002', nombreCompleto: 'María Fernanda Pérez', fechaNacimiento: '1992-09-21', activo: true },
-      { id: 'mock-archery-profile-003', buddyUserId: 'mock-user-003', nombreCompleto: 'Carlos Ramírez', fechaNacimiento: '1988-02-11', activo: true }
+      { id: 'mock-archery-profile-001', buddyUserId: 'mock-user-001', nombreCompleto: 'Alejandro Sosa', fechaNacimiento: '1990-05-15', email: 'alejandro@example.com', phone: '+591 70000001', estadoInscripcion: 'activo', datosArqueria: { altura: 175, peso: 72, lateralidad: 'Diestra', aperturaBrazos: 178, aperturaArco: 28, librajeActual: 28 }, activo: true },
+      { id: 'mock-archery-profile-002', buddyUserId: 'mock-user-002', nombreCompleto: 'María Fernanda Pérez', fechaNacimiento: '1992-09-21', email: 'maria@example.com', phone: '+591 70000002', estadoInscripcion: 'activo', datosArqueria: { altura: 168, peso: 61, lateralidad: 'Diestra', aperturaBrazos: 170, aperturaArco: 26, librajeActual: 24 }, activo: true },
+      { id: 'mock-archery-profile-003', buddyUserId: 'mock-user-003', nombreCompleto: 'Carlos Ramírez', fechaNacimiento: '1988-02-11', email: 'carlos@example.com', phone: '+591 70000003', estadoInscripcion: 'activo', datosArqueria: { altura: 181, peso: 80, lateralidad: 'Zurda', aperturaBrazos: 184, aperturaArco: 29, librajeActual: 32 }, activo: true }
     ],
     enrollment: {
       id: 'mock-enrollment-001',
@@ -64,11 +65,17 @@ window.BuddyArcherySchoolConfig = Object.assign({
         numeroSerie: null, fechaAdquisicion: null, fechaBaja: null,
         estado: 'activo', notas: 'Material de escuela'
       }
+,      {
+        id: 'mock-equipment-004', tipo: 'Carcaj', marca: 'Avalon', modelo: 'Tec One',
+        numeroSerie: 'AVL001', fechaAdquisicion: '2026-02-03', fechaBaja: null,
+        estado: 'activo', notas: 'Equipo de escuela disponible para préstamo'
+      }
     ],
     equipmentRelations: [
       { id: 'mock-relation-001', equipoId: 'mock-equipment-001', tipo: 'propietario', parteTipo: 'persona', personaId: 'mock-archery-profile-001', empresa: null, vigenteDesde: '2025-04-10', vigenteHasta: null, notas: 'Compra' },
       { id: 'mock-relation-002', equipoId: 'mock-equipment-002', tipo: 'propietario', parteTipo: 'persona', personaId: 'mock-archery-profile-001', empresa: null, vigenteDesde: '2025-05-20', vigenteHasta: null, notas: null },
       { id: 'mock-relation-003', equipoId: 'mock-equipment-003', tipo: 'prestamo', parteTipo: 'empresa', personaId: null, empresa: 'arbatarchery.com', vigenteDesde: '2026-01-10', vigenteHasta: null, notas: 'Préstamo de escuela' }
+,      { id: 'mock-relation-004', equipoId: 'mock-equipment-004', tipo: 'propietario', parteTipo: 'empresa', personaId: null, empresa: 'arbatarchery.com', vigenteDesde: '2026-02-03', vigenteHasta: null, notas: 'Propiedad de la escuela' }
     ]
   },
 

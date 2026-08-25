@@ -138,51 +138,58 @@ window.BuddyArcherySchoolViews = window.BuddyArcherySchoolViews || {};
 
     /* EQUIPOS */
     var eq=document.createElement('section');var qh=document.createElement('h3');qh.textContent='Mis equipos';eq.appendChild(qh);
-    var qhint=document.createElement('p');qhint.className='hint';qhint.textContent='El equipo y su relación de propiedad o préstamo son datos separados. La posibilidad de adquirir equipo pertenece a tu perfil, no al equipo.';eq.appendChild(qhint);
+    var qhint=document.createElement('p');qhint.className='hint';qhint.textContent='Puedes crear y modificar los equipos de los que eres propietario. Los equipos que la escuela u otra persona te presta aparecen como préstamo y no puedes modificar sus datos.';eq.appendChild(qhint);
     var qf=document.createElement('form');
     select(qf,'Tipo de equipo','tipo',config.equipmentTypes||[],'',true);
     input(qf,'Marca','marca','','text',false);input(qf,'Modelo','modelo','','text',false);input(qf,'Número de serie','numeroSerie','','text',false);
-    input(qf,'Fecha de adquisición','fechaAdquisicion','','date',false);
-    select(qf,'Estado','estado',config.equipmentStates||[],'activo',true);
-    input(qf,'Notas','notas','','text',false);
-    select(qf,'Relación','relacionTipo',config.relationTypes||[],'propietario',true);
-    select(qf,'Contraparte','parteTipo',config.relationPartyTypes||[],'persona',true);
-    input(qf,'Empresa','empresa','','text',false);
-    input(qf,'Fecha desde','vigenteDesde',new Date().toISOString().slice(0,10),'date',false);
-    input(qf,'Notas de la relación','notasRelacion','','text',false);
-    var qs=statusAndButton(qf,'Registrar equipo');eq.appendChild(qf);
+    input(qf,'Fecha de adquisición','fechaAdquisicion','','date',false);input(qf,'Fecha de baja','fechaBaja','','date',false);
+    select(qf,'Estado','estado',config.equipmentStates||[],'activo',true);input(qf,'Notas','notas','','text',false);
+    var qs=statusAndButton(qf,'Registrar mi equipo');eq.appendChild(qf);
     var cards=document.createElement('div');cards.className='cards';eq.appendChild(cards);
 
+    var currentOwnerId=state.profile&&(state.profile.id||state.profile._id);
+    var editingId=null;
+    function resetEquipmentForm(){
+      qf.reset();qf.elements.estado.value='activo';editingId=null;qs.button.textContent='Registrar mi equipo';
+    }
+    function fillEquipment(item){
+      editingId=item&&(item.id||item._id)||null;qf.elements.tipo.value=item&&item.tipo||'';qf.elements.marca.value=item&&item.marca||'';qf.elements.modelo.value=item&&item.modelo||'';qf.elements.numeroSerie.value=item&&item.numeroSerie||'';
+      qf.elements.fechaAdquisicion.value=item&&item.fechaAdquisicion?String(item.fechaAdquisicion).slice(0,10):'';qf.elements.fechaBaja.value=item&&item.fechaBaja?String(item.fechaBaja).slice(0,10):'';qf.elements.estado.value=item&&item.estado||'activo';qf.elements.notas.value=item&&item.notas||'';
+      qs.button.textContent='Guardar cambios';qs.status.textContent='Editando tu equipo.';qf.scrollIntoView({behavior:'smooth',block:'nearest'});
+    }
     function renderEquipment(){
       cards.innerHTML='';
-      var items=state.equipment||[];
-      if(!items.length){cards.textContent='No hay equipos registrados.';return;}
-      items.forEach(function(item){
-        var article=document.createElement('article'),meta=document.createElement('div');meta.className='meta';
+      var all=state.equipment||[],relations=state.equipmentRelations||[];
+      var rows=[];
+      all.forEach(function(item){
+        var id=item.id||item._id;
+        var rels=relations.filter(function(r){return String(r.equipoId)===String(id)&&!r.vigenteHasta;});
+        var owned=rels.some(function(r){return r.tipo==='propietario'&&r.parteTipo==='persona'&&String(r.personaId)===String(currentOwnerId);});
+        var loaned=rels.some(function(r){return r.tipo==='prestamo'&&r.parteTipo==='persona'&&String(r.personaId)===String(currentOwnerId);});
+        if(owned||loaned)rows.push({item:item,owned:owned,loaned:loaned,rels:rels});
+      });
+      if(!rows.length){cards.textContent='No tienes equipos registrados ni equipos en préstamo.';return;}
+      rows.forEach(function(row){
+        var item=row.item,article=document.createElement('article'),meta=document.createElement('div');meta.className='meta';
         var strong=document.createElement('strong');strong.textContent=[item.tipo,item.marca,item.modelo].filter(Boolean).join(' · ')||'Equipo';meta.appendChild(strong);
         var line=document.createElement('span');line.textContent=['Serie: '+(item.numeroSerie||'—'),'Estado: '+label(config.equipmentStates,item.estado),'Adquisición: '+(item.fechaAdquisicion||'—')].join(' · ');meta.appendChild(line);
-        var rel=(state.equipmentRelations||[]).filter(function(r){return String(r.equipoId)===String(item.id||item._id)&&!r.vigenteHasta;});
-        rel.forEach(function(r){var rl=document.createElement('span');rl.textContent='Relación: '+label(config.relationTypes,r.tipo)+(r.parteTipo==='empresa'?' · '+(r.empresa||'empresa'):' · estudiante');meta.appendChild(rl);});
-        article.appendChild(meta);
-        var edit=document.createElement('button');edit.type='button';edit.textContent='Editar';edit.addEventListener('click',function(){
-          qf.elements.tipo.value=item.tipo||'';qf.elements.marca.value=item.marca||'';qf.elements.modelo.value=item.modelo||'';qf.elements.numeroSerie.value=item.numeroSerie||'';
-          qf.elements.fechaAdquisicion.value=item.fechaAdquisicion||'';qf.elements.estado.value=item.estado||'activo';qf.elements.notas.value=item.notas||'';
-          qf.dataset.editingId=item.id||item._id||'';qs.button.textContent='Guardar cambios';qs.status.textContent='Editando equipo.';
-        });article.appendChild(edit);cards.appendChild(article);
+        var relText=document.createElement('span');relText.textContent=row.owned?'Propietario: tú':'En préstamo contigo';meta.appendChild(relText);article.appendChild(meta);
+        if(row.owned){var edit=document.createElement('button');edit.type='button';edit.textContent='Editar';edit.addEventListener('click',function(){fillEquipment(item);});article.appendChild(edit);}
+        else {var note=document.createElement('span');note.className='hint';note.textContent='Equipo prestado: solo puede modificarlo su propietario o un administrador.';article.appendChild(note);}
+        cards.appendChild(article);
       });
     }
     qf.addEventListener('submit',function(e){
       e.preventDefault();qs.button.disabled=true;qs.status.textContent='Guardando…';
-      var data={tipo:qf.elements.tipo.value,marca:qf.elements.marca.value.trim()||null,modelo:qf.elements.modelo.value.trim()||null,numeroSerie:qf.elements.numeroSerie.value.trim()||null,fechaAdquisicion:qf.elements.fechaAdquisicion.value||null,estado:qf.elements.estado.value,notas:qf.elements.notas.value.trim()||null};
-      var editing=qf.dataset.editingId;
-      var equipmentAction=editing?api.updateEquipment(Object.assign({id:editing},data)):api.createEquipment(data);
-      equipmentAction.then(function(result){
-        var equipmentId=editing||((result&&result.data)&&(result.data.id||result.data._id));
-        if(!equipmentId) return null;
-        var relation={equipoId:equipmentId,tipo:qf.elements.relacionTipo.value,parteTipo:qf.elements.parteTipo.value,personaId:qf.elements.parteTipo.value==='persona'?(state.profile&&(state.profile.id||state.profile._id)):null,empresa:qf.elements.parteTipo.value==='empresa'?qf.elements.empresa.value.trim()||null:null,vigenteDesde:qf.elements.vigenteDesde.value||null,notas:qf.elements.notasRelacion.value.trim()||null};
-        return api.createEquipmentRelation(relation);
-      }).then(function(){qs.status.textContent=editing?'Equipo actualizado.':'Equipo registrado.';qf.reset();qf.elements.estado.value='activo';qf.elements.relacionTipo.value='propietario';qf.elements.parteTipo.value='persona';qf.elements.vigenteDesde.value=new Date().toISOString().slice(0,10);delete qf.dataset.editingId;qs.button.textContent='Registrar equipo';renderEquipment();})
-      .catch(function(err){qs.status.textContent=err.message;}).finally(function(){qs.button.disabled=false;});
+      var data={tipo:qf.elements.tipo.value,marca:qf.elements.marca.value.trim()||null,modelo:qf.elements.modelo.value.trim()||null,numeroSerie:qf.elements.numeroSerie.value.trim()||null,fechaAdquisicion:qf.elements.fechaAdquisicion.value||null,fechaBaja:qf.elements.fechaBaja.value||null,estado:qf.elements.estado.value,notas:qf.elements.notas.value.trim()||null};
+      if(editingId)data.id=editingId;
+      var op=editingId?api.updateEquipment(data):api.createEquipment(data);
+      op.then(function(result){
+        var saved=(result&&result.data)||result||data,id=saved.id||saved._id||editingId;
+        if(!id)throw new Error('No se recibió el identificador del equipo.');
+        if(editingId)return saved;
+        return api.createEquipmentRelation({equipoId:id,tipo:'propietario',parteTipo:'persona',personaId:currentOwnerId,empresa:null,vigenteDesde:data.fechaAdquisicion||new Date().toISOString(),notas:'Equipo personal'});
+      }).then(function(){qs.status.textContent=editingId?'Equipo actualizado.':'Equipo registrado.';resetEquipmentForm();return api.getEquipment({personaId:currentOwnerId});}).then(function(){renderEquipment();}).catch(function(err){qs.status.textContent=err.message;}).finally(function(){qs.button.disabled=false;});
     });
     root.appendChild(eq);renderEquipment();
 
