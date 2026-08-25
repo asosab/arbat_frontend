@@ -23,12 +23,11 @@ window.BuddyArcherySchoolConfig = Object.assign({
       buddyUserId: 'mock-user-001',
       nombreCompleto: 'Alejandro Sosa',
       fechaNacimiento: '1990-05-15',
-      activo: true
     },
     students: [
-      { id: 'mock-archery-profile-001', buddyUserId: 'mock-user-001', nombreCompleto: 'Alejandro Sosa', fechaNacimiento: '1990-05-15', email: 'alejandro@example.com', phone: '+591 70000001', estadoInscripcion: 'activo', datosArqueria: { altura: 175, peso: 72, lateralidad: 'Diestra', aperturaBrazos: 178, aperturaArco: 28, librajeActual: 28 }, activo: true },
-      { id: 'mock-archery-profile-002', buddyUserId: 'mock-user-002', nombreCompleto: 'María Fernanda Pérez', fechaNacimiento: '1992-09-21', email: 'maria@example.com', phone: '+591 70000002', estadoInscripcion: 'activo', datosArqueria: { altura: 168, peso: 61, lateralidad: 'Diestra', aperturaBrazos: 170, aperturaArco: 26, librajeActual: 24 }, activo: true },
-      { id: 'mock-archery-profile-003', buddyUserId: 'mock-user-003', nombreCompleto: 'Carlos Ramírez', fechaNacimiento: '1988-02-11', email: 'carlos@example.com', phone: '+591 70000003', estadoInscripcion: 'activo', datosArqueria: { altura: 181, peso: 80, lateralidad: 'Zurda', aperturaBrazos: 184, aperturaArco: 29, librajeActual: 32 }, activo: true }
+      { id: 'mock-archery-profile-001', buddyUserId: 'mock-user-001', nombreCompleto: 'Alejandro Sosa', fechaNacimiento: '1990-05-15', email: 'alejandro@example.com', phone: '+591 70000001', estadoInscripcion: 'activo', fechaInscripcion: '2026-01-15', enrollment: { id: 'mock-enrollment-001', sitio: 'arbat', estado: 'activo', fechaInscripcion: '2026-01-15' }, datosArqueria: { altura: 175, peso: 72, lateralidad: 'Diestra', aperturaBrazos: 178, aperturaArco: 28, librajeActual: 28 } },
+      { id: 'mock-archery-profile-002', buddyUserId: 'mock-user-002', nombreCompleto: 'María Fernanda Pérez', fechaNacimiento: '1992-09-21', email: 'maria@example.com', phone: '+591 70000002', estadoInscripcion: 'activo', fechaInscripcion: '2026-01-15', enrollment: { id: 'mock-enrollment-002', sitio: 'arbat', estado: 'activo', fechaInscripcion: '2026-01-20' }, datosArqueria: { altura: 168, peso: 61, lateralidad: 'Diestra', aperturaBrazos: 170, aperturaArco: 26, librajeActual: 24 } },
+      { id: 'mock-archery-profile-003', buddyUserId: 'mock-user-003', nombreCompleto: 'Carlos Ramírez', fechaNacimiento: '1988-02-11', email: 'carlos@example.com', phone: '+591 70000003', estadoInscripcion: 'activo', fechaInscripcion: '2026-02-01', enrollment: { id: 'mock-enrollment-003', sitio: 'arbat', estado: 'activo', fechaInscripcion: '2026-02-01' }, datosArqueria: { altura: 181, peso: 80, lateralidad: 'Zurda', aperturaBrazos: 184, aperturaArco: 29, librajeActual: 32 } }
     ],
     enrollment: {
       id: 'mock-enrollment-001',
@@ -113,7 +112,7 @@ window.BuddyArcherySchoolConfig = Object.assign({
 
   enrollmentStates: [
     { value: 'activo', label: 'Activo' },
-    { value: 'inactivo', label: 'Inactivo' },
+    { value: 'inactivo', label: 'Desactivado' },
     { value: 'egresado', label: 'Egresado' }
   ],
 

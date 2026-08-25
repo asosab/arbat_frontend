@@ -61,21 +61,7 @@ window.BuddyArcherySchoolViews = window.BuddyArcherySchoolViews || {};
     var root=document.createElement('div');root.className='buddy-as-student';
 
     var title=document.createElement('h2');title.textContent=config.schoolName||'ArcherySchool';root.appendChild(title);
-    var intro=document.createElement('p');intro.className='hint';intro.textContent='Aquí puedes administrar tu perfil de arquería y los equipos relacionados contigo.';root.appendChild(intro);
-
-    /* PERFIL */
-    var profile=document.createElement('section');var ph=document.createElement('h3');ph.textContent='Perfil de arquería';profile.appendChild(ph);
-    var pf=document.createElement('form');
-    input(pf,'Nombre completo','nombreCompleto',state.profile&&state.profile.nombreCompleto,'text',true);
-    input(pf,'Fecha de nacimiento','fechaNacimiento',state.profile&&state.profile.fechaNacimiento,'date',false);
-    var activo=input(pf,'Perfil activo','activo', '', 'checkbox',false);activo.checked=state.profile?state.profile.activo!==false:true;
-    var ps=statusAndButton(pf,'Guardar perfil');profile.appendChild(pf);
-    pf.addEventListener('submit',function(e){
-      e.preventDefault();ps.button.disabled=true;ps.status.textContent='Guardando…';
-      api.updateProfile({nombreCompleto:pf.elements.nombreCompleto.value.trim(),fechaNacimiento:pf.elements.fechaNacimiento.value||null,activo:pf.elements.activo.checked})
-        .then(function(){ps.status.textContent='Perfil guardado.';}).catch(function(err){ps.status.textContent=err.message;}).finally(function(){ps.button.disabled=false;});
-    });
-    root.appendChild(profile);
+    var intro=document.createElement('p');intro.className='hint';intro.textContent='Aquí puedes consultar y actualizar los datos de ArcherySchool que te corresponde administrar, así como tus equipos.';root.appendChild(intro);
 
     /* CONDICIONES FÍSICAS PERMANENTES */
     var health=document.createElement('section');var hh=document.createElement('h3');hh.textContent='Condiciones físicas permanentes';health.appendChild(hh);

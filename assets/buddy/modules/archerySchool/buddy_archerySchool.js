@@ -11,6 +11,7 @@ window.Buddy = window.Buddy || {};
   var CONFIG = window.BuddyArcherySchoolConfig || {};
   var state = {
     profile: null,
+    students: [],
     enrollment: null,
     attributes: [],
     equipment: [],
@@ -37,6 +38,7 @@ window.Buddy = window.Buddy || {};
     var mock = CONFIG.mock || {};
     return {
       profile: clone(mock.profile || null),
+      students: clone(mock.students || []),
       enrollment: clone(mock.enrollment || null),
       attributes: clone(mock.attributes || []),
       equipment: clone(mock.equipment || []),
@@ -61,6 +63,7 @@ window.Buddy = window.Buddy || {};
       try {
         window.localStorage.setItem(mockStorageKey(), JSON.stringify({
           profile: state.profile,
+          students: state.students,
           enrollment: state.enrollment,
           attributes: state.attributes,
           equipment: state.equipment,
@@ -72,6 +75,7 @@ window.Buddy = window.Buddy || {};
   function resetMock() {
     var data = mockSeed();
     state.profile = data.profile;
+    state.students = Array.isArray(data.students) ? data.students : [];
     state.enrollment = data.enrollment;
     state.attributes = Array.isArray(data.attributes) ? data.attributes : [];
     state.equipment = Array.isArray(data.equipment) ? data.equipment : [];
@@ -83,6 +87,7 @@ window.Buddy = window.Buddy || {};
   function getStateSnapshot() {
     return {
       profile: clone(state.profile),
+      students: clone(state.students),
       enrollment: clone(state.enrollment),
       attributes: clone(state.attributes),
       equipment: clone(state.equipment),
@@ -130,8 +135,7 @@ window.Buddy = window.Buddy || {};
   function getStudents() {
     assertSite();
     if (mockEnabled()) {
-      var students = (CONFIG.mock && Array.isArray(CONFIG.mock.students)) ? CONFIG.mock.students : [];
-      return Promise.resolve(clone(students));
+      return Promise.resolve(clone(state.students));
     }
     // El endpoint definitivo de listado de estudiantes podrá sustituirse cuando
     // el controller de ArcherySchool quede implementado. La interfaz consume
@@ -194,6 +198,15 @@ window.Buddy = window.Buddy || {};
         personaId: data.personaId || currentPersonaId(),
         id: (state.enrollment && (state.enrollment.id || state.enrollment._id)) || 'mock-enrollment-' + Date.now()
       });
+      state.students = state.students.map(function(student){
+        var id = student && (student.personaId || student.id || student._id);
+        if(String(id) !== String(state.enrollment.personaId)) return student;
+        return Object.assign({}, student, {
+          estadoInscripcion: state.enrollment.estado,
+          fechaInscripcion: state.enrollment.fechaInscripcion,
+          enrollment: clone(state.enrollment)
+        });
+      });
       mockSave();
       return Promise.resolve(mockResult(state.enrollment));
     }
@@ -203,6 +216,15 @@ window.Buddy = window.Buddy || {};
     assertSite();
     if (mockEnabled()) {
       state.enrollment = Object.assign({}, state.enrollment || {}, withSite(data));
+      state.students = state.students.map(function(student){
+        var id = student && (student.personaId || student.id || student._id);
+        if(String(id) !== String(state.enrollment.personaId)) return student;
+        return Object.assign({}, student, {
+          estadoInscripcion: state.enrollment.estado,
+          fechaInscripcion: state.enrollment.fechaInscripcion,
+          enrollment: clone(state.enrollment)
+        });
+      });
       mockSave();
       return Promise.resolve(mockResult(state.enrollment));
     }
