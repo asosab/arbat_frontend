@@ -56,6 +56,19 @@
   <script>
     // Este entorno deliberadamente no carga auth, chat ni otros módulos que
     // puedan realizar llamadas externas. User y ArcherySchool trabajan con mock.
+    // Este archivo es un entorno de pruebas aislado: los mocks se activan
+    // explícitamente y no dependen de ?buddyMock=1 en la URL.
+    window.BuddyUserConfig = {
+      enabled: true,
+      mock: { enabled: true, autoInitialize: true, persist: true }
+    };
+    window.BuddyArcherySchoolConfig = {
+      enabled: true,
+      siteId: 'arbat',
+      schoolName: 'Arbat Archery',
+      schoolOwnerCompany: 'arbatarchery.com',
+      mock: { enabled: true, autoInitialize: true, persist: true }
+    };
     window.BuddyConfig = {
       debug: true,
       debugMode: true,
@@ -86,7 +99,14 @@
         school.renderStudent(schoolTarget);
       };
       document.getElementById('school-admin').onclick = function () {
-        school.renderAdmin(schoolTarget);
+        school.renderAdmin(schoolTarget).catch(function (err) {
+          schoolTarget.innerHTML =
+            '<div style="padding:12px;border:1px solid #c88;border-radius:8px;background:#fff5f5">' +
+            '<strong>No se pudo cargar la vista administrativa.</strong><br>' +
+            String(err && err.message ? err.message : err) +
+            '</div>';
+          console.error('[Mock Test] ArcherySchool admin:', err);
+        });
       };
       document.getElementById('school-reset').onclick = function () {
         school.mock.reset();
@@ -94,6 +114,12 @@
       };
 
       user.renderProfile(userTarget);
+
+      // La prueba administrativa de ArcherySchool es el flujo principal de
+      // este archivo: mostrarla automáticamente permite comprobar los
+      // formularios sin tener que activar manualmente la vista.
+      document.getElementById('tab-school').click();
+      document.getElementById('school-admin').click();
     });
 
     function tab(buttonId, panelId, otherButtonId, otherPanelId) {

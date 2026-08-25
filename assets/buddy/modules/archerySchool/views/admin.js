@@ -90,7 +90,7 @@ window.BuddyArcherySchoolViews = window.BuddyArcherySchoolViews || {};
     function getOwnerEquipment(owner){return !owner?Promise.resolve([]):owner.type==='persona'?api.getEquipment({personaId:owner.value}):api.getEquipment({empresa:owner.value});}
     function equipmentData(fields){return {tipo:fields.tipo.value,marca:fields.marca.value.trim()||null,modelo:fields.modelo.value.trim()||null,numeroSerie:fields.numeroSerie.value.trim()||null,fechaAdquisicion:fields.fechaAdquisicion.value||null,fechaBaja:fields.fechaBaja.value||null,estado:fields.estado.value,notas:fields.notas.value.trim()||null};}
     function makeEquipmentFields(form){
-      var f={};f.id=document.createElement('input');f.id.type='hidden';f.id.name='equipoId';form.appendChild(f);
+      var f={};f.id=document.createElement('input');f.id.type='hidden';f.id.name='equipoId';form.appendChild(f.id);
       f.tipo=sel(form,'Tipo','tipo',config.equipmentTypes||[],'',true);f.marca=add(form,'Marca','marca','','text',false);f.modelo=add(form,'Modelo','modelo','','text',false);f.numeroSerie=add(form,'Número de serie','numeroSerie','','text',false);
       f.fechaAdquisicion=add(form,'Fecha de adquisición','fechaAdquisicion','','date',false);f.fechaBaja=add(form,'Fecha de baja','fechaBaja','','date',false);f.estado=sel(form,'Estado','estado',config.equipmentStates||[],'activo',true);f.notas=add(form,'Notas','notas','','text',false);return f;
     }
@@ -112,6 +112,80 @@ window.BuddyArcherySchoolViews = window.BuddyArcherySchoolViews || {};
         refreshStudentList();
       }).catch(function(err){ea.status.textContent=err.message;}).finally(function(){ea.button.disabled=false;});});
     root.appendChild(enrollment);
+
+    /* MEDIDAS Y CARACTERÍSTICAS DEL ESTUDIANTE */
+    var attrsSection=document.createElement('section'),attrsTitle=document.createElement('h3');
+    attrsTitle.textContent='Medidas y características';attrsSection.appendChild(attrsTitle);
+    var attrsHint=document.createElement('p');attrsHint.className='hint';
+    attrsHint.textContent='Selecciona un estudiante para consultar y editar sus medidas y características de arquería.';
+    attrsSection.appendChild(attrsHint);
+    var attrsForm=document.createElement('form');
+    var attrsStudent=sel(attrsForm,'Estudiante','personaId',[], '',true);
+    var attrFields={};
+    attrFields.altura=add(attrsForm,'Altura (cm)','altura','','number',false);
+    attrFields.peso=add(attrsForm,'Peso (kg)','peso','','number',false);
+    attrFields.lateralidad=sel(attrsForm,'Lateralidad','lateralidad',config.lateralidad||[],'',false);
+    attrFields.genero=add(attrsForm,'Género','genero','','text',false);
+    attrFields.aperturaBrazos=add(attrsForm,'Apertura de brazos (cm)','aperturaBrazos','','number',false);
+    attrFields.aperturaArco=add(attrsForm,'Apertura de arco (cm)','aperturaArco','','number',false);
+    attrFields.librajeActual=add(attrsForm,'Libraje actual (lbs)','librajeActual','','number',false);
+    attrFields.variacionBase=add(attrsForm,'Variación base','variacionBase','','text',false);
+    attrFields.posibilidadAdquisicion=sel(attrsForm,'Posibilidad de adquisición','posibilidadAdquisicion',config.posibilidadAdquisicion||[],'',false);
+    attrFields.fuente=sel(attrsForm,'Fuente de los datos','fuente',config.attributeSources||[],'registrado_por_administrador',false);
+    var aa=actions(attrsForm,'Guardar medidas y características');attrsSection.appendChild(attrsForm);
+
+    function latestStudentAttribute(personaId,type){
+      return (state.attributes||[]).filter(function(a){
+        return a && String(a.personaId)===String(personaId) && a.tipo===type && !a.vigenteHasta;
+      }).pop() || null;
+    }
+    function attrValue(personaId,type,key){
+      var a=latestStudentAttribute(personaId,type);return a && a[key]!=null ? a[key] : '';
+    }
+    function loadStudentAttributes(personaId){
+      Object.keys(attrFields).forEach(function(k){attrFields[k].value='';});
+      if(!personaId)return;
+      attrFields.altura.value=attrValue(personaId,'altura','valorCm');
+      attrFields.peso.value=attrValue(personaId,'peso','valorKg');
+      attrFields.lateralidad.value=attrValue(personaId,'lateralidad','valor');
+      attrFields.genero.value=attrValue(personaId,'genero','valor');
+      attrFields.aperturaBrazos.value=attrValue(personaId,'aperturaBrazos','valorCm');
+      attrFields.aperturaArco.value=attrValue(personaId,'aperturaArco','valorCm');
+      attrFields.librajeActual.value=attrValue(personaId,'librajeActual','valorLbs');
+      attrFields.variacionBase.value=attrValue(personaId,'variacionBase','valor');
+      attrFields.posibilidadAdquisicion.value=attrValue(personaId,'posibilidadAdquisicion','valor');
+      var sources=['altura','peso','lateralidad','genero','aperturaBrazos','aperturaArco','librajeActual','variacionBase','posibilidadAdquisicion'];
+      var found=null;
+      sources.some(function(type){var a=latestStudentAttribute(personaId,type);if(a&&a.fuente){found=a.fuente;return true;}return false;});
+      attrFields.fuente.value=found||'registrado_por_administrador';
+      aa.status.textContent='';
+    }
+    attrsStudent.addEventListener('change',function(){loadStudentAttributes(attrsStudent.value);});
+    attrsForm.addEventListener('submit',function(e){
+      e.preventDefault();
+      var personaId=attrsStudent.value;if(!personaId){aa.status.textContent='Selecciona un estudiante.';return;}
+      aa.button.disabled=true;aa.status.textContent='Guardando…';
+      var source=attrFields.fuente.value||'registrado_por_administrador',jobs=[];
+      function save(type,key,cast){
+        var field=attrFields[type],v=field.value;
+        if(v===null||v==='')return;
+        var existing=latestStudentAttribute(personaId,type);
+        var d={personaId:personaId,tipo:type,fuente:source};
+        d[key]=cast?cast(v):v;if(existing)d.id=existing.id||existing._id;
+        jobs.push(api.setAttribute(d));
+      }
+      save('altura','valorCm',Number);save('peso','valorKg',Number);save('lateralidad','valor');save('genero','valor');
+      save('aperturaBrazos','valorCm',Number);save('aperturaArco','valorCm',Number);save('librajeActual','valorLbs',Number);
+      save('variacionBase','valor');save('posibilidadAdquisicion','valor');
+      Promise.all(jobs).then(function(results){
+        if(results.length){
+          results.forEach(function(r){var item=r&&r.data;if(!item)return;var idx=(state.attributes||[]).findIndex(function(a){return String(a.id||a._id)===String(item.id||item._id);});if(idx>=0)state.attributes[idx]=item;else state.attributes.push(item);});
+        }
+        aa.status.textContent='Medidas y características guardadas.';
+      }).catch(function(err){aa.status.textContent=err.message;}).finally(function(){aa.button.disabled=false;});
+    });
+    root.appendChild(attrsSection);
+
     enrollmentStudent.addEventListener('change',function(){
       var selected=studentById(enrollmentStudent.value);
       if(!selected) return;
@@ -195,12 +269,19 @@ window.BuddyArcherySchoolViews = window.BuddyArcherySchoolViews || {};
     function fillStudents(){
       var active=activeStudents();
       setOptions(enrollmentStudent,students,'Selecciona un estudiante',function(s){return {value:String(studentId(s)),label:studentName(s)+(String((s.enrollment&&s.enrollment.estado)||s.estadoInscripcion||'activo')==='inactivo'?' (desactivado)':'')};});
+      setOptions(attrsStudent,students,'Selecciona un estudiante',function(s){return {value:String(studentId(s)),label:studentName(s)+(String((s.enrollment&&s.enrollment.estado)||s.estadoInscripcion||'activo')==='inactivo'?' (desactivado)':'')};});
       setOptions(recS,active,'Selecciona un estudiante',function(s){return {value:String(studentId(s)),label:studentName(s)};});
       setOptions(ownerS,[schoolOwner].concat(active.map(function(s){return {type:'persona',value:studentId(s),label:studentName(s)};})),'Selecciona el propietario',function(o){return {value:ownerKey(o),label:ownerLabel(o)};});
     }
     ef.elements.sitio.addEventListener('change',function(){});
 
-    api.getStudents().then(function(list){students=Array.isArray(list)?list:[];fillStudents();return Promise.all([loadSchool(),refreshStudentList()]);}).catch(function(err){studentGrid.innerHTML='<div class="empty">No se pudo cargar la lista de estudiantes: '+err.message+'</div>';});
+    api.getStudents().then(function(list){
+      students=Array.isArray(list)?list:[];
+      fillStudents();
+      return Promise.all([api.getAttributes().catch(function(){return state.attributes||[];}),loadSchool(),refreshStudentList()]);
+    }).then(function(){
+      if(attrsStudent.value) loadStudentAttributes(attrsStudent.value);
+    }).catch(function(err){studentGrid.innerHTML='<div class="empty">No se pudo cargar la lista de estudiantes: '+err.message+'</div>';});
 
     target.appendChild(root);return root;
   };
