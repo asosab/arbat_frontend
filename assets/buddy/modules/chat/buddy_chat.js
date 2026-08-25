@@ -368,16 +368,15 @@ window.Buddy = window.Buddy || {};
     state.authWelcomeShown = true;
     var user = authState.user || {};
 
-    // La recopilación de datos pendientes de un usuario autenticado pertenece
-    // a Auth + Says.frmUsr. Chat no crea un segundo formulario ni interacción.
-    if (authState.needsName) {
+    if (authState.welcomeType === 'existing' && user.name) {
+      var template = auth.config.existingWelcomeTemplate || '¡Bienvenido, {name}!';
+      emit(template.replace('{name}', user.name), 'alegre');
       auth.consumeWelcome();
       return;
     }
 
-    if (authState.welcomeType === 'existing' && user.name) {
-      var template = auth.config.existingWelcomeTemplate || '¡Bienvenido, {name}!';
-      emit(template.replace('{name}', user.name), 'alegre');
+    if (authState.welcomeType === 'new') {
+      emit(auth.config.newUserWelcomeMessage || '¡Bienvenido! Para continuar, necesitamos algunos datos.', 'alegre');
       auth.consumeWelcome();
     }
   }
@@ -435,22 +434,10 @@ window.Buddy = window.Buddy || {};
           label: 'Correo:',
           placeholder: auth.config.emailPlaceholder || 'Escribe tu dirección de correo'
         },
-        name: {
-          value: '',
-          readonly: false,
-          required: false,
-          label: 'Nombre:'
-        },
-        whatsapp: {
-          value: '',
-          readonly: false,
-          required: false,
-          label: 'Whatsapp:'
-        }
       },
       submitText: 'enviar',
       onSubmit: function (data) {
-        return auth.requestLogin(data.email, data).then(function () {
+        return auth.requestLogin(data.email).then(function () {
           auth.cancelFlow();
           emit(auth.config.emailSentMessage || 'Revisa tu correo y has click en el link de logueo', 'sereno');
           return true;

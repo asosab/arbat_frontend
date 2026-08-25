@@ -801,10 +801,26 @@ window.Buddy = window.Buddy || {};
     var modules = window.BuddyConfig && Array.isArray(window.BuddyConfig.modules) ?
       window.BuddyConfig.modules : [];
 
+    /*
+     * El identificador del módulo es el nombre de contrato definido por el
+     * sitio en BuddyConfig.modules. Debe conservarse exactamente (incluyendo
+     * mayúsculas/minúsculas) porque ese mismo identificador se utiliza para:
+     *
+     *   modules/<moduleId>/
+     *   buddy_<moduleId>.js
+     *   Buddy<ModuleId>Config
+     *   window.Buddy.<moduleId>
+     *
+     * Antes se aplicaba toLowerCase() aquí. Eso convertía, por ejemplo,
+     * "archerySchool" en "archeryschool" y rompía tanto la ruta como el
+     * nombre de la configuración global en servidores case-sensitive.
+     */
     return modules.map(function (item) {
-      return String(item || '').trim().toLowerCase();
+      return String(item || '').trim();
     }).filter(function (item, index, array) {
-      return item && array.indexOf(item) === index && item !== 'character';
+      return item &&
+        item.toLowerCase() !== 'character' &&
+        array.indexOf(item) === index;
     });
   }
 
@@ -977,20 +993,39 @@ window.Buddy = window.Buddy || {};
         var modules = getConfiguredModules();
         modulosActivos = [];
         window.Buddy.abilities = [];
+        window.Buddy.modules = {
+          configured: modules.slice(),
+          active: [],
+          isConfigured: function (moduleId) {
+            return modules.indexOf(String(moduleId || '').trim()) !== -1;
+          },
+          isActive: function (moduleId) {
+            return modulosActivos.indexOf(String(moduleId || '').trim()) !== -1;
+          },
+          has: function (moduleId) {
+            return this.isActive(moduleId);
+          }
+        };
         debugLog('módulos configurados', modules.slice());
 
         return modules.reduce(function (chain, moduleId) {
           return chain.then(function () {
             if (moduleId === 'says') {
               return loadSaysModule().then(function (enabled) {
-                if (enabled) modulosActivos.push(moduleId);
+                if (enabled) {
+                  modulosActivos.push(moduleId);
+                  window.Buddy.modules.active = modulosActivos.slice();
+                }
               });
             }
 
             // Telemetry debe estar disponible antes de wa_listener y de los
             // demás módulos que puedan publicar eventos.
             return loadStandardModule(moduleId).then(function (enabled) {
-              if (enabled) modulosActivos.push(moduleId);
+              if (enabled) {
+                modulosActivos.push(moduleId);
+                window.Buddy.modules.active = modulosActivos.slice();
+              }
             });
           });
         }, Promise.resolve());

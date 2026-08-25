@@ -13,8 +13,28 @@ window.BuddyUserConfig = Object.assign({
   },
   fields: {
     email: true,
+    firstName: true,
+    lastName: true,
+    name: true,
     phone: true,
     locale: true
+  },
+  /*
+   * User es la autoridad sobre la completitud del perfil. Auth sólo autentica.
+   * phone es el nombre canónico de API/modelo; la etiqueta visible puede
+   * explicar que actualmente se utiliza principalmente para WhatsApp.
+   */
+  requiredProfileFields: ['name', 'phone'],
+  onboarding: {
+    enabled: true,
+    emocion: 'sereno',
+    emailLabel: 'Correo:',
+    nameLabel: 'Nombre:',
+    phoneLabel: 'Número celular que usa en WhatsApp',
+    namePlaceholder: 'Escribe tu nombre',
+    phonePlaceholder: 'Escribe tu número celular',
+    submitText: 'enviar',
+    cancelText: 'cancelar'
   },
   locales: [
     { value: 'es', label: 'Español' },

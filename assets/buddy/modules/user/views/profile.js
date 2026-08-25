@@ -17,7 +17,7 @@ window.BuddyUserViews = window.BuddyUserViews || {};
     var inputPhoto = document.createElement('input'); inputPhoto.type = 'file'; inputPhoto.accept = 'image/*';
     inputPhoto.addEventListener('change', function () { if (inputPhoto.files[0]) api.uploadPhoto(inputPhoto.files[0]).then(function(){ return api.getCurrent(); }).then(function(){ return api.render({target:target,view:'profile'}); }); });
     photo.appendChild(inputPhoto); form.appendChild(photo);
-    var fields = [['firstName','Nombre'],['lastName','Apellido'],['name','Nombre para mostrar'],['email','Correo electrónico'],['phone','Teléfono']];
+    var fields = [['firstName','Nombre'],['lastName','Apellido'],['name','Nombre para mostrar'],['email','Correo electrónico'],['phone','Número celular que usa en WhatsApp']];
     fields.forEach(function (item) { var label=document.createElement('label'); label.textContent=item[1]; var input=document.createElement('input'); input.name=item[0]; input.value=user[item[0]] || ''; if(item[0]==='email') input.type='email'; label.appendChild(input); form.appendChild(label); });
     if (!config.fields || config.fields.locale !== false) { var label=document.createElement('label'); label.textContent='Idioma'; var select=document.createElement('select'); select.name='locale'; (config.locales||[]).forEach(function(item){var o=document.createElement('option');o.value=item.value;o.textContent=item.label;o.selected=item.value===user.locale;select.appendChild(o);}); label.appendChild(select); form.appendChild(label); }
     var status=document.createElement('div'); status.className='buddy-user-status'; var save=document.createElement('button'); save.type='submit'; save.textContent='Guardar cambios'; form.appendChild(status); form.appendChild(save);

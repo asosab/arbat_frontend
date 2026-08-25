@@ -22,7 +22,6 @@ window.Buddy = window.Buddy || {};
     mode: 'idle',
     welcomePending: false,
     welcomeType: null,
-    pendingProfile: null,
     accessToken: null,
     refreshToken: null
   };
@@ -231,51 +230,59 @@ window.Buddy = window.Buddy || {};
     state.mode = 'idle';
     state.welcomePending = false;
     state.welcomeType = null;
-    state.pendingProfile = null;
     clearTokens();
     if (window.Buddy.telemetry && typeof window.Buddy.telemetry.clearUserId === 'function') {
       window.Buddy.telemetry.clearUserId();
     }
   }
 
-  function allUserDataComplete(user) {
-    return !!(user && user.email && user.name && user.phone);
-  }
-
   function updateLocalUser(user) {
     var normalized = normalizeUser({ user: user });
     if (!normalized) return null;
     state.user = normalized;
-    state.needsName = !normalized.name || !normalized.phone;
     return normalized;
   }
 
+  /*
+   * Auth necesita una representación suficientemente rica del usuario para
+   * eventos de sesión y bienvenida, pero no decide qué campos del perfil son
+   * obligatorios. Esa responsabilidad pertenece al módulo User.
+   *
+   * Conservamos todos los campos devueltos por el servidor y normalizamos
+   * únicamente los alias históricos necesarios para la identidad básica.
+   */
   function normalizeUser(data) {
     if (!data || typeof data !== 'object') return null;
     var user = data.user;
     if (!user || typeof user !== 'object') return null;
 
-    return {
-      id: user.id != null ? user.id : (user._id != null ? user._id : null),
-      email: user.email || null,
-      name: user.name || user.nombre || user.firstName || user.nombrePila || null,
-      firstName: user.firstName || user.nombre || user.name || null,
-      lastName: user.lastName || user.apellido || user.apellidos || null,
-      phone: user.phone || user.telefono || user.mobile || user.celular || null,
-      locale: user.locale || user.idioma || null,
-      createdAt: user.createdAt || user.creadoEn || null
-    };
+    var normalized = Object.assign({}, user);
+    normalized.id = user.id != null ? user.id : (user._id != null ? user._id : null);
+    normalized.email = user.email || null;
+    normalized.name = user.name || user.nombre || user.firstName || user.nombrePila || null;
+    normalized.firstName = user.firstName || user.nombre || user.name || null;
+    normalized.lastName = user.lastName || user.apellido || user.apellidos || null;
+    normalized.phone = user.phone || user.telefono || user.mobile || user.celular || user.whatsapp || null;
+    normalized.locale = user.locale || user.idioma || null;
+    normalized.createdAt = user.createdAt || user.creadoEn || null;
+    return normalized;
   }
 
   function getResponseUser(data) {
     return normalizeUser(data) || normalizeUser({ user: data });
   }
 
-  function setAuthenticated(user, needsName, welcomeType) {
+  function setAuthenticated(user, authNeedsName, welcomeType) {
     state.authenticated = true;
     state.user = user || null;
-    state.needsName = !!needsName;
-    state.mode = state.needsName ? 'name' : 'idle';
+
+    /*
+     * needsName se conserva únicamente como metadato de compatibilidad con
+     * respuestas antiguas del backend. Auth ya no abre ni procesa formularios
+     * de perfil a partir de este valor.
+     */
+    state.needsName = authNeedsName === true;
+    state.mode = 'idle';
     state.welcomePending = true;
     state.welcomeType = welcomeType || (state.needsName ? 'new' : 'existing');
 
@@ -299,105 +306,6 @@ window.Buddy = window.Buddy || {};
       user: null,
       needsName: false,
       welcomeType: null
-    });
-  }
-
-  // --- Profile ---
-
-  function applyPendingProfile() {
-    var pending = state.pendingProfile;
-    state.pendingProfile = null;
-    if (!pending || !state.authenticated) return Promise.resolve(true);
-    if (!pending.name && !pending.whatsapp) return Promise.resolve(true);
-    if (!window.Buddy.user || typeof window.Buddy.user.update !== 'function') {
-      debugLog('Hay datos de perfil pendientes pero Buddy User no está disponible.');
-      state.pendingProfile = pending;
-      return Promise.resolve(false);
-    }
-
-    debugLog('Aplicando datos de perfil capturados durante login.', pending);
-    return window.Buddy.user.update({
-      name: pending.name,
-      whatsapp: pending.whatsapp
-    }).then(function (data) {
-      var returnedUser = getResponseUser(data);
-      if (!returnedUser) throw new Error('El servidor no devolvió el usuario actualizado.');
-      updateLocalUser(returnedUser);
-      emitEvent('buddy:auth-user-updated', {
-        user: state.user,
-        source: 'login-form'
-      });
-      return true;
-    }).catch(function (error) {
-      debugLog('No se pudieron guardar los datos capturados durante login.', error);
-      return false;
-    });
-  }
-
-  function requestUserFormIfNeeded() {
-    if (!state.authenticated || allUserDataComplete(state.user)) return false;
-    if (!window.Buddy.says || typeof window.Buddy.says.frmUsr !== 'function') {
-      debugLog('No se puede mostrar frmUsr todavía: Buddy.says.frmUsr no está disponible.');
-      return false;
-    }
-
-    var user = state.user || {};
-    var config = {
-      emocion: 'sereno',
-      fields: {
-        email: {
-          value: user.email || '',
-          readonly: true,
-          required: false,
-          label: 'Correo:'
-        },
-        name: {
-          value: user.name || '',
-          readonly: false,
-          required: !user.name,
-          label: 'Nombre:',
-        },
-        whatsapp: {
-          value: user.phone || '',
-          readonly: false,
-          required: !user.phone,
-          label: 'Teléfono:'
-        }
-      },
-      submitText: 'enviar',
-      onSubmit: function (data) {
-        if (!window.Buddy.user || typeof window.Buddy.user.update !== 'function') {
-          throw new Error('Servicio de usuario no disponible.');
-        }
-        return window.Buddy.user.update({
-          name: data.name,
-          whatsapp: data.whatsapp
-        }).then(function (response) {
-          var returnedUser = getResponseUser(response);
-          if (!returnedUser) throw new Error('El servidor no devolvió los datos del usuario.');
-          updateLocalUser(returnedUser);
-          state.mode = state.needsName ? 'name' : 'idle';
-          emitEvent('buddy:auth-user-updated', {
-            user: state.user,
-            source: 'frmUsr'
-          });
-          return true;
-        });
-      }
-    };
-
-    debugLog('Solicitando frmUsr para completar datos.', {
-      email: user.email,
-      hasName: !!user.name,
-      hasPhone: !!user.phone
-    });
-    return window.Buddy.says.frmUsr(config);
-  }
-
-  function handleAuthenticatedUser() {
-    return applyPendingProfile().then(function () {
-      requestUserFormIfNeeded();
-      return state.user;
     });
   }
 
@@ -451,7 +359,7 @@ window.Buddy = window.Buddy || {};
           });
         }
         applySessionResponse(data, data && data.newUser ? 'new' : 'existing');
-        return handleAuthenticatedUser().then(function () { return state.authenticated; });
+        return Promise.resolve(state.authenticated);
       })
       .catch(function (error) {
         debugLog('No se pudo consultar la sesión.', error);
@@ -480,7 +388,7 @@ window.Buddy = window.Buddy || {};
     return apiRequest('session', { method: 'GET' })
       .then(function (data) {
         applySessionResponse(data, data && data.newUser ? 'new' : 'existing');
-        return handleAuthenticatedUser().then(function () { return state.authenticated; });
+        return Promise.resolve(state.authenticated);
       })
       .catch(function () {
         setUnauthenticated();
@@ -496,12 +404,13 @@ window.Buddy = window.Buddy || {};
     }
 
     var user = normalizeUser(data);
-    var needsName = data.needsName === true || data.newUser === true || data.isNewUser === true || !user || !user.name || !user.phone;
-    setAuthenticated(user, needsName, welcomeType || (needsName ? 'new' : 'existing'));
+    var authNeedsName = data.needsName === true;
+    var isNewUser = data.newUser === true || data.isNewUser === true;
+    setAuthenticated(user, authNeedsName, welcomeType || ((isNewUser || authNeedsName) ? 'new' : 'existing'));
     return true;
   }
 
-  function requestLogin(email, profile) {
+  function requestLogin(email) {
     var normalized = normalizeEmail(email);
     debugLog('requestLogin: solicitud iniciada', { email: normalized });
     if (!isValidEmail(normalized)) {
@@ -511,10 +420,6 @@ window.Buddy = window.Buddy || {};
 
     state.busy = true;
     state.mode = 'waiting-email';
-    state.pendingProfile = profile ? {
-      name: normalizeText(profile.name),
-      whatsapp: normalizeText(profile.whatsapp || profile.phone)
-    } : null;
     var params = new URLSearchParams();
     params.set('email', normalized);
     params.set('appID', window.BuddyConfig &&
@@ -556,22 +461,21 @@ window.Buddy = window.Buddy || {};
         throw new Error('El enlace de autenticación no pudo validarse.');
       }
 
-      // Guardar tokens JWT
       if (data.accessToken && data.refreshToken) {
         saveTokens(data.accessToken, data.refreshToken);
       }
 
       var user = normalizeUser(data);
-      var needsName = data.needsName === true || data.newUser === true || data.isNewUser === true || !user || !user.name || !user.phone;
-      setAuthenticated(user, needsName, needsName ? 'new' : 'existing');
-      return handleAuthenticatedUser().then(function () {
-        emitEvent('buddy:auth-verified', {
-          authenticated: true,
-          user: state.user,
-          needsName: state.needsName
-        });
-        return true;
+      var authNeedsName = data.needsName === true;
+      var isNewUser = data.newUser === true || data.isNewUser === true;
+      setAuthenticated(user, authNeedsName, (isNewUser || authNeedsName) ? 'new' : 'existing');
+
+      emitEvent('buddy:auth-verified', {
+        authenticated: true,
+        user: state.user,
+        needsName: state.needsName
       });
+      return true;
     }).catch(function (error) {
       debugLog('No se pudo verificar el enlace.', error);
       setUnauthenticated();
@@ -580,55 +484,6 @@ window.Buddy = window.Buddy || {};
     }).finally(function () {
       state.busy = false;
       removeVerificationParameter();
-    });
-  }
-
-  function registerName(name) {
-    var normalized = normalizeText(name);
-    if (!state.authenticated || !normalized || state.busy) return Promise.resolve(false);
-
-    state.busy = true;
-    state.mode = 'registering-name';
-
-    var params = new URLSearchParams();
-    params.set('action', 'register-name');
-    params.set('name', normalized);
-    return apiRequestWithRefresh('login', {
-      method: 'POST',
-      body: params
-    }).then(function (data) {
-      if (!data || data.ok === false || data.authenticated === false) {
-        throw new Error('El servidor no confirmó el registro del nombre.');
-      }
-
-      var returnedUser = getResponseUser(data);
-      if (!returnedUser) {
-        throw new Error('El servidor no devolvió los datos del usuario.');
-      }
-
-      state.user = returnedUser;
-      state.needsName = data.needsName === true || !returnedUser.name || !returnedUser.phone;
-      state.mode = state.needsName ? 'name' : 'idle';
-      state.welcomePending = true;
-      state.welcomeType = state.needsName ? 'new' : 'named-new';
-
-      emitEvent('buddy:auth-name-registered', {
-        user: state.user,
-        needsName: state.needsName
-      });
-      emitEvent('buddy:auth-state-changed', {
-        authenticated: true,
-        user: state.user,
-        needsName: state.needsName,
-        welcomeType: state.welcomeType
-      });
-      return true;
-    }).catch(function (error) {
-      debugLog('No se pudo registrar el nombre.', error);
-      state.mode = 'name';
-      throw error;
-    }).finally(function () {
-      state.busy = false;
     });
   }
 
@@ -727,11 +582,6 @@ window.Buddy = window.Buddy || {};
     emitEvent('buddy:auth-mode-changed', { mode: state.mode });
   }
 
-  function enterNameMode() {
-    state.mode = 'name';
-    emitEvent('buddy:auth-mode-changed', { mode: state.mode });
-  }
-
   function cancelFlow() {
     state.mode = 'idle';
     emitEvent('buddy:auth-mode-changed', { mode: state.mode });
@@ -787,13 +637,10 @@ window.Buddy = window.Buddy || {};
     checkSession: checkSession,
     requestLogin: requestLogin,
     startAuthenticationPrompt: startAuthenticationPrompt,
-    requestUserFormIfNeeded: requestUserFormIfNeeded,
     verifyHash: verifyHash,
-    registerName: registerName,
     logout: logout,
     enterLoginMode: enterLoginMode,
     enterLogoutMode: enterLogoutMode,
-    enterNameMode: enterNameMode,
     cancelFlow: cancelFlow,
     consumeWelcome: consumeWelcome,
     init: init

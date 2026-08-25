@@ -10,7 +10,7 @@ window.Buddy = window.Buddy || {};
   'use strict';
 
   var CONFIG = window.BuddyUserConfig || {};
-  var state = { user: null, loading: false, saving: false };
+  var state = { user: null, loading: false, saving: false, profilePrompted: false };
 
   function debugLog() {
     if (!window.BuddyConfig || (window.BuddyConfig.debug !== true && window.BuddyConfig.debugMode !== true)) return;
@@ -56,21 +56,149 @@ window.Buddy = window.Buddy || {};
 
   function normalizeUser(data) {
     if (!data || typeof data !== 'object') return null;
-    return data.user || data.data || data;
+    var user = data.user || data.data || data;
+    if (!user || typeof user !== 'object') return null;
+
+    var normalized = Object.assign({}, user);
+    normalized.id = user.id != null ? user.id : (user._id != null ? user._id : null);
+    normalized.email = user.email || null;
+    normalized.name = user.name || user.nombre || user.firstName || user.nombrePila || null;
+    normalized.firstName = user.firstName || user.nombre || user.name || null;
+    normalized.lastName = user.lastName || user.apellido || user.apellidos || null;
+    normalized.phone = user.phone || user.telefono || user.mobile || user.celular || user.whatsapp || null;
+    normalized.locale = user.locale || user.idioma || null;
+    return normalized;
+  }
+
+  function requiredProfileFields() {
+    return Array.isArray(CONFIG.requiredProfileFields) && CONFIG.requiredProfileFields.length
+      ? CONFIG.requiredProfileFields.slice()
+      : ['name', 'phone'];
+  }
+
+  function missingProfileFields(user) {
+    user = user || {};
+    return requiredProfileFields().filter(function (field) {
+      return user[field] == null || String(user[field]).trim() === '';
+    });
   }
 
   function getCurrent() {
+    if (state.loading) return Promise.resolve(state.user);
+    state.loading = true;
     return request(CONFIG.endpoints.current, { method: 'GET' }).then(function (response) {
       state.user = normalizeUser(response);
+      emitEvent('buddy:user-loaded', {
+        user: state.user,
+        missingFields: missingProfileFields(state.user)
+      });
       return state.user;
+    }).finally(function () {
+      state.loading = false;
     });
+  }
+
+  function emitEvent(name, detail) {
+    try {
+      window.dispatchEvent(new CustomEvent(name, { detail: detail || {} }));
+    } catch (e) {}
+  }
+
+  function requestProfileCompletion() {
+    if (CONFIG.onboarding && CONFIG.onboarding.enabled === false) return false;
+    if (!state.user || !missingProfileFields(state.user).length) return false;
+    if (state.profilePrompted) return true;
+
+    if (!window.Buddy.says || typeof window.Buddy.says.frmUsr !== 'function') {
+      emitEvent('buddy:user-profile-incomplete', {
+        user: state.user,
+        missingFields: missingProfileFields(state.user)
+      });
+      debugLog('No se puede mostrar el formulario User todavía: Buddy.says.frmUsr no está disponible.');
+      return false;
+    }
+
+    state.profilePrompted = true;
+    var user = state.user;
+    var onboarding = CONFIG.onboarding || {};
+
+    window.Buddy.says.frmUsr({
+      emocion: onboarding.emocion || 'sereno',
+      fields: {
+        email: {
+          value: user.email || '',
+          readonly: true,
+          required: false,
+          label: onboarding.emailLabel || 'Correo:'
+        },
+        name: {
+          value: user.name || '',
+          readonly: false,
+          required: missingProfileFields(user).indexOf('name') !== -1,
+          label: onboarding.nameLabel || 'Nombre:',
+          placeholder: onboarding.namePlaceholder || ''
+        },
+        whatsapp: {
+          value: user.phone || '',
+          readonly: false,
+          required: missingProfileFields(user).indexOf('phone') !== -1,
+          label: onboarding.phoneLabel || 'Número celular que usa en WhatsApp',
+          placeholder: onboarding.phonePlaceholder || ''
+        }
+      },
+      submitText: onboarding.submitText || 'enviar',
+      cancelText: onboarding.cancelText || 'cancelar',
+      onSubmit: function (data) {
+        var payload = {
+          name: data.name,
+          phone: data.whatsapp
+        };
+
+        return updateProfile(payload).then(function (response) {
+          var returnedUser = normalizeUser(response);
+          if (returnedUser) state.user = returnedUser;
+          state.profilePrompted = false;
+          emitEvent('buddy:user-updated', {
+            user: state.user,
+            source: 'onboarding'
+          });
+          emitEvent('buddy:user-profile-complete', {
+            user: state.user,
+            missingFields: missingProfileFields(state.user)
+          });
+          return true;
+        }).catch(function (error) {
+          state.profilePrompted = false;
+          throw error;
+        });
+      },
+      onCancel: function () {
+        state.profilePrompted = false;
+        emitEvent('buddy:user-profile-deferred', {
+          user: state.user,
+          missingFields: missingProfileFields(state.user)
+        });
+      }
+    });
+
+    emitEvent('buddy:user-profile-incomplete', {
+      user: state.user,
+      missingFields: missingProfileFields(state.user)
+    });
+    return true;
   }
 
   function updateProfile(data) {
     data = data || {};
     var params = new URLSearchParams();
+    var normalizedData = Object.assign({}, data);
+    if (normalizedData.phone == null && normalizedData.whatsapp != null) {
+      normalizedData.phone = normalizedData.whatsapp;
+    }
     ['name', 'firstName', 'lastName', 'email', 'phone', 'locale'].forEach(function (key) {
-      if (data[key] !== undefined && data[key] !== null) params.set(key, String(data[key]).trim());
+      if (normalizedData[key] !== undefined && normalizedData[key] !== null) {
+        params.set(key, String(normalizedData[key]).trim());
+      }
     });
     if (!params.toString()) return Promise.reject(new Error('No hay datos de usuario para actualizar.'));
 
@@ -80,7 +208,7 @@ window.Buddy = window.Buddy || {};
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: params
     }).then(function (response) {
-      state.user = normalizeUser(response) || Object.assign({}, state.user || {}, data);
+      state.user = normalizeUser(response) || Object.assign({}, state.user || {}, normalizedData);
       return response;
     });
   }
@@ -196,6 +324,8 @@ window.Buddy = window.Buddy || {};
   window.Buddy.user = {
     config: CONFIG,
     getCurrent: getCurrent,
+    requestProfileCompletion: requestProfileCompletion,
+    getMissingProfileFields: function () { return missingProfileFields(state.user); },
     update: updateProfile,
     updateProfile: updateProfile,
     uploadPhoto: uploadPhoto,
@@ -204,11 +334,42 @@ window.Buddy = window.Buddy || {};
     render: render,
     renderProfile: function (container, options) { return render(Object.assign({}, options || {}, { target: container, view: 'profile' })); },
     renderAdmin: function (container, options) { return render(Object.assign({}, options || {}, { target: container, view: 'admin' })); },
-    getState: function () { return { user: state.user }; }
+    getState: function () { return { user: state.user, loading: state.loading, saving: state.saving, profilePrompted: state.profilePrompted, missingFields: missingProfileFields(state.user) }; }
   };
 
-  window.addEventListener('buddy:auth-state-changed', function () {
-    if (window.Buddy.auth && typeof window.Buddy.auth.isAuthenticated === 'function' && !window.Buddy.auth.isAuthenticated()) return;
-    getCurrent().catch(function (error) { debugLog('No se pudo cargar el usuario actual.', error); });
-  });
+  function handleAuthenticatedState() {
+    if (!window.Buddy.auth ||
+        typeof window.Buddy.auth.isAuthenticated !== 'function' ||
+        !window.Buddy.auth.isAuthenticated()) {
+      state.user = null;
+      state.profilePrompted = false;
+      return;
+    }
+
+    getCurrent().then(function (user) {
+      if (user && missingProfileFields(user).length) {
+        requestProfileCompletion();
+      }
+    }).catch(function (error) {
+      /*
+       * Un 404 es esperado mientras el backend User todavía no tenga
+       * controller/ruta. No convertimos esa ausencia en un error funcional
+       * de Buddy; el módulo queda listo para reintentar cuando exista la API.
+       */
+      if (error && error.status === 404) {
+        debugLog('API User todavía no disponible (HTTP 404).');
+        return;
+      }
+      debugLog('No se pudo cargar el usuario actual.', error);
+    });
+  }
+
+  window.addEventListener('buddy:auth-state-changed', handleAuthenticatedState);
+  window.addEventListener('buddy:ready', handleAuthenticatedState);
+
+  if (window.Buddy.auth &&
+      typeof window.Buddy.auth.isAuthenticated === 'function' &&
+      window.Buddy.auth.isAuthenticated()) {
+    handleAuthenticatedState();
+  }
 })(window, document);
