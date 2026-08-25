@@ -61,7 +61,7 @@ window.BuddyArcherySchoolViews = window.BuddyArcherySchoolViews || {};
     var root=document.createElement('div');root.className='buddy-as-student';
 
     var title=document.createElement('h2');title.textContent=config.schoolName||'ArcherySchool';root.appendChild(title);
-    var intro=document.createElement('p');intro.className='hint';intro.textContent='Aquí puedes administrar tu perfil de arquería, tu inscripción y los equipos relacionados contigo.';root.appendChild(intro);
+    var intro=document.createElement('p');intro.className='hint';intro.textContent='Aquí puedes administrar tu perfil de arquería y los equipos relacionados contigo.';root.appendChild(intro);
 
     /* PERFIL */
     var profile=document.createElement('section');var ph=document.createElement('h3');ph.textContent='Perfil de arquería';profile.appendChild(ph);
@@ -77,20 +77,27 @@ window.BuddyArcherySchoolViews = window.BuddyArcherySchoolViews || {};
     });
     root.appendChild(profile);
 
-    /* INSCRIPCIÓN */
-    var enrollment=document.createElement('section');var eh=document.createElement('h3');eh.textContent='Inscripción en la escuela';enrollment.appendChild(eh);
-    var ef=document.createElement('form');
-    input(ef,'Sitio','sitio',(state.enrollment&&state.enrollment.sitio)||config.siteId||((window.BuddyConfig||{}).app||{}).siteId,'text',true);
-    select(ef,'Estado','estado',config.enrollmentStates||[],state.enrollment&&state.enrollment.estado||'activo',true);
-    input(ef,'Fecha de inscripción','fechaInscripcion',state.enrollment&&state.enrollment.fechaInscripcion||'','date',true);
-    var es=statusAndButton(ef,state.enrollment?'Guardar inscripción':'Registrar inscripción');enrollment.appendChild(ef);
-    ef.addEventListener('submit',function(e){
-      e.preventDefault();es.button.disabled=true;es.status.textContent='Guardando…';
-      var data={personaId:state.profile&&(state.profile.id||state.profile._id),sitio:ef.elements.sitio.value.trim(),estado:ef.elements.estado.value,fechaInscripcion:ef.elements.fechaInscripcion.value||null};
-      var action=state.enrollment?api.updateEnrollment(data):api.createEnrollment(data);
-      action.then(function(){es.status.textContent='Inscripción guardada.';}).catch(function(err){es.status.textContent=err.message;}).finally(function(){es.button.disabled=false;});
+    /* CONDICIONES FÍSICAS PERMANENTES */
+    var health=document.createElement('section');var hh=document.createElement('h3');hh.textContent='Condiciones físicas permanentes';health.appendChild(hh);
+    var hf=document.createElement('form');
+    var hl=document.createElement('label');hl.className='wide';hl.textContent='Condiciones (una por línea)';
+    var ta=document.createElement('textarea');ta.name='condicionesFisicasPermanentes';
+    var currentUser=context.user||(window.Buddy.user&&window.Buddy.user.getState&&window.Buddy.user.getState().user)||{};
+    ta.value=Array.isArray(currentUser.condicionesFisicasPermanentes)?currentUser.condicionesFisicasPermanentes.join('\n'):'';
+    hl.appendChild(ta);hf.appendChild(hl);
+    var hs=statusAndButton(hf,'Guardar condiciones');health.appendChild(hf);
+    hf.addEventListener('submit',function(e){
+      e.preventDefault();hs.button.disabled=true;hs.status.textContent='Guardando…';
+      var conditions=ta.value.split(/\r?\n/).map(function(x){return x.trim();}).filter(Boolean);
+      var userApi=window.Buddy.user;
+      if(!userApi||typeof userApi.updateProfile!=='function'){hs.status.textContent='El módulo User no está disponible.';hs.button.disabled=false;return;}
+      userApi.updateProfile({condicionesFisicasPermanentes:conditions}).then(function(){
+        if(currentUser) currentUser.condicionesFisicasPermanentes=conditions;
+        hs.status.textContent='Condiciones guardadas.';
+      }).catch(function(err){hs.status.textContent=err.message;}).finally(function(){hs.button.disabled=false;});
     });
-    root.appendChild(enrollment);
+    root.appendChild(health);
+
 
     /* ATRIBUTOS */
     var attrs=document.createElement('section');var ah=document.createElement('h3');ah.textContent='Medidas y características de arquería';attrs.appendChild(ah);

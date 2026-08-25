@@ -33,13 +33,6 @@ window.BuddyUserViews = window.BuddyUserViews || {};
     form.addEventListener('submit',function(e){e.preventDefault();save.disabled=true;status.textContent='Guardando…';var data={};Array.prototype.forEach.call(form.elements,function(el){if(el.name)data[el.name]=el.value;});api.updateProfile(data).then(function(){status.textContent='Cambios guardados.';}).catch(function(err){status.textContent=err.message;}).finally(function(){save.disabled=false;});});
     identity.appendChild(form);root.appendChild(identity);
 
-    var health=document.createElement('section');var hh=document.createElement('h3');hh.textContent='Condiciones físicas permanentes';health.appendChild(hh);
-    var hint=document.createElement('p');hint.className='hint';hint.textContent='Información opcional y transversal. No corresponde específicamente a ArcherySchool.';health.appendChild(hint);
-    var hf=document.createElement('form');var hl=document.createElement('label');hl.className='wide';hl.textContent='Condiciones (una por línea)';var ta=document.createElement('textarea');ta.name='condicionesFisicasPermanentes';ta.value=Array.isArray(user.condicionesFisicasPermanentes)?user.condicionesFisicasPermanentes.join('\\n'):'';hl.appendChild(ta);hf.appendChild(hl);
-    var hs=document.createElement('div');hs.className='actions';var hstatus=document.createElement('div');hstatus.className='status';var hsave=document.createElement('button');hsave.type='submit';hsave.textContent='Guardar condiciones';hs.appendChild(hsave);hf.appendChild(hstatus);hf.appendChild(hs);
-    hf.addEventListener('submit',function(e){e.preventDefault();hsave.disabled=true;hstatus.textContent='Guardando…';var conditions=ta.value.split(/\\r?\\n/).map(function(x){return x.trim();}).filter(Boolean);api.updateProfile({condicionesFisicasPermanentes:conditions}).then(function(){user.condicionesFisicasPermanentes=conditions;hstatus.textContent='Condiciones guardadas.';}).catch(function(err){hstatus.textContent=err.message;}).finally(function(){hsave.disabled=false;});});
-    health.appendChild(hf);root.appendChild(health);
-
     var photoSection=document.createElement('section');var ph=document.createElement('h3');ph.textContent='Foto de perfil';photoSection.appendChild(ph);
     var photo=document.createElement('div');photo.className='buddy-user-photo';photo.appendChild(api.avatar(user,'buddy-user-avatar'));
     var file=document.createElement('input');file.type='file';file.accept='image/*';file.addEventListener('change',function(){if(!file.files[0])return;api.uploadPhoto(file.files[0]).then(function(){return api.getCurrent();}).then(function(){return api.render({target:target,view:'profile'});}).catch(function(err){photoStatus.textContent=err.message;});});
