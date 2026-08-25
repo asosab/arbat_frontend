@@ -32,7 +32,12 @@ window.BuddyArcherySchoolViews = window.BuddyArcherySchoolViews || {};
     var hint=document.createElement('p');hint.className='hint';hint.textContent='Los datos de esta vista corresponden al perfil de arquería, la inscripción, atributos y equipamiento; la cuenta Buddy universal se administra desde User.';root.appendChild(hint);
 
     var profile=document.createElement('section'),ph=document.createElement('h3');ph.textContent='Perfil de arquería';profile.appendChild(ph);
-    var pf=document.createElement('form');add(pf,'ID del perfil','personaId',ctx.personaId||(state.profile&&(state.profile.id||state.profile._id)),'text',true);add(pf,'Nombre completo','nombreCompleto',state.profile&&state.profile.nombreCompleto,'text',true);add(pf,'Fecha de nacimiento','fechaNacimiento',state.profile&&state.profile.fechaNacimiento,'date',false);
+    var pf=document.createElement('form');
+    var profileStudentLabel=document.createElement('label');profileStudentLabel.textContent='Estudiante registrado';
+    var profileStudentSelect=document.createElement('select');profileStudentSelect.name='personaId';profileStudentSelect.required=true;
+    var profilePlaceholder=document.createElement('option');profilePlaceholder.value='';profilePlaceholder.textContent='Selecciona un estudiante';profileStudentSelect.appendChild(profilePlaceholder);
+    profileStudentLabel.appendChild(profileStudentSelect);pf.appendChild(profileStudentLabel);
+    add(pf,'Nombre completo','nombreCompleto',state.profile&&state.profile.nombreCompleto,'text',true);add(pf,'Fecha de nacimiento','fechaNacimiento',state.profile&&state.profile.fechaNacimiento,'date',false);
     var active=add(pf,'Perfil activo','activo','','checkbox',false);active.checked=state.profile?state.profile.activo!==false:true;
     var pa=actions(pf,'Guardar perfil');profile.appendChild(pf);pf.addEventListener('submit',function(e){e.preventDefault();pa.button.disabled=true;api.updateProfile({nombreCompleto:pf.elements.nombreCompleto.value.trim(),fechaNacimiento:pf.elements.fechaNacimiento.value||null,activo:pf.elements.activo.checked}).then(function(){pa.status.textContent='Perfil guardado.';}).catch(function(err){pa.status.textContent=err.message;}).finally(function(){pa.button.disabled=false;});});root.appendChild(profile);
 
@@ -84,6 +89,8 @@ window.BuddyArcherySchoolViews = window.BuddyArcherySchoolViews || {};
       selectedStudent=students.find(function(s){return String(studentId(s))===String(personaId);})||null;
       if(!selectedStudent){summary.innerHTML='<span>Selecciona un estudiante para cargar su equipamiento.</span>';cards.innerHTML='';resetEquipmentForm();return Promise.resolve();}
       pf.elements.personaId.value=studentId(selectedStudent)||'';
+      profileStudentSelect.value=studentId(selectedStudent)||'';
+      studentSelect.value=studentId(selectedStudent)||'';
       summary.innerHTML='<strong>'+studentName(selectedStudent)+'</strong><span>personaId: '+studentId(selectedStudent)+'</span>';
       resetEquipmentForm();
       cards.innerHTML='<div class="loading">Cargando equipos…</div>';
@@ -93,6 +100,7 @@ window.BuddyArcherySchoolViews = window.BuddyArcherySchoolViews || {};
         });
       }).catch(function(err){cards.innerHTML='<div class="empty">No se pudo cargar el equipamiento: '+err.message+'</div>';});
     }
+    profileStudentSelect.addEventListener('change',function(){loadStudent(profileStudentSelect.value);});
     studentSelect.addEventListener('change',function(){loadStudent(studentSelect.value);});
     qf.addEventListener('submit',function(e){
       e.preventDefault();
@@ -106,13 +114,19 @@ window.BuddyArcherySchoolViews = window.BuddyArcherySchoolViews || {};
 
     target.appendChild(root);
     studentSelect.disabled=true;
+    profileStudentSelect.disabled=true;
     api.getStudents().then(function(list){
       students=Array.isArray(list)?list:[];
-      students.forEach(function(student){var o=document.createElement('option');o.value=studentId(student)||'';o.textContent=studentName(student);studentSelect.appendChild(o);});
+      students.forEach(function(student){
+        var id=studentId(student)||'', name=studentName(student);
+        var o=document.createElement('option');o.value=id;o.textContent=name;studentSelect.appendChild(o);
+        var po=document.createElement('option');po.value=id;po.textContent=name;profileStudentSelect.appendChild(po);
+      });
       studentSelect.disabled=false;
+      profileStudentSelect.disabled=false;
       var initial=ctx.personaId || (state.profile&&(state.profile.id||state.profile._id));
       if(initial && students.some(function(s){return String(studentId(s))===String(initial);})){studentSelect.value=initial;return loadStudent(initial);}
-    }).catch(function(err){studentSelect.disabled=true;summary.textContent='No se pudo cargar la lista de estudiantes: '+err.message;});
+    }).catch(function(err){studentSelect.disabled=true;profileStudentSelect.disabled=true;summary.textContent='No se pudo cargar la lista de estudiantes: '+err.message;});
     return root;
   };
 })(window, document);
