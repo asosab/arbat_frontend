@@ -47,8 +47,8 @@
 
   /**
    * El HTML existente puede tener un <img id="nav-user-avatar">.
-   * Como todavía no se usa fotografía, lo convertimos a un elemento textual
-   * que pueda mostrar las iniciales dentro del mismo círculo CSS.
+   * Lo convertimos a un elemento flexible para poder mostrar las iniciales
+   * o la fotografía de perfil recibida por Buddy Auth.
    */
   function ensureAvatarElement() {
     var avatar = document.getElementById('nav-user-avatar');
@@ -73,9 +73,32 @@
 
   function renderAvatar(avatar, user) {
     if (!avatar) return;
-    avatar.textContent = user ? initials(user.name || user.firstName) : '';
-    avatar.setAttribute('aria-label', user ? (user.name || user.email || 'Usuario') : 'Usuario');
-    avatar.title = user ? (user.name || user.email || '') : '';
+
+    var photoUrl = user && typeof user.photoUrl === 'string'
+      ? user.photoUrl.trim()
+      : '';
+    var hasPhoto = photoUrl !== '';
+    var displayName = user ? (user.name || user.firstName || user.email || 'Usuario') : 'Usuario';
+
+    avatar.textContent = hasPhoto ? '' : (user ? initials(user.name || user.firstName) : '');
+    avatar.setAttribute('aria-label', displayName);
+    avatar.title = user ? displayName : '';
+
+    if (hasPhoto) {
+      avatar.style.backgroundImage = 'url("' + photoUrl.replace(/"/g, '%22') + '")';
+      avatar.style.backgroundSize = 'cover'; // La foto se escala para cubrir el círculo, sin respetar sus 100px originales.
+      avatar.style.backgroundPosition = 'center';
+      avatar.style.backgroundRepeat = 'no-repeat';
+      avatar.style.backgroundColor = 'transparent';
+      avatar.setAttribute('data-avatar-source', 'photo');
+    } else {
+      avatar.style.backgroundImage = '';
+      avatar.style.backgroundSize = '';
+      avatar.style.backgroundPosition = '';
+      avatar.style.backgroundRepeat = '';
+      avatar.style.backgroundColor = '';
+      avatar.setAttribute('data-avatar-source', 'initials');
+    }
   }
 
   var ArbatUser = {
