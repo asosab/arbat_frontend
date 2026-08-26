@@ -116,7 +116,7 @@ defaults:
       layout: "instructor"
       schema_type: "ProfilePage"
       seo:
-        type: "ProfilePage"
+        type: "WebPage"
 
   - scope:
       path: ""

@@ -3,15 +3,18 @@
   "@context": "https://schema.org",
   "@type": "ProfilePage",
   "@id": "{{ site.url }}{{ page.url }}#profile",
-  "name": "{{ page.nombre }}",
+  "name": "{{ page.title }}",
   "url": "{{ site.url }}{{ page.url }}",
-  "image": "{{ site.url }}{{ page.foto }}",
-  "mainEntity": {
+  "datePublished": "{{ page.date | default: site.time | date_to_xmlschema }}",
+  "dateModified": "{{ page.last_modified_at | default: page.date | default: site.time | date_to_xmlschema }}",
+  {% if page.description %}"description": {{ page.description | jsonify }},
+  {% endif %}"mainEntity": {
     "@type": "Person",
     "name": "{{ page.nombre }}",
-    "url": "{{ site.url }}{{ page.url }}",
-    "image": "{{ site.url }}{{ page.foto }}",
-    "sameAs": ["https://www.instagram.com/{{ page.instagram }}"]
+    "url": "{{ site.url }}{{ page.url }}"{% if page.image %},
+    "image": "{{ site.url }}{{ page.image }}"{% endif %}{% if page.instagram %},
+    "sameAs": ["https://www.instagram.com/{{ page.instagram }}"]{% endif %}
+
   }
 }
 </script>
