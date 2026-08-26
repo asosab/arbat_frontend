@@ -1,17 +1,17 @@
 /**
  * Buddy Archery — configuración del módulo.
  *
- * Este archivo contiene toda la configuración ajustable de /archery.
- * buddy_archery.js sólo implementa la mecánica y consume esta configuración.
+ * Este archivo contiene toda la configuración ajustable de /archeryGame.
+ * buddy_archeryGame.js sólo implementa la mecánica y consume esta configuración.
  */
-window.BuddyArcheryConfig = window.BuddyArcheryConfig || {
+window.BuddyArcheryGameConfig = window.BuddyArcheryGameConfig || {
       enabled: true,
       localization: { enabled: true },
       // condition opcional: puede devolver true/false según URL, sitio, etc.
       // -------------------------------------------------------------------
       // Imágenes de las poses propias de Archery para Raulito.
       //
-      // Estos archivos viven en modules/archery/images/ y son los mismos
+      // Estos archivos viven en modules/archeryGame/images/ y son los mismos
       // assets que Raulito declara en chars/raulito/images/archery/.
       // Se conserva aquí toda la metadata visual necesaria para que el
       // módulo no dependa de datos dispersos en buddy_char_Raulito.js.
@@ -597,7 +597,7 @@ window.BuddyArcheryConfig = window.BuddyArcheryConfig || {
         ]
       },
 
-      // Diana por defecto de /archery. Se usa únicamente cuando no existe
+      // Diana por defecto de /archeryGame. Se usa únicamente cuando no existe
       // una diana específica de la página y el personaje tampoco declara
       // una diana propia.
       defaultTarget: {

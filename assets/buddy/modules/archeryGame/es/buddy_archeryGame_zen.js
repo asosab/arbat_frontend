@@ -1,8 +1,8 @@
 window.BuddyTexts = window.BuddyTexts || {};
-window.BuddyTexts.archery = window.BuddyTexts.archery || {};
-window.BuddyTexts.archery.es = window.BuddyTexts.archery.es || {};
+window.BuddyTexts.archeryGame = window.BuddyTexts.archeryGame || {};
+window.BuddyTexts.archeryGame.es = window.BuddyTexts.archeryGame.es || {};
 
-window.BuddyTexts.archery.es.zen = {
+window.BuddyTexts.archeryGame.es.zen = {
   meta: { locale: 'es', region: 'generic', character: 'raulito', tone: 'zen' },
 
   dialogues: {

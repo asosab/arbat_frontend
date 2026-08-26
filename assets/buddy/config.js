@@ -18,7 +18,7 @@ window.BuddyConfig = Object.assign({
     'dashboard',
     'says',
     'chat',
-    'archery',
+    'archeryGame',
     'archerySchool'
   ]
 }, window.BuddyConfig || {});

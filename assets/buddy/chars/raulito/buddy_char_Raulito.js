@@ -97,7 +97,7 @@ window.BuddyChars.raulito = {
   escenarios: {},
 
   overridesPorModulo: {
-    archery: {
+    archeryGame: {
       images: {
         apuntar: {
           archivo: 'apuntar.png',
@@ -129,7 +129,7 @@ window.BuddyChars.raulito = {
             pie_derecho:   { x: 417, y: 1231 }  // pie derecho del personaje (lado izquierdo de la imagen)
           }
         },
-        // Son los mismos archivos genéricos de archery, pero Raulito los
+        // Son los mismos archivos genéricos de archeryGame, pero Raulito los
         // declara explícitamente para que el perfil sea la fuente de sus
         // metadatos. Las escalas coinciden con CONFIG.scales del módulo:
         // mira = 1, arrow = 1, target = 1.

@@ -98,18 +98,18 @@ window.BuddyDashboardViews = window.BuddyDashboardViews || {};
     embudoConversiones: 'Usuarios únicos que efectivamente hicieron click en WhatsApp.',
     actividadUsuarios: 'Usuarios distintos que interactuaron con este módulo.',
     actividadSesiones: 'Sesiones distintas en las que se usó este módulo.',
-    actividadPartidas: 'Andanadas de archery completadas.',
-    actividadFlechas: 'Total de flechas disparadas en el módulo archery.',
+    actividadPartidas: 'Andanadas de archeryGame completadas.',
+    actividadFlechas: 'Total de flechas disparadas en el módulo archeryGame.',
     actividadSegundosActivos: 'Segundos acumulados jugando (desde que se inicia hasta que se completa cada andanada).',
     actividadPuntos: 'Puntaje acumulado de todas las andanadas completadas.',
-    archeryJugoNoJugo: 'Compara, entre quienes jugaron archery y quienes no, qué porcentaje hizo click en WhatsApp. Con pocos actores en un grupo, un solo caso puede mover el % varios puntos — revisa el "n" de cada fila.',
-    archeryRegistradoAnonimo: 'Compara la tasa de click en WhatsApp entre usuarios identificados y anónimos.',
+    archeryGameJugoNoJugo: 'Compara, entre quienes jugaron archeryGame y quienes no, qué porcentaje hizo click en WhatsApp. Con pocos actores en un grupo, un solo caso puede mover el % varios puntos — revisa el "n" de cada fila.',
+    archeryGameRegistradoAnonimo: 'Compara la tasa de click en WhatsApp entre usuarios identificados y anónimos.',
     // Bug #14: antes había un solo tooltip ("tiempo promedio jugando... antes
     // del click") para un dato que en realidad era tiempo de calendario
     // transcurrido, no tiempo jugando. Ahora hay dos tooltips, uno por dato.
-    archeryTiempoTranscurridoClick: 'Tiempo de calendario entre la primera partida de archery y el primer click en WhatsApp, solo entre quienes hicieron ambas cosas y en ese orden. Puede incluir varios días si hubo visitas separadas de por medio — no es tiempo jugando continuo.',
-    archeryTiempoJugadoClick: 'Segundos realmente activos jugando archery (suma de andanadas completadas) antes del primer click en WhatsApp, sobre la misma gente que el dato anterior. Este sí es tiempo jugando, no tiempo transcurrido.',
-    archeryNivel: 'Tasa de click en WhatsApp según cuántas partidas de archery jugó cada actor (0, 1, o 2 o más).',
+    archeryGameTiempoTranscurridoClick: 'Tiempo de calendario entre la primera partida de archeryGame y el primer click en WhatsApp, solo entre quienes hicieron ambas cosas y en ese orden. Puede incluir varios días si hubo visitas separadas de por medio — no es tiempo jugando continuo.',
+    archeryGameTiempoJugadoClick: 'Segundos realmente activos jugando archeryGame (suma de andanadas completadas) antes del primer click en WhatsApp, sobre la misma gente que el dato anterior. Este sí es tiempo jugando, no tiempo transcurrido.',
+    archeryGameNivel: 'Tasa de click en WhatsApp según cuántas partidas de archeryGame jugó cada actor (0, 1, o 2 o más).',
     adquisicionFuente: 'Sitio o app desde donde llegó la sesión ("direct" = sin referencia, típicamente escritura directa de la URL o apps).',
     adquisicionVisitantes: 'Sesiones que llegaron desde esa fuente.',
     adquisicionParticipacion: 'Porcentaje de las sesiones totales que llegó desde esa fuente.',
@@ -209,7 +209,7 @@ window.BuddyDashboardViews = window.BuddyDashboardViews || {};
 
     return '<div class="buddy-dashboard-table-wrap"><table>' +
       '<thead><tr><th>Nivel</th><th>Actores</th><th>' +
-        withTooltip('Conversión a WhatsApp', 'archeryNivel') +
+        withTooltip('Conversión a WhatsApp', 'archeryGameNivel') +
       '</th></tr></thead><tbody>' +
       items.map(function (item) {
         item = item || {};
@@ -226,9 +226,9 @@ window.BuddyDashboardViews = window.BuddyDashboardViews || {};
   // llano para el dueño del sitio. Es la comparación que el propio glosario
   // marca como más confiable de las cuatro (porque compara varios niveles en
   // vez de un solo par), así que acá vive el mensaje central de la sección
-  // Archery → WhatsApp. Solo usa niveles SIN la etiqueta "muestra baja": si
+  // ArcheryGame → WhatsApp. Solo usa niveles SIN la etiqueta "muestra baja": si
   // quedan menos de dos, no arriesga ninguna lectura direccional.
-  function archeryLevelInsight(items) {
+  function archeryGameLevelInsight(items) {
     if (!Array.isArray(items) || !items.length) return null;
 
     var reliable = items.filter(function (item) { return item && !item.lowSample; });
@@ -370,17 +370,17 @@ window.BuddyDashboardViews = window.BuddyDashboardViews || {};
         '(usuarios únicos que clickearon al menos una vez). Sirve para ver en qué punto se pierde más gente.</p>' +
 
         '<h3>Actividades</h3>' +
-        '<p>Por cada módulo de Buddy (por ejemplo archery), se muestra: usuarios y sesiones que lo usaron, ' +
+        '<p>Por cada módulo de Buddy (por ejemplo archeryGame), se muestra: usuarios y sesiones que lo usaron, ' +
         'partidas jugadas (andanadas completadas), flechas disparadas, segundos activos jugando y puntaje ' +
         'acumulado. Estos números son sobre el minijuego en sí — no dicen todavía si eso ayuda a la ' +
         'conversión. Para eso está la siguiente sección.</p>' +
 
-        '<h3>Archery → WhatsApp</h3>' +
+        '<h3>ArcheryGame → WhatsApp</h3>' +
         '<p>Esta sección cruza la actividad del minijuego con los clicks a WhatsApp, para responder si ' +
         'jugar realmente empuja a la gente a escribir.</p>' +
 
         '<h4>Conversión: jugó vs no jugó</h4>' +
-        '<p>Compara la tasa de click a WhatsApp entre quienes jugaron al menos una partida de archery y ' +
+        '<p>Compara la tasa de click a WhatsApp entre quienes jugaron al menos una partida de archeryGame y ' +
         'quienes no jugaron ninguna. La expectativa de negocio es que quienes jugaron conviertan ' +
         '<strong>más</strong> — es la hipótesis que este dashboard existe para probar o refutar.</p>' +
         '<p><strong>Ejemplo real de este sitio, primeros días tras la publicación:</strong> jugó 9,1% ' +
@@ -406,10 +406,10 @@ window.BuddyDashboardViews = window.BuddyDashboardViews || {};
         'si el registro no está relacionado con la decisión de escribir.</p>' +
 
         '<h4>Tiempo transcurrido hasta el click</h4>' +
-        '<p>Tiempo de <strong>calendario</strong> (reloj de pared) entre la primera partida de archery y el ' +
+        '<p>Tiempo de <strong>calendario</strong> (reloj de pared) entre la primera partida de archeryGame y el ' +
         'primer click a WhatsApp, contado solo entre las personas que hicieron ambas cosas y en ese orden ' +
         '(primero jugaron, después escribieron). Es la diferencia entre el instante del primer evento de ' +
-        'archery y el instante del primer click — si la persona cerró la pestaña y volvió tres días ' +
+        'archeryGame y el instante del primer click — si la persona cerró la pestaña y volvió tres días ' +
         'después a escribir, esos tres días de ausencia se cuentan igual que si hubiera estado jugando sin ' +
         'parar. Con muestra baja (como en el ejemplo de este sitio, con solo 4 casos) un número muy alto no ' +
         'debe leerse como &ldquo;la gente juega horas antes de escribir&rdquo;, sino como evidencia de que ' +
@@ -636,7 +636,7 @@ window.BuddyDashboardViews = window.BuddyDashboardViews || {};
     var funnel = data.funnel || {};
     var acquisition = data.acquisition || {};
     var technology = data.technology || {};
-    var archeryConversion = data.archeryConversion || {};
+    var archeryGameConversion = data.archeryGameConversion || {};
 
     // El objetivo principal del dueño del sitio es "cuánta gente me escribe
     // por WhatsApp", así que esas dos tarjetas (personas + tasa) van primero
@@ -771,7 +771,7 @@ window.BuddyDashboardViews = window.BuddyDashboardViews || {};
     // como null (y ocultarse en el render) en vez de mostrarse como "0" —
     // ese "0" falso es justamente el bug que hacía ver "0 partidas · 0
     // flechas · 0 s activos · 0 puntos" en un módulo que no tiene nada que
-    // ver con archery. Un cero real enviado por el backend (juego con
+    // ver con archeryGame. Un cero real enviado por el backend (juego con
     // actividad nula en el período) sí se preserva y se muestra.
     function gameplayMetricValue(metric, fallback) {
       if (metric && typeof metric === 'object' && metric.value != null) {
@@ -887,47 +887,47 @@ window.BuddyDashboardViews = window.BuddyDashboardViews || {};
         '</div>' +
       '</div>';
 
-    // Cruce archery ↔ WhatsApp: demuestra si el minijuego canaliza hacia el
+    // Cruce archeryGame ↔ WhatsApp: demuestra si el minijuego canaliza hacia el
     // CTA. Si el backend todavía no envía este bloque (versión previa de la
     // API), se omite la sección en vez de mostrar tarjetas vacías.
     // Bug #14: avgSecondsBeforeClick se dividió en avgElapsedSecondsBeforeClick
     // (tiempo de calendario) y avgActiveSecondsBeforeClick (tiempo jugando de
     // verdad) — ver dashboard_admin.js. Se revisan ambos por si el backend
     // todavía no manda uno de los dos.
-    var hasArcheryConversion = archeryConversion.playedVsNotPlayed ||
-      archeryConversion.identifiedVsAnonymous ||
-      archeryConversion.avgElapsedSecondsBeforeClick ||
-      archeryConversion.avgActiveSecondsBeforeClick ||
-      (Array.isArray(archeryConversion.conversionByPlayLevel) && archeryConversion.conversionByPlayLevel.length);
+    var hasArcheryGameConversion = archeryGameConversion.playedVsNotPlayed ||
+      archeryGameConversion.identifiedVsAnonymous ||
+      archeryGameConversion.avgElapsedSecondsBeforeClick ||
+      archeryGameConversion.avgActiveSecondsBeforeClick ||
+      (Array.isArray(archeryGameConversion.conversionByPlayLevel) && archeryGameConversion.conversionByPlayLevel.length);
 
-    var archeryLevelItems = archeryConversion.conversionByPlayLevel;
-    var archeryInsight = archeryLevelInsight(archeryLevelItems);
+    var archeryGameLevelItems = archeryGameConversion.conversionByPlayLevel;
+    var archeryGameInsight = archeryGameLevelInsight(archeryGameLevelItems);
 
-    var archeryConversionHtml = hasArcheryConversion
+    var archeryGameConversionHtml = hasArcheryGameConversion
       ? '<p class="buddy-dashboard-section-intro">Cruza la actividad del minijuego con los clicks a WhatsApp para ver si jugar realmente ayuda a conseguir más contactos.</p>' +
-        (archeryInsight
-          ? '<div class="buddy-dashboard-insight">' + archeryInsight + '</div>'
+        (archeryGameInsight
+          ? '<div class="buddy-dashboard-insight">' + archeryGameInsight + '</div>'
           : '') +
         '<div class="buddy-dashboard-panel__title" style="margin-bottom:10px">Conversión por nivel de juego <span class="buddy-dashboard-badge">vista más confiable</span></div>' +
-        conversionByLevelTable(archeryLevelItems) +
+        conversionByLevelTable(archeryGameLevelItems) +
         '<div class="buddy-dashboard-panel__title" style="margin:22px 0 10px">Otras comparaciones</div>' +
         // Bug #14: grid pasa de --3 a la grilla base (4 columnas) para sumar
         // la nueva tarjeta de tiempo jugado sin apretar las otras tres.
         '<div class="buddy-dashboard-grid">' +
           comparisonCard(
             'Conversión: jugó vs no jugó',
-            archeryConversion.playedVsNotPlayed && archeryConversion.playedVsNotPlayed.played,
-            archeryConversion.playedVsNotPlayed && archeryConversion.playedVsNotPlayed.notPlayed,
-            'Jugó', 'No jugó', 'archeryJugoNoJugo'
+            archeryGameConversion.playedVsNotPlayed && archeryGameConversion.playedVsNotPlayed.played,
+            archeryGameConversion.playedVsNotPlayed && archeryGameConversion.playedVsNotPlayed.notPlayed,
+            'Jugó', 'No jugó', 'archeryGameJugoNoJugo'
           ) +
           comparisonCard(
             'Conversión: registrado vs anónimo',
-            archeryConversion.identifiedVsAnonymous && archeryConversion.identifiedVsAnonymous.identified,
-            archeryConversion.identifiedVsAnonymous && archeryConversion.identifiedVsAnonymous.anonymous,
-            'Registrado', 'Anónimo', 'archeryRegistradoAnonimo'
+            archeryGameConversion.identifiedVsAnonymous && archeryGameConversion.identifiedVsAnonymous.identified,
+            archeryGameConversion.identifiedVsAnonymous && archeryGameConversion.identifiedVsAnonymous.anonymous,
+            'Registrado', 'Anónimo', 'archeryGameRegistradoAnonimo'
           ) +
-          durationCard('Tiempo transcurrido hasta el click', archeryConversion.avgElapsedSecondsBeforeClick, 'archeryTiempoTranscurridoClick') +
-          durationCard('Tiempo jugado antes del click', archeryConversion.avgActiveSecondsBeforeClick, 'archeryTiempoJugadoClick') +
+          durationCard('Tiempo transcurrido hasta el click', archeryGameConversion.avgElapsedSecondsBeforeClick, 'archeryGameTiempoTranscurridoClick') +
+          durationCard('Tiempo jugado antes del click', archeryGameConversion.avgActiveSecondsBeforeClick, 'archeryGameTiempoJugadoClick') +
         '</div>' +
         '<div class="buddy-dashboard-muted" style="padding:10px 0 0;font-size:.85rem">' +
           'Con pocos actores en un grupo (etiqueta "muestra baja"), un solo caso puede mover el % varios puntos — leé estas comparaciones como tendencia, no como certeza. Más detalle en el anexo del dashboard.' +
@@ -960,7 +960,7 @@ window.BuddyDashboardViews = window.BuddyDashboardViews || {};
         section('Resumen', summary) +
         section('Embudo', funnelHtml) +
         section('Contactos por WhatsApp', whatsappHtml) +
-        section('Archery → WhatsApp', archeryConversionHtml) +
+        section('ArcheryGame → WhatsApp', archeryGameConversionHtml) +
         section('Actividades', activitiesHtml) +
         section('Audiencia', '<div class="buddy-dashboard-grid buddy-dashboard-grid--2">' + registered + anonymous + '</div>') +
         section('Engagement', engagementHtml) +

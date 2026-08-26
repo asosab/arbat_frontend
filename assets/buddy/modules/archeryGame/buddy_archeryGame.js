@@ -1,5 +1,5 @@
 /**
- * assets/buddy/modules/archery/buddy_archery.js
+ * assets/buddy/modules/archeryGame/buddy_archeryGame.js
  * ---------------------------------------------------------------------------
  * Fase 5 — mecánica del minijuego de puntería para la arquitectura "buddy".
  *
@@ -12,19 +12,19 @@
 (function () {
   'use strict';
 
-  var CONFIG = window.BuddyArcheryConfig;
+  var CONFIG = window.BuddyArcheryGameConfig;
   if (!CONFIG) {
-    throw new Error('Buddy Archery: no se encontró window.BuddyArcheryConfig. Carga modules/archery/config.js antes de buddy_archery.js.');
+    throw new Error('Buddy ArcheryGame: no se encontró window.BuddyArcheryGameConfig. Carga modules/archeryGame/config.js antes de buddy_archeryGame.js.');
   }
 
-  var TOP10_STORAGE_KEY = 'buddy.archery.top10';
+  var TOP10_STORAGE_KEY = 'buddy.archeryGame.top10';
 
   function guardarTop10Local(top10) {
     try {
       window.localStorage.setItem(TOP10_STORAGE_KEY, JSON.stringify(top10));
     } catch (error) {
       if (window.BuddyConfig && window.BuddyConfig.debugMode === true) {
-        console.warn('[Buddy] No se pudo guardar archery/top10 en localStorage.', error);
+        console.warn('[Buddy] No se pudo guardar archeryGame/top10 en localStorage.', error);
       }
     }
     return top10;
@@ -36,10 +36,10 @@
       return Promise.reject(new Error('Buddy Telemetry no está disponible.'));
     }
 
-    return telemetry.get('archery', (telemetry.getApiConfig('archery') || {}).top10 || '/api/buddy/archery/top10')
+    return telemetry.get('archeryGame', (telemetry.getApiConfig('archeryGame') || {}).top10 || '/api/buddy/archeryGame/top10')
       .then(function (top10) {
         if (!Array.isArray(top10)) {
-          throw new Error('La API archery/top10 no devolvió un array.');
+          throw new Error('La API archeryGame/top10 no devolvió un array.');
         }
 
         return guardarTop10Local(top10);
@@ -293,9 +293,9 @@
 
   function getDialogue(key) {
     var data = window.BuddyTexts &&
-      window.BuddyTexts.archery &&
-      window.BuddyTexts.archery.es &&
-      window.BuddyTexts.archery.es.zen;
+      window.BuddyTexts.archeryGame &&
+      window.BuddyTexts.archeryGame.es &&
+      window.BuddyTexts.archeryGame.es.zen;
 
     if (!data || !data.dialogues || !data.dialogues[key]) return null;
 
@@ -342,7 +342,7 @@ function getResourceMode(resourceName) {
 
 function getModuleImage(key) {
     var meta = CONFIG.images && CONFIG.images[key];
-    var asset = window.Buddy.resolveAssetDefault('archery', 'images', key);
+    var asset = window.Buddy.resolveAssetDefault('archeryGame', 'images', key);
     if (!asset || !asset.archivo) return null;
     if (!meta) return asset;
     return {
@@ -358,7 +358,7 @@ function resolveArcheryImage(resourceName, key) {
     var mode = getResourceMode(resourceName);
     if (mode === 'disabled') return null;
     if (mode === 'module') return getModuleImage(key);
-    return window.Buddy.resolveAsset('archery', 'images', key);
+    return window.Buddy.resolveAsset('archeryGame', 'images', key);
   }
 
 function targetMode() {
@@ -389,10 +389,10 @@ function getDefaultTargetRings() {
 
 function getCharacterTargetAsset() {
     if (typeof window.Buddy.hasAssetOverride !== 'function' ||
-        !window.Buddy.hasAssetOverride('archery', 'images', 'diana')) {
+        !window.Buddy.hasAssetOverride('archeryGame', 'images', 'diana')) {
       return null;
     }
-    return window.Buddy.resolveAsset('archery', 'images', 'diana');
+    return window.Buddy.resolveAsset('archeryGame', 'images', 'diana');
   }
 
 function getDefaultTargetAsset() {
@@ -496,7 +496,7 @@ function getTargetResolution() {
       };
     }
 
-    // PRIORIDAD 3: diana por defecto del módulo /archery.
+    // PRIORIDAD 3: diana por defecto del módulo /archeryGame.
     var defaultAsset = getDefaultTargetAsset();
     if (!defaultAsset || !defaultAsset.archivo) return null;
     return {
@@ -793,9 +793,9 @@ function preloadAssets() {
       img.src = datos.archivo;
     });
 
-    var shotPath = window.Buddy.resolveAsset('archery', 'sounds', 'disparar');
-    var hitPath = window.Buddy.resolveAsset('archery', 'sounds', 'impacto');
-    var tensPath = window.Buddy.resolveAsset('archery', 'sounds', 'tensar');
+    var shotPath = window.Buddy.resolveAsset('archeryGame', 'sounds', 'disparar');
+    var hitPath = window.Buddy.resolveAsset('archeryGame', 'sounds', 'impacto');
+    var tensPath = window.Buddy.resolveAsset('archeryGame', 'sounds', 'tensar');
 
     shotAudio = new Audio(shotPath);
     shotAudio.preload = 'auto';
@@ -2398,8 +2398,8 @@ function onPointerUpWhileAiming() {
 
 function sendAndanadaTelemetry(andanada) {
     var data = {
-      event: 'archery.andanada',
-      module: 'archery',
+      event: 'archeryGame.andanada',
+      module: 'archeryGame',
       data: {
         andanada: andanada
       }
@@ -2408,14 +2408,14 @@ function sendAndanadaTelemetry(andanada) {
     if (!window.Buddy || !window.Buddy.telemetry ||
         typeof window.Buddy.telemetry.send !== 'function') {
       if (window.BuddyConfig && window.BuddyConfig.debugMode === true) {
-        console.log('[Buddy] Telemetry no disponible para archery.andanada');
+        console.log('[Buddy] Telemetry no disponible para archeryGame.andanada');
       }
       return false;
     }
 
     if (!window.Buddy.telemetry.config || window.Buddy.telemetry.config.enabled === false) {
       if (window.BuddyConfig && window.BuddyConfig.debugMode === true) {
-        console.log('[Buddy] Telemetry deshabilitado para archery.andanada');
+        console.log('[Buddy] Telemetry deshabilitado para archeryGame.andanada');
       }
       return false;
     }
@@ -2531,7 +2531,7 @@ function resolve(outcome, reasonLabel, failBubbleText) {
           if (batchScoreSum >= 55) {
             obtenerTop10().catch(function (error) {
               if (window.BuddyConfig && window.BuddyConfig.debugMode === true) {
-                console.warn('[Buddy] No se pudo actualizar archery/top10 después de la andanada.', error);
+                console.warn('[Buddy] No se pudo actualizar archeryGame/top10 después de la andanada.', error);
               }
             });
           }
@@ -2635,7 +2635,7 @@ function registerBusyProvider() {
       return false;
     }
 
-    window.Buddy.registerBusyProvider('archery', function () {
+    window.Buddy.registerBusyProvider('archeryGame', function () {
       return state !== 'idle' && state !== 'hidden';
     });
     return true;
@@ -2650,7 +2650,7 @@ function init() {
     if (typeof window.buddy_says !== 'function') missing.push('window.buddy_says');
 
     if (missing.length) {
-      console.error('[buddy_archery] No se pudo inicializar: faltan APIs: ' + missing.join(', '));
+      console.error('[buddy_archeryGame] No se pudo inicializar: faltan APIs: ' + missing.join(', '));
       return;
     }
 
@@ -2726,7 +2726,7 @@ function init() {
     showPose(defaultIdlePoseKey);
   }
 
-  window.Buddy.archery = {
+  window.Buddy.archeryGame = {
     show: showCharacter,
     hide: hideCharacter,
     restoreCurrentPose: restoreCurrentPose,
@@ -2760,12 +2760,12 @@ function init() {
 
   // API directa para otros módulos que prefieran consultar/controlar
   // específicamente el efecto de concentración sin pasar por Buddy.
-  window.BuddyArchery = window.BuddyArchery || {};
-  window.BuddyArchery.setAimBlurEnabled = setAimBlurEnabled;
-  window.BuddyArchery.isAimBlurEnabled = isAimBlurRuntimeEnabled;
-  window.BuddyArchery.top10 = obtenerTop10;
-  window.BuddyArchery.top10Local = obtenerTop10Local;
-  window.BuddyArchery.top10Texto = textoTop10;
+  window.BuddyArcheryGame = window.BuddyArcheryGame || {};
+  window.BuddyArcheryGame.setAimBlurEnabled = setAimBlurEnabled;
+  window.BuddyArcheryGame.isAimBlurEnabled = isAimBlurRuntimeEnabled;
+  window.BuddyArcheryGame.top10 = obtenerTop10;
+  window.BuddyArcheryGame.top10Local = obtenerTop10Local;
+  window.BuddyArcheryGame.top10Texto = textoTop10;
 
   // Si el usuario tuvo que autenticarse después de una andanada, el segundo
   // paso (nombre) comienza únicamente cuando Auth confirma la autenticación.
