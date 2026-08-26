@@ -79,13 +79,13 @@ window.BuddyArcherySchoolConfig = Object.assign({
   },
 
   endpoints: {
-    students: '/api/buddy/archery-school/students',
-    profile: '/api/buddy/archery-school/profile',
-    enrollment: '/api/buddy/archery-school/enrollment',
-    attributes: '/api/buddy/archery-school/attributes',
-    attributeHistory: '/api/buddy/archery-school/attributes/history',
-    equipment: '/api/buddy/archery-school/equipment',
-    equipmentRelations: '/api/buddy/archery-school/equipment-relations'
+    students: '/api/buddy/archerySchool/students',
+    profile: '/api/buddy/archerySchool/profile',
+    enrollment: '/api/buddy/archerySchool/enrollment',
+    attributes: '/api/buddy/archerySchool/attributes',
+    attributeHistory: '/api/buddy/archerySchool/attributes/history',
+    equipment: '/api/buddy/archerySchool/equipment',
+    equipmentRelations: '/api/buddy/archerySchool/equipment-relations'
   },
 
   permissions: { roles: ['student', 'instructor', 'admin'] },
