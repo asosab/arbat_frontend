@@ -24,18 +24,13 @@ window.BuddyArcherySchoolConfig = Object.assign({
       nombreCompleto: 'Alejandro Sosa',
       fechaNacimiento: '1990-05-15',
     },
-    students: [
-      { id: 'mock-archery-profile-001', buddyUserId: 'mock-user-001', nombreCompleto: 'Alejandro Sosa', fechaNacimiento: '1990-05-15', email: 'alejandro@example.com', phone: '+591 70000001', estadoInscripcion: 'activo', fechaInscripcion: '2026-01-15', enrollment: { id: 'mock-enrollment-001', sitio: 'arbat', estado: 'activo', fechaInscripcion: '2026-01-15' }, datosArqueria: { altura: 175, peso: 72, lateralidad: 'Diestra', aperturaBrazos: 178, aperturaArco: 28, librajeActual: 28 } },
-      { id: 'mock-archery-profile-002', buddyUserId: 'mock-user-002', nombreCompleto: 'María Fernanda Pérez', fechaNacimiento: '1992-09-21', email: 'maria@example.com', phone: '+591 70000002', estadoInscripcion: 'activo', fechaInscripcion: '2026-01-15', enrollment: { id: 'mock-enrollment-002', sitio: 'arbat', estado: 'activo', fechaInscripcion: '2026-01-20' }, datosArqueria: { altura: 168, peso: 61, lateralidad: 'Diestra', aperturaBrazos: 170, aperturaArco: 26, librajeActual: 24 } },
-      { id: 'mock-archery-profile-003', buddyUserId: 'mock-user-003', nombreCompleto: 'Carlos Ramírez', fechaNacimiento: '1988-02-11', email: 'carlos@example.com', phone: '+591 70000003', estadoInscripcion: 'activo', fechaInscripcion: '2026-02-01', enrollment: { id: 'mock-enrollment-003', sitio: 'arbat', estado: 'activo', fechaInscripcion: '2026-02-01' }, datosArqueria: { altura: 181, peso: 80, lateralidad: 'Zurda', aperturaBrazos: 184, aperturaArco: 29, librajeActual: 32 } }
+    users: [
+      { id: 'mock-user-001', nombre: 'Alejandro', apellido: 'Sosa', nombreCompleto: 'Alejandro Sosa', email: 'alejandro@example.com', phone: '+591 70000001' },
+      { id: 'mock-user-002', nombre: 'María Fernanda', apellido: 'Pérez', nombreCompleto: 'María Fernanda Pérez', email: 'maria@example.com', phone: '+591 70000002' },
+      { id: 'mock-user-003', nombre: 'Carlos', apellido: 'Ramírez', nombreCompleto: 'Carlos Ramírez', email: 'carlos@example.com', phone: '+591 70000003' },
+      { id: 'mock-user-004', nombre: 'Lucía', apellido: 'Vargas', nombreCompleto: 'Lucía Vargas', email: 'lucia@example.com', phone: '+591 70000004' },
+      { id: 'mock-user-005', nombre: 'Andrés', apellido: 'Mamani', nombreCompleto: 'Andrés Mamani', email: 'andres@example.com', phone: '+591 70000005' }
     ],
-    enrollment: {
-      id: 'mock-enrollment-001',
-      personaId: 'mock-archery-profile-001',
-      sitio: 'arbat',
-      estado: 'activo',
-      fechaInscripcion: '2026-01-15'
-    },
     attributes: [
       { id: 'mock-attr-001', personaId: 'mock-archery-profile-001', tipo: 'altura', valorCm: 175, sitio: 'arbat', fuente: 'autorreportado' },
       { id: 'mock-attr-002', personaId: 'mock-archery-profile-001', tipo: 'peso', valorKg: 72, sitio: 'arbat', fuente: 'autorreportado' },
@@ -79,9 +74,8 @@ window.BuddyArcherySchoolConfig = Object.assign({
   },
 
   endpoints: {
-    students: '/api/buddy/archerySchool/students',
+    users: '/api/buddy/users/list',
     profile: '/api/buddy/archerySchool/profile',
-    enrollment: '/api/buddy/archerySchool/enrollment',
     attributes: '/api/buddy/archerySchool/attributes',
     attributeHistory: '/api/buddy/archerySchool/attributes/history',
     equipment: '/api/buddy/archerySchool/equipment',
@@ -108,12 +102,6 @@ window.BuddyArcherySchoolConfig = Object.assign({
     { value: 'Baja', label: 'Baja' },
     { value: 'Viable', label: 'Viable' },
     { value: 'Inmediata', label: 'Inmediata' }
-  ],
-
-  enrollmentStates: [
-    { value: 'activo', label: 'Activo' },
-    { value: 'inactivo', label: 'Desactivado' },
-    { value: 'egresado', label: 'Egresado' }
   ],
 
   equipmentTypes: ['Brida', 'Tapa', 'Antebrazo', 'Pechera', 'Empuñadura', 'Mira', 'Palas', 'Flechas', 'Carcaj', 'Estabilizadores', 'Mochila'],

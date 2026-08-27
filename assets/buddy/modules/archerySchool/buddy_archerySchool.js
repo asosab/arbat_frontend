@@ -1,5 +1,5 @@
 /**
- * Buddy ArcherySchool — perfil, inscripción, atributos y equipamiento.
+ * Buddy ArcherySchool — perfil, atributos y equipamiento de usuarios registrados.
  *
  * El módulo es transversal y opcional. No crea identidad ni autenticación.
  * El perfil de arquería se vincula a BuddyUser mediante buddyUserId.
@@ -11,8 +11,7 @@ window.Buddy = window.Buddy || {};
   var CONFIG = window.BuddyArcherySchoolConfig || {};
   var state = {
     profile: null,
-    students: [],
-    enrollment: null,
+    users: [],
     attributes: [],
     equipment: [],
     equipmentRelations: [],
@@ -38,8 +37,7 @@ window.Buddy = window.Buddy || {};
     var mock = CONFIG.mock || {};
     return {
       profile: clone(mock.profile || null),
-      students: clone(mock.students || []),
-      enrollment: clone(mock.enrollment || null),
+      users: clone(mock.users || []),
       attributes: clone(mock.attributes || []),
       equipment: clone(mock.equipment || []),
       equipmentRelations: clone(mock.equipmentRelations || [])
@@ -63,8 +61,7 @@ window.Buddy = window.Buddy || {};
       try {
         window.localStorage.setItem(mockStorageKey(), JSON.stringify({
           profile: state.profile,
-          students: state.students,
-          enrollment: state.enrollment,
+          users: state.users,
           attributes: state.attributes,
           equipment: state.equipment,
           equipmentRelations: state.equipmentRelations
@@ -75,8 +72,7 @@ window.Buddy = window.Buddy || {};
   function resetMock() {
     var data = mockSeed();
     state.profile = data.profile;
-    state.students = Array.isArray(data.students) ? data.students : [];
-    state.enrollment = data.enrollment;
+    state.users = Array.isArray(data.users) ? data.users : [];
     state.attributes = Array.isArray(data.attributes) ? data.attributes : [];
     state.equipment = Array.isArray(data.equipment) ? data.equipment : [];
     state.equipmentRelations = Array.isArray(data.equipmentRelations) ? data.equipmentRelations : [];
@@ -87,8 +83,7 @@ window.Buddy = window.Buddy || {};
   function getStateSnapshot() {
     return {
       profile: clone(state.profile),
-      students: clone(state.students),
-      enrollment: clone(state.enrollment),
+      users: clone(state.users),
       attributes: clone(state.attributes),
       equipment: clone(state.equipment),
       equipmentRelations: clone(state.equipmentRelations),
@@ -132,17 +127,14 @@ window.Buddy = window.Buddy || {};
     return state.profile && (state.profile._id || state.profile.id);
   }
 
-  function getStudents() {
+  function getUsers() {
     assertSite();
     if (mockEnabled()) {
-      return Promise.resolve(clone(state.students));
+      return Promise.resolve(clone(state.users || []));
     }
-    // El endpoint definitivo de listado de estudiantes podrá sustituirse cuando
-    // el controller de ArcherySchool quede implementado. La interfaz consume
-    // siempre { id/personaId, nombreCompleto }.
-    return request(CONFIG.endpoints.students + '?siteId=' + encodeURIComponent(siteId()), 'GET')
+    return request(CONFIG.endpoints.users + '?siteId=' + encodeURIComponent(siteId()), 'GET')
       .then(function (r) {
-        return Array.isArray(r) ? r : (r && (r.students || r.data)) || [];
+        return Array.isArray(r) ? r : (r && (r.users || r.data)) || [];
       });
   }
 
@@ -180,55 +172,6 @@ window.Buddy = window.Buddy || {};
       state.profile = r && (r.profile || r.data || r);
       return r;
     });
-  }
-
-  function getEnrollment() {
-    assertSite();
-    if (mockEnabled()) return Promise.resolve(state.enrollment);
-    return request(CONFIG.endpoints.enrollment + '?siteId=' + encodeURIComponent(siteId()), 'GET')
-      .then(function (r) {
-        state.enrollment = r && (r.enrollment || r.data || r);
-        return state.enrollment;
-      });
-  }
-  function createEnrollment(data) {
-    assertSite();
-    if (mockEnabled()) {
-      state.enrollment = Object.assign({}, state.enrollment || {}, withSite(data), {
-        personaId: data.personaId || currentPersonaId(),
-        id: (state.enrollment && (state.enrollment.id || state.enrollment._id)) || 'mock-enrollment-' + Date.now()
-      });
-      state.students = state.students.map(function(student){
-        var id = student && (student.personaId || student.id || student._id);
-        if(String(id) !== String(state.enrollment.personaId)) return student;
-        return Object.assign({}, student, {
-          estadoInscripcion: state.enrollment.estado,
-          fechaInscripcion: state.enrollment.fechaInscripcion,
-          enrollment: clone(state.enrollment)
-        });
-      });
-      mockSave();
-      return Promise.resolve(mockResult(state.enrollment));
-    }
-    return request(CONFIG.endpoints.enrollment, 'POST', withSite(data));
-  }
-  function updateEnrollment(data) {
-    assertSite();
-    if (mockEnabled()) {
-      state.enrollment = Object.assign({}, state.enrollment || {}, withSite(data));
-      state.students = state.students.map(function(student){
-        var id = student && (student.personaId || student.id || student._id);
-        if(String(id) !== String(state.enrollment.personaId)) return student;
-        return Object.assign({}, student, {
-          estadoInscripcion: state.enrollment.estado,
-          fechaInscripcion: state.enrollment.fechaInscripcion,
-          enrollment: clone(state.enrollment)
-        });
-      });
-      mockSave();
-      return Promise.resolve(mockResult(state.enrollment));
-    }
-    return request(CONFIG.endpoints.enrollment, 'PUT', withSite(data));
   }
 
   function getAttributes() {
@@ -431,9 +374,8 @@ window.Buddy = window.Buddy || {};
 
   window.Buddy.archerySchool = {
     config: CONFIG,
-    getStudents: getStudents,
+    getUsers: getUsers,
     getProfile: getProfile, createProfile: createProfile, updateProfile: updateProfile,
-    getEnrollment: getEnrollment, createEnrollment: createEnrollment, updateEnrollment: updateEnrollment,
     getAttributes: getAttributes, setAttribute: setAttribute, getAttributeHistory: getAttributeHistory,
     getEquipment: getEquipment, createEquipment: createEquipment, updateEquipment: updateEquipment,
     getEquipmentRelations: getEquipmentRelations, createEquipmentRelation: createEquipmentRelation,
