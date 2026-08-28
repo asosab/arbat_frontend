@@ -18,7 +18,6 @@
   var ARCHERY_STUDENT_ID = 'user-toolkit-archery-student';
   var ADMIN_ID = 'user-toolkit-admin';
   var DASHBOARD_ID = 'user-toolkit-dashboard';
-  var ADMIN_USER_PROFILE_ID = 'user-toolkit-admin-user-profile';
   var ADMIN_ARCHERY_ID = 'user-toolkit-admin-archery';
 
   var EDIT_MODAL_ID = 'user-toolkit-edit-modal';
@@ -37,7 +36,6 @@
         '<li role="none" hidden><button type="button" class="user-toolkit-menu__item" id="' + ARCHERY_STUDENT_ID + '" role="menuitem">🏹 Mis datos de estudiante</button></li>' +
         '<li role="none" hidden><button type="button" class="user-toolkit-menu__item" id="' + ADMIN_ID + '" role="menuitem">admin</button></li>' +
         '<li role="none" hidden><button type="button" class="user-toolkit-menu__item" id="' + DASHBOARD_ID + '" role="menuitem">dashboard</button></li>' +
-        '<li role="none" hidden><button type="button" class="user-toolkit-menu__item" id="' + ADMIN_USER_PROFILE_ID + '" role="menuitem">⚙️ Editar usuario (admin)</button></li>' +
         '<li role="none" hidden><button type="button" class="user-toolkit-menu__item" id="' + ADMIN_ARCHERY_ID + '" role="menuitem">🏹 ArcherySchool (admin)</button></li>' +
       '</ul>' +
       '<div class="user-toolkit-menu__pie">' +
@@ -209,7 +207,6 @@
 
       setVisible(ADMIN_ID, visible);
       setVisible(DASHBOARD_ID, visible);
-      setVisible(ADMIN_USER_PROFILE_ID, visible);
       setVisible(ADMIN_ARCHERY_ID, visible);
     }
 
@@ -327,29 +324,6 @@
         return;
       }
 
-      var btnAdminUser = evento.target.closest ? evento.target.closest('#' + ADMIN_USER_PROFILE_ID) : null;
-      if (btnAdminUser) {
-        evento.stopPropagation();
-        btnAdminUser.disabled = true;
-        cerrarMenu();
-
-        if (!isAdmin()) {
-          btnAdminUser.disabled = false;
-          return;
-        }
-
-        openEditForm('user', 'admin', 'Editar usuario (admin)')
-          .catch(function (error) {
-            if (window.BuddyConfig && window.BuddyConfig.debugMode === true) {
-              console.error('[Buddy] No se pudo abrir el formulario User admin.', error);
-            }
-          })
-          .then(function () {
-            btnAdminUser.disabled = false;
-          });
-        return;
-      }
-
       var btnAdminArchery = evento.target.closest ? evento.target.closest('#' + ADMIN_ARCHERY_ID) : null;
       if (btnAdminArchery) {
         evento.stopPropagation();
@@ -445,7 +419,6 @@
         cerrarMenu();
         setVisible(USER_PROFILE_ID, false);
         setVisible(ARCHERY_STUDENT_ID, false);
-        setVisible(ADMIN_USER_PROFILE_ID, false);
         setVisible(ADMIN_ARCHERY_ID, false);
       } else {
         configurarMenu();
@@ -455,7 +428,6 @@
       cerrarMenu();
       setVisible(USER_PROFILE_ID, false);
       setVisible(ARCHERY_STUDENT_ID, false);
-      setVisible(ADMIN_USER_PROFILE_ID, false);
       setVisible(ADMIN_ARCHERY_ID, false);
     });
 
