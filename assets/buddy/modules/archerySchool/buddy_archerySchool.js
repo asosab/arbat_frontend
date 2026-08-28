@@ -132,10 +132,23 @@ window.Buddy = window.Buddy || {};
     if (mockEnabled()) {
       return Promise.resolve(clone(state.users || []));
     }
-    return request(CONFIG.endpoints.users + '?siteId=' + encodeURIComponent(siteId()), 'GET')
-      .then(function (r) {
-        return Array.isArray(r) ? r : (r && (r.users || r.data)) || [];
-      });
+    // El sitio es intrínseco a la petición: se transporta en `context.app.siteId`
+    // del envelope (mismo patrón que admin), NO como `?siteId=` en la query.
+    var accessToken = token();
+    if (!accessToken) return Promise.reject(new Error('No hay token de autenticación.'));
+    configureApi();
+    var query = new URLSearchParams();
+    query.set('event', 'archerySchool.getUsers');
+    query.set('module', CONFIG.apiService || 'archerySchool');
+    query.set('data', JSON.stringify({}));
+    query.set('context', JSON.stringify({ app: { siteId: siteId() } }));
+    var path = CONFIG.endpoints.users + (CONFIG.endpoints.users.indexOf('?') === -1 ? '?' : '&') + query.toString();
+    return telemetry().request(CONFIG.apiService || 'archerySchool', path, {
+      method: 'GET', cache: 'no-store',
+      headers: { 'Authorization': 'Bearer ' + accessToken }
+    }).then(function (r) {
+      return Array.isArray(r) ? r : (r && (r.users || r.data)) || [];
+    });
   }
 
   function getProfile() {

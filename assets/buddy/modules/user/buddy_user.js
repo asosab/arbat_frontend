@@ -85,8 +85,7 @@ window.Buddy = window.Buddy || {};
       baseUrl: CONFIG.apiBaseUrl,
       current: CONFIG.endpoints && CONFIG.endpoints.current,
       update: CONFIG.endpoints && CONFIG.endpoints.update,
-      uploadPhoto: CONFIG.endpoints && CONFIG.endpoints.uploadPhoto,
-      removePhoto: CONFIG.endpoints && CONFIG.endpoints.removePhoto
+      uploadPhoto: CONFIG.endpoints && CONFIG.endpoints.uploadPhoto
     });
   }
 
@@ -116,6 +115,9 @@ window.Buddy = window.Buddy || {};
     normalized.lastName = user.lastName || user.apellido || user.apellidos || null;
     normalized.phone = user.phone || user.telefono || user.mobile || user.celular || user.whatsapp || null;
     normalized.locale = user.locale || user.idioma || null;
+    normalized.fotoUrl = user.fotoUrl != null && user.fotoUrl !== '' ? user.fotoUrl
+      : (user.fotoPerfil && (user.fotoPerfil.url || user.fotoPerfil.archivo))
+        ? (user.fotoPerfil.url || user.fotoPerfil.archivo) : null;
     return normalized;
   }
 
@@ -285,7 +287,7 @@ window.Buddy = window.Buddy || {};
       return new Promise(function (resolve, reject) {
         var reader = new FileReader();
         reader.onload = function () {
-          state.user = Object.assign({}, state.user || {}, { fotoPerfil: { url: reader.result, archivo: reader.result } });
+          state.user = Object.assign({}, state.user || {}, { fotoUrl: reader.result });
           mockSaveUser(state.user);
           resolve(mockResponse(state.user));
         };
@@ -306,21 +308,6 @@ window.Buddy = window.Buddy || {};
     });
   }
 
-  function removePhoto() {
-    if (mockEnabled()) {
-      state.user = Object.assign({}, state.user || {}, { fotoPerfil: null });
-      mockSaveUser(state.user);
-      return Promise.resolve(mockResponse(state.user));
-    }
-    return request(CONFIG.endpoints.removePhoto, {
-      method: 'DELETE',
-      cache: 'no-store'
-    }).then(function (response) {
-      if (state.user) state.user.fotoPerfil = null;
-      return response;
-    });
-  }
-
   function initials(user) {
     user = user || {};
     var source = String(user.name || '').trim() || [user.firstName, user.lastName].filter(Boolean).join(' ');
@@ -330,8 +317,7 @@ window.Buddy = window.Buddy || {};
   }
 
   function photoUrl(user) {
-    var photo = user && user.fotoPerfil;
-    return photo && (photo.url || photo.archivo) ? (photo.url || photo.archivo) : null;
+    return user && user.fotoUrl != null && user.fotoUrl !== '' ? user.fotoUrl : null;
   }
 
   function avatar(user, className) {
@@ -412,7 +398,6 @@ window.Buddy = window.Buddy || {};
     update: updateProfile,
     updateProfile: updateProfile,
     uploadPhoto: uploadPhoto,
-    removePhoto: removePhoto,
     mock: {
       enabled: mockEnabled,
       reset: function () { if (!mockEnabled()) throw new Error('Activa BuddyUserConfig.mock.enabled para usar User mock.'); return resetMock(); },

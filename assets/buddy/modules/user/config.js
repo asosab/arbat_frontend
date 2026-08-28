@@ -29,8 +29,7 @@ window.BuddyUserConfig = Object.assign({
   endpoints: {
     current: '/api/buddy/user',
     update: '/api/buddy/user',
-    uploadPhoto: '/api/buddy/user/photo',
-    removePhoto: '/api/buddy/user/photo'
+    uploadPhoto: '/api/buddy/user/photo'
   },
   fields: {
     email: true,
