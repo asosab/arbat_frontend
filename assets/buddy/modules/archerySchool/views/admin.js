@@ -176,31 +176,39 @@ window.BuddyArcherySchoolViews = window.BuddyArcherySchoolViews || {};
     attrFields.fuente=sel(attrsForm,'Fuente de los datos','fuente',config.attributeSources||[],'registrado_por_administrador',false);
     var aa=actions(attrsForm,'Guardar medidas y características');attrsSection.appendChild(attrsForm);
 
-    function latestAttribute(personaId,type){
-      return (state.attributes||[]).filter(function(a){
+    function latestAttribute(list,personaId,type){
+      return (list||[]).filter(function(a){
         return a && String(a.personaId)===String(personaId) && a.tipo===type && !a.vigenteHasta;
       }).pop() || null;
     }
-    function attrValue(personaId,type,key){
-      var a=latestAttribute(personaId,type);return a && a[key]!=null ? a[key] : '';
+    function attrValue(list,personaId,type,key){
+      var a=latestAttribute(list,personaId,type);return a && a[key]!=null ? a[key] : '';
     }
+    function clearAttrFields(){
+      Object.keys(attrFields).forEach(function(k){if(k==='fuente')return;attrFields[k].value='';});
+      attrFields.fuente.value='registrado_por_administrador';
+    }
+    // Al seleccionar un usuario se piden sus personaatributos al backend y se
+    // pueblan los inputs para poder verlos o actualizarlos.
     function loadUserAttributes(personaId){
-      Object.keys(attrFields).forEach(function(k){attrFields[k].value='';});
-      if(!personaId)return;
-      attrFields.altura.value=attrValue(personaId,'altura','valorCm');
-      attrFields.peso.value=attrValue(personaId,'peso','valorKg');
-      attrFields.lateralidad.value=attrValue(personaId,'lateralidad','valor');
-      attrFields.genero.value=attrValue(personaId,'genero','valor');
-      attrFields.aperturaBrazos.value=attrValue(personaId,'aperturaBrazos','valorCm');
-      attrFields.aperturaArco.value=attrValue(personaId,'aperturaArco','valorCm');
-      attrFields.librajeActual.value=attrValue(personaId,'librajeActual','valorLbs');
-      attrFields.variacionBase.value=attrValue(personaId,'variacionBase','valor');
-      attrFields.posibilidadAdquisicion.value=attrValue(personaId,'posibilidadAdquisicion','valor');
-      var sources=['altura','peso','lateralidad','genero','aperturaBrazos','aperturaArco','librajeActual','variacionBase','posibilidadAdquisicion'];
-      var found=null;
-      sources.some(function(type){var a=latestAttribute(personaId,type);if(a&&a.fuente){found=a.fuente;return true;}return false;});
-      attrFields.fuente.value=found||'registrado_por_administrador';
-      aa.status.textContent='';
+      clearAttrFields();
+      if(!personaId){aa.status.textContent='Este usuario no tiene perfil de arquería todavía.';return Promise.resolve();}
+      return api.getAttributes({personaId:personaId}).then(function(list){
+        attrFields.altura.value=attrValue(list,personaId,'altura','valorCm');
+        attrFields.peso.value=attrValue(list,personaId,'peso','valorKg');
+        attrFields.lateralidad.value=attrValue(list,personaId,'lateralidad','valor');
+        attrFields.genero.value=attrValue(list,personaId,'genero','valor');
+        attrFields.aperturaBrazos.value=attrValue(list,personaId,'aperturaBrazos','valorCm');
+        attrFields.aperturaArco.value=attrValue(list,personaId,'aperturaArco','valorCm');
+        attrFields.librajeActual.value=attrValue(list,personaId,'librajeActual','valorLbs');
+        attrFields.variacionBase.value=attrValue(list,personaId,'variacionBase','valor');
+        attrFields.posibilidadAdquisicion.value=attrValue(list,personaId,'posibilidadAdquisicion','valor');
+        var sources=['altura','peso','lateralidad','genero','aperturaBrazos','aperturaArco','librajeActual','variacionBase','posibilidadAdquisicion'];
+        var found=null;
+        sources.some(function(type){var a=latestAttribute(list,personaId,type);if(a&&a.fuente){found=a.fuente;return true;}return false;});
+        attrFields.fuente.value=found||'registrado_por_administrador';
+        aa.status.textContent='';
+      }).catch(function(err){aa.status.textContent='No se pudieron cargar los datos del usuario: '+err.message;});
     }
     attrsUser.addEventListener('change',function(){var u=selectedUserById(attrsUser.value);loadUserAttributes(u?(u.personaId||null):null);});
     attrsForm.addEventListener('submit',function(e){
@@ -214,7 +222,7 @@ window.BuddyArcherySchoolViews = window.BuddyArcherySchoolViews || {};
         function save(type,key,cast){
           var field=attrFields[type],v=field.value;
           if(v===null||v==='')return;
-          var existing=latestAttribute(personaId,type);
+          var existing=latestAttribute(state.attributes,personaId,type);
           var d={personaId:personaId,tipo:type,fuente:source};
           d[key]=cast?cast(v):v;if(existing)d.id=existing.id||existing._id;
           jobs.push(api.setAttribute(d));
@@ -317,7 +325,7 @@ window.BuddyArcherySchoolViews = window.BuddyArcherySchoolViews || {};
       fillUsers();
       return Promise.all([api.getAttributes().catch(function(){return state.attributes||[];}),loadSchool(),refreshUserList()]);
     }).then(function(){
-      if(attrsUser.value) loadUserAttributes(attrsUser.value);
+      if(attrsUser.value){var u=selectedUserById(attrsUser.value);if(u)return loadUserAttributes(u.personaId||null);}
     }).catch(function(err){userGrid.innerHTML='<div class="empty">No se pudo cargar la lista de usuarios: '+err.message+'</div>';});
 
     target.appendChild(root);return root;

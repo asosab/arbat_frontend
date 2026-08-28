@@ -131,12 +131,16 @@ window.Buddy = window.Buddy || {};
     });
   }
 
-  function getAttributes() {
+  function getAttributes(options) {
     assertSite();
-    return request(CONFIG.endpoints.attributes + '?siteId=' + encodeURIComponent(siteId()), 'GET')
+    options = options || {};
+    var query = '?siteId=' + encodeURIComponent(siteId());
+    if (options.personaId) query += '&personaId=' + encodeURIComponent(options.personaId);
+    return request(CONFIG.endpoints.attributes + query, 'GET')
       .then(function (r) {
-        state.attributes = Array.isArray(r) ? r : (r && (r.attributes || r.data)) || [];
-        return state.attributes;
+        var list = Array.isArray(r) ? r : (r && (r.attributes || r.data)) || [];
+        if (!options.personaId) state.attributes = list;
+        return list;
       });
   }
   function setAttribute(data) {
