@@ -33,7 +33,10 @@ window.BuddyArcherySchoolViews = window.BuddyArcherySchoolViews || {};
       '.buddy-as-admin .toolbar input{min-width:240px}',
       '.buddy-as-admin .danger{border-color:#c88}',
       '.buddy-as-admin .buddy-as-search{grid-column:1/-1;min-width:0}',
-      '.buddy-as-admin .buddy-as-hint{opacity:.6;font-size:.85em}'
+      '.buddy-as-admin .buddy-as-hint{opacity:.6;font-size:.85em}',
+      '.buddy-as-admin .buddy-as-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:2px}',
+      '.buddy-as-admin .buddy-as-tab-btn{padding:9px 14px;border:1px solid #ccc;border-radius:8px;background:#fff;cursor:pointer;font:inherit}',
+      '.buddy-as-admin .buddy-as-tab-btn.active{background:#222;color:#fff;border-color:#222}'
     ].join('');
     document.head.appendChild(s);
   }
@@ -115,6 +118,7 @@ window.BuddyArcherySchoolViews = window.BuddyArcherySchoolViews || {};
     var root=document.createElement('div');root.className='buddy-as-admin';
     var h=document.createElement('h2');h.textContent='Administración de '+(config.appName||'🏹 ArcherySchool');root.appendChild(h);
     var hint=document.createElement('p');hint.className='hint';hint.textContent='Gestiona los usuarios registrados, sus atributos de arquería y la asignación de equipos.';root.appendChild(hint);
+    var tabNav=document.createElement('div');tabNav.className='buddy-as-tabs';root.appendChild(tabNav);
 
     var users=[];
     var schoolCompany=config.schoolOwnerCompany||config.schoolName||(config.siteId?config.siteId+'.com':'escuela');
@@ -309,7 +313,7 @@ window.BuddyArcherySchoolViews = window.BuddyArcherySchoolViews || {};
         return fields.some(function(f){return f.toLowerCase().indexOf(q)!==-1;});
       });
       if(!rows.length){userGrid.innerHTML='<div class="empty">No hay usuarios que coincidan.</div>';return;}
-      rows.forEach(function(row){var a=document.createElement('article');a.className='user-card';var title=document.createElement('h4');title.textContent=row.name;a.appendChild(title);var meta=document.createElement('div');meta.className='hint';var metaParts=['ID: '+row.id];if(row.user&&row.user.email)metaParts.push(row.user.email);meta.textContent=metaParts.join(' · ');a.appendChild(meta);var ul=document.createElement('ul');ul.className='equipment-list';if(!row.equipment.length){var none=document.createElement('li');none.textContent='Sin equipos asignados.';ul.appendChild(none);}else row.equipment.forEach(function(e){var li=document.createElement('li');li.textContent=e.label+' — '+e.relation;ul.appendChild(li);});a.appendChild(ul);var acts=document.createElement('div');acts.className='actions';var edit=document.createElement('button');edit.type='button';edit.textContent='Administrar equipos';edit.onclick=function(){ownerS.value='persona:'+row.id;loadOwner(findOwner(ownerS.value));eqSection.scrollIntoView({behavior:'smooth',block:'start'});};var ficha=document.createElement('button');ficha.type='button';ficha.textContent='Ver ficha';ficha.onclick=function(){openUserSheet(row);};acts.appendChild(edit);acts.appendChild(ficha);a.appendChild(acts);userGrid.appendChild(a);});
+      rows.forEach(function(row){var a=document.createElement('article');a.className='user-card';var title=document.createElement('h4');title.textContent=row.name;a.appendChild(title);var meta=document.createElement('div');meta.className='hint';var metaParts=['ID: '+row.id];if(row.user&&row.user.email)metaParts.push(row.user.email);meta.textContent=metaParts.join(' · ');a.appendChild(meta);var ul=document.createElement('ul');ul.className='equipment-list';if(!row.equipment.length){var none=document.createElement('li');none.textContent='Sin equipos asignados.';ul.appendChild(none);}else row.equipment.forEach(function(e){var li=document.createElement('li');li.textContent=e.label+' — '+e.relation;ul.appendChild(li);});a.appendChild(ul);var acts=document.createElement('div');acts.className='actions';var edit=document.createElement('button');edit.type='button';edit.textContent='Administrar equipos';edit.onclick=function(){ownerS.value='persona:'+row.id;loadOwner(findOwner(ownerS.value));switchTab('asignacion');};var ficha=document.createElement('button');ficha.type='button';ficha.textContent='Ver ficha';ficha.onclick=function(){openUserSheet(row);};acts.appendChild(edit);acts.appendChild(ficha);a.appendChild(acts);userGrid.appendChild(a);});
     }
     function refreshUserList(){return api.getUsers().then(function(list){users=Array.isArray(list)?list:[];return Promise.all(users.map(function(u){var id=userId(u);if(!id)return {user:u,items:[]};return api.getEquipment({personaId:id}).then(function(eq){eq=eq||[];return Promise.all(eq.map(function(item){return api.getEquipmentRelations(equipmentId(item)).then(function(rels){return {item:item,rels:rels||[]};});})).then(function(items){return {user:u,items:items};});});}));}).then(function(rows){userRows=rows.map(function(r){var id=userId(r.user);return {id:id,name:userName(r.user),user:r.user,equipment:(r.items||[]).map(function(entry){var item=entry.item,ir=(entry.rels||[]).filter(function(x){return !x.vigenteHasta;});var own=ir.find(function(x){return x.tipo==='propietario'&&x.parteTipo==='persona'&&String(x.personaId)===String(id);});var loan=ir.find(function(x){return x.tipo==='prestamo'&&x.parteTipo==='persona'&&String(x.personaId)===String(id);});return {label:equipmentLabel(item),relation:loan?relationText(loan):(own?relationText(own):'Asignado')};})};});renderUserRows();});}
     search.addEventListener('input',renderUserRows);reload.addEventListener('click',function(){reload.disabled=true;refreshUserList().finally(function(){reload.disabled=false;});});
@@ -337,6 +341,22 @@ window.BuddyArcherySchoolViews = window.BuddyArcherySchoolViews || {};
     }).then(function(){
       if(attrsUser.value){var u=selectedUserById(attrsUser.value);if(u)return loadUserAttributes(u.personaId||null);}
     }).catch(function(err){userGrid.innerHTML='<div class="empty">No se pudo cargar la lista de usuarios: '+err.message+'</div>';});
+
+    /* PESTAÑAS: una sola sección visible a la vez */
+    var tabs=[
+      {id:'medidas',label:'Medidas y características',section:attrsSection},
+      {id:'equipos-escuela',label:'Equipos de la escuela',section:schoolSection},
+      {id:'asignacion',label:'Asignación de equipos',section:eqSection},
+      {id:'usuarios',label:'Usuarios registrados',section:listSection}
+    ];
+    function switchTab(id){
+      tabs.forEach(function(t){var isActive=t.id===id;t.section.hidden=!isActive;t.btn.classList.toggle('active',isActive);});
+    }
+    tabs.forEach(function(t){
+      var b=document.createElement('button');b.type='button';b.className='buddy-as-tab-btn';b.textContent=t.label;
+      b.onclick=function(){switchTab(t.id);};t.btn=b;tabNav.appendChild(b);
+    });
+    switchTab(tabs[0].id);
 
     target.appendChild(root);return root;
   };
