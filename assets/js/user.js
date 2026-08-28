@@ -90,7 +90,7 @@
   function renderAvatar(avatar, user) {
     if (!avatar) return;
 
-    var photoUrl = resolveMediaUrl(user && typeof user.photoUrl === 'string' ? user.photoUrl : '');
+    var photoUrl = resolveMediaUrl(user ? (user.photoUrl || user.fotoUrl || (user.fotoPerfil && (user.fotoPerfil.url || user.fotoPerfil.archivo))) : '');
     var hasPhoto = photoUrl !== '';
     var displayName = user ? (user.name || user.firstName || user.email || 'Usuario') : 'Usuario';
 
@@ -233,6 +233,8 @@
     window.addEventListener('buddy:auth-user-updated', function (event) {
       render((event.detail || {}).user || getUser());
     });
+    window.addEventListener('buddy:user-loaded', renderFromEvent);
+    window.addEventListener('buddy:user-updated', renderFromEvent);
     window.addEventListener('buddy:auth-verified', renderFromEvent);
     window.addEventListener('buddy:auth-logout', function () {
       render(null);

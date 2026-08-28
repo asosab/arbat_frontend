@@ -244,6 +244,20 @@ window.Buddy = window.Buddy || {};
   }
 
   /*
+   * La foto de perfil puede llegar como ruta relativa (p. ej.
+   * "buddy/avatar/<hash>.webp"). Se completa contra apiBaseUrl para que no se
+   * resuelva contra el origen del sitio (404) y expuesta como photoUrl/fotoUrl
+   * absoluta. URLs absolutas y data/blob URIs se conservan tal cual.
+   */
+  function resolveMediaUrl(url) {
+    if (url == null || String(url).trim() === '') return null;
+    var value = String(url).trim();
+    if (/^(?:https?:|data:|blob:)/i.test(value)) return value;
+    var base = String(CONFIG.apiBaseUrl || '').replace(/\/+$/, '');
+    return base ? base + '/' + value.replace(/^\/+/, '') : value;
+  }
+
+  /*
    * Auth necesita una representación suficientemente rica del usuario para
    * eventos de sesión y bienvenida, pero no decide qué campos del perfil son
    * obligatorios. Esa responsabilidad pertenece al módulo User.
@@ -256,6 +270,10 @@ window.Buddy = window.Buddy || {};
     var user = data.user;
     if (!user || typeof user !== 'object') return null;
 
+    var fotoUrl = user.fotoUrl != null && user.fotoUrl !== '' ? user.fotoUrl
+      : (user.fotoPerfil && (user.fotoPerfil.url || user.fotoPerfil.archivo))
+        ? (user.fotoPerfil.url || user.fotoPerfil.archivo) : null;
+
     var normalized = Object.assign({}, user);
     normalized.id = user.id != null ? user.id : (user._id != null ? user._id : null);
     normalized.email = user.email || null;
@@ -265,6 +283,8 @@ window.Buddy = window.Buddy || {};
     normalized.phone = user.phone || user.telefono || user.mobile || user.celular || user.whatsapp || null;
     normalized.locale = user.locale || user.idioma || null;
     normalized.createdAt = user.createdAt || user.creadoEn || null;
+    normalized.fotoUrl = resolveMediaUrl(fotoUrl);
+    normalized.photoUrl = resolveMediaUrl(user.photoUrl || fotoUrl);
     return normalized;
   }
 
