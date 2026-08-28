@@ -117,7 +117,7 @@ window.BuddyArcherySchoolViews = window.BuddyArcherySchoolViews || {};
     var hint=document.createElement('p');hint.className='hint';hint.textContent='Gestiona los usuarios registrados, sus atributos de arquería y la asignación de equipos.';root.appendChild(hint);
 
     var users=[];
-    var schoolCompany=config.schoolOwnerCompany||config.schoolName||config.siteId||'escuela';
+    var schoolCompany=config.schoolOwnerCompany||config.schoolName||(config.siteId?config.siteId+'.com':'escuela');
     var schoolOwner={type:'empresa',value:schoolCompany,label:'Escuela · '+schoolCompany};
     var selectedOwner=null,selectedEquipment=null,ownerEquipment=[];
 
