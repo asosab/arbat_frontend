@@ -68,7 +68,7 @@ window.BuddyArcherySchoolViews = window.BuddyArcherySchoolViews || {};
     var target=context.target,api=context.api,state=context.state||{},config=context.config||{};
     target.innerHTML='';
     var root=document.createElement('div');root.className='buddy-as-admin';
-    var h=document.createElement('h2');h.textContent='Administración de ArcherySchool';root.appendChild(h);
+    var h=document.createElement('h2');h.textContent='Administración de '+(config.appName||'🏹 ArcherySchool');root.appendChild(h);
     var hint=document.createElement('p');hint.className='hint';hint.textContent='Gestiona los usuarios registrados, sus atributos de arquería y la asignación de equipos.';root.appendChild(hint);
 
     var users=[];

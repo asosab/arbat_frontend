@@ -60,8 +60,8 @@ window.BuddyArcherySchoolViews = window.BuddyArcherySchoolViews || {};
     target.innerHTML='';
     var root=document.createElement('div');root.className='buddy-as-student';
 
-    var title=document.createElement('h2');title.textContent=config.schoolName||'ArcherySchool';root.appendChild(title);
-    var intro=document.createElement('p');intro.className='hint';intro.textContent='Aquí puedes consultar y actualizar los datos de ArcherySchool que te corresponde administrar, así como tus equipos.';root.appendChild(intro);
+    var title=document.createElement('h2');title.textContent=config.appName||config.schoolName||'🏹 ArcherySchool';root.appendChild(title);
+    var intro=document.createElement('p');intro.className='hint';intro.textContent='Aquí puedes consultar y actualizar los datos de '+(config.appName||'ArcherySchool')+' que te corresponde administrar, así como tus equipos.';root.appendChild(intro);
 
     /* CONDICIONES FÍSICAS PERMANENTES */
     var health=document.createElement('section');var hh=document.createElement('h3');hh.textContent='Condiciones físicas permanentes';health.appendChild(hh);

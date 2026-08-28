@@ -33,6 +33,10 @@ window.Buddy = window.Buddy || {};
   function assertSite() {
     if (!siteId()) throw new Error('ArcherySchool requiere BuddyConfig.app.siteId.');
   }
+  function appName() {
+    var id = siteId() || 'ArcherySchool';
+    return '🏹 ' + id;
+  }
   function mockSeed() {
     var mock = CONFIG.mock || {};
     return {
@@ -377,7 +381,7 @@ window.Buddy = window.Buddy || {};
       return view({
         target: options.target,
         state: state,
-        config: CONFIG,
+        config: Object.assign({}, CONFIG, { appName: appName() }),
         api: window.Buddy.archerySchool,
         context: options.context || {},
         role: options.role || 'student'
@@ -387,6 +391,7 @@ window.Buddy = window.Buddy || {};
 
   window.Buddy.archerySchool = {
     config: CONFIG,
+    appName: appName,
     getUsers: getUsers,
     getProfile: getProfile, createProfile: createProfile, updateProfile: updateProfile,
     getAttributes: getAttributes, setAttribute: setAttribute, getAttributeHistory: getAttributeHistory,

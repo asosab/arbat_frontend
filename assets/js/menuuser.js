@@ -23,6 +23,25 @@
   var EDIT_MODAL_ID = 'user-toolkit-edit-modal';
   var EDIT_MODAL_STYLE_ID = 'user-toolkit-edit-modal-style';
 
+  function moduleActive(moduleId, configName) {
+    var buddy = window.Buddy;
+    if (buddy && buddy.modules && typeof buddy.modules.isActive === 'function') {
+      return buddy.modules.isActive(moduleId);
+    }
+    var forced = configName && window[configName];
+    return !(forced && forced.enabled === false);
+  }
+
+  function appId() {
+    if (window.Buddy && window.Buddy.archerySchool &&
+        typeof window.Buddy.archerySchool.appName === 'function') {
+      return window.Buddy.archerySchool.appName();
+    }
+    var siteId = window.BuddyConfig && window.BuddyConfig.app && window.BuddyConfig.app.siteId;
+    var id = siteId ? String(siteId) : 'ArcherySchool';
+    return '🏹 ' + id;
+  }
+
   function crearMenu() {
     var menu = document.createElement('div');
     menu.className = 'user-toolkit-menu';
@@ -36,7 +55,7 @@
         '<li role="none" hidden><button type="button" class="user-toolkit-menu__item" id="' + ARCHERY_STUDENT_ID + '" role="menuitem">🏹 Mis datos de estudiante</button></li>' +
         '<li role="none" hidden><button type="button" class="user-toolkit-menu__item" id="' + ADMIN_ID + '" role="menuitem">admin</button></li>' +
         '<li role="none" hidden><button type="button" class="user-toolkit-menu__item" id="' + DASHBOARD_ID + '" role="menuitem">dashboard</button></li>' +
-        '<li role="none" hidden><button type="button" class="user-toolkit-menu__item" id="' + ADMIN_ARCHERY_ID + '" role="menuitem">🏹 ArcherySchool (admin)</button></li>' +
+        '<li role="none" hidden><button type="button" class="user-toolkit-menu__item" id="' + ADMIN_ARCHERY_ID + '" role="menuitem">' + appId() + ' (admin)</button></li>' +
       '</ul>' +
       '<div class="user-toolkit-menu__pie">' +
         '<button type="button" class="user-toolkit-menu__salir" id="' + SALIR_ID + '" role="menuitem">Cerrar sesión</button>' +
@@ -199,22 +218,25 @@
 
     function configurarUsuario() {
       var user = window.Buddy && window.Buddy.user;
-      setVisible(USER_PROFILE_ID, !!(user && typeof user.render === 'function'));
+      setVisible(USER_PROFILE_ID, moduleActive('user', 'BuddyUserConfig') &&
+        !!(user && typeof user.render === 'function'));
     }
 
     function configurarAdmin() {
       var visible = isAdmin();
+      var archeryActive = moduleActive('archerySchool', 'BuddyArcherySchoolConfig');
 
-      setVisible(ADMIN_ID, visible);
-      setVisible(DASHBOARD_ID, visible);
-      setVisible(ADMIN_ARCHERY_ID, visible);
+      setVisible(ADMIN_ID, visible && moduleActive('admin', 'BuddyAdminConfig'));
+      setVisible(DASHBOARD_ID, visible && moduleActive('dashboard', 'BuddyDashboardConfig'));
+      setVisible(ADMIN_ARCHERY_ID, visible && archeryActive);
     }
 
     function configurarEstudiante() {
+      var active = moduleActive('archerySchool', 'BuddyArcherySchoolConfig');
       setVisible(ARCHERY_STUDENT_ID, false);
 
       var archerySchool = window.Buddy && window.Buddy.archerySchool;
-      if (!archerySchool || typeof archerySchool.getEnrollment !== 'function') return;
+      if (!active || !archerySchool || typeof archerySchool.getEnrollment !== 'function') return;
 
       Promise.resolve(archerySchool.getEnrollment()).then(function (enrollment) {
         // La existencia de una inscripción determina que el usuario es
@@ -335,7 +357,7 @@
           return;
         }
 
-        openEditForm('archerySchool', 'admin', 'ArcherySchool (admin)', { role: 'admin' })
+        openEditForm('archerySchool', 'admin', appId() + ' (admin)', { role: 'admin' })
           .catch(function (error) {
             if (window.BuddyConfig && window.BuddyConfig.debugMode === true) {
               console.error('[Buddy] No se pudo abrir el formulario ArcherySchool admin.', error);
