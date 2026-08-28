@@ -183,7 +183,9 @@ window.Buddy = window.Buddy || {};
     if (equipoId) query += '&equipoId=' + encodeURIComponent(equipoId);
     if (options.personaId) query += '&personaId=' + encodeURIComponent(options.personaId);
     if (options.empresa) query += '&empresa=' + encodeURIComponent(options.empresa);
-    return request(CONFIG.endpoints.equipmentRelations + query, 'GET');
+    return request(CONFIG.endpoints.equipmentRelations + query, 'GET').then(function (r) {
+      return Array.isArray(r) ? r : (r && (r.relations || r.data)) || [];
+    });
   }
   function createEquipmentRelation(data) {
     assertSite();
