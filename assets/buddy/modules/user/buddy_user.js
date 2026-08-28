@@ -102,10 +102,29 @@ window.Buddy = window.Buddy || {};
     return telemetry().request(CONFIG.apiService || 'user', path, options);
   }
 
+  /*
+   * El servidor puede devolver fotoUrl como ruta relativa (p. ej.
+   * "buddy/avatar/<hash>.webp"). Resolverla contra apiBaseUrl evita que el
+   * navegador la interprete contra el origen del sitio (404) en vez de contra
+   * api.statetty.com. Las URLs absolutas (http/https) y los data/blob URIs
+   * se conservan tal cual.
+   */
+  function resolveMediaUrl(url) {
+    if (url == null || String(url).trim() === '') return null;
+    var value = String(url).trim();
+    if (/^(?:https?:|data:|blob:)/i.test(value)) return value;
+    var base = String(CONFIG.apiBaseUrl || '').replace(/\/+$/, '');
+    return base ? base + '/' + value.replace(/^\/+/, '') : value;
+  }
+
   function normalizeUser(data) {
     if (!data || typeof data !== 'object') return null;
     var user = data.user || data.data || data;
     if (!user || typeof user !== 'object') return null;
+
+    var fotoUrl = user.fotoUrl != null && user.fotoUrl !== '' ? user.fotoUrl
+      : (user.fotoPerfil && (user.fotoPerfil.url || user.fotoPerfil.archivo))
+        ? (user.fotoPerfil.url || user.fotoPerfil.archivo) : null;
 
     var normalized = Object.assign({}, user);
     normalized.id = user.id != null ? user.id : (user._id != null ? user._id : null);
@@ -115,9 +134,7 @@ window.Buddy = window.Buddy || {};
     normalized.lastName = user.lastName || user.apellido || user.apellidos || null;
     normalized.phone = user.phone || user.telefono || user.mobile || user.celular || user.whatsapp || null;
     normalized.locale = user.locale || user.idioma || null;
-    normalized.fotoUrl = user.fotoUrl != null && user.fotoUrl !== '' ? user.fotoUrl
-      : (user.fotoPerfil && (user.fotoPerfil.url || user.fotoPerfil.archivo))
-        ? (user.fotoPerfil.url || user.fotoPerfil.archivo) : null;
+    normalized.fotoUrl = resolveMediaUrl(fotoUrl);
     return normalized;
   }
 
@@ -317,7 +334,7 @@ window.Buddy = window.Buddy || {};
   }
 
   function photoUrl(user) {
-    return user && user.fotoUrl != null && user.fotoUrl !== '' ? user.fotoUrl : null;
+    return resolveMediaUrl(user && user.fotoUrl != null && user.fotoUrl !== '' ? user.fotoUrl : null);
   }
 
   function avatar(user, className) {

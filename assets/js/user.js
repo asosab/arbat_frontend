@@ -46,6 +46,22 @@
   }
 
   /**
+   * El servidor puede devolver photoUrl/fotoUrl como ruta relativa
+   * (p. ej. "buddy/avatar/<hash>.webp"). Para que el avatar no se resuelva
+   * contra el origen del sitio (404), se completa contra apiBaseUrl
+   * (api.statetty.com). URLs absolutas y data/blob URIs se conservan igual.
+   */
+  function resolveMediaUrl(url) {
+    if (!url || typeof url !== 'string') return '';
+    var value = url.trim();
+    if (!value) return '';
+    if (/^(?:https?:|data:|blob:)/i.test(value)) return value;
+    var config = window.BuddyUserConfig || {};
+    var base = String(config.apiBaseUrl || '').replace(/\/+$/, '');
+    return base ? base + '/' + value.replace(/^\/+/, '') : value;
+  }
+
+  /**
    * El HTML existente puede tener un <img id="nav-user-avatar">.
    * Lo convertimos a un elemento flexible para poder mostrar las iniciales
    * o la fotografía de perfil recibida por Buddy Auth.
@@ -74,9 +90,7 @@
   function renderAvatar(avatar, user) {
     if (!avatar) return;
 
-    var photoUrl = user && typeof user.photoUrl === 'string'
-      ? user.photoUrl.trim()
-      : '';
+    var photoUrl = resolveMediaUrl(user && typeof user.photoUrl === 'string' ? user.photoUrl : '');
     var hasPhoto = photoUrl !== '';
     var displayName = user ? (user.name || user.firstName || user.email || 'Usuario') : 'Usuario';
 
