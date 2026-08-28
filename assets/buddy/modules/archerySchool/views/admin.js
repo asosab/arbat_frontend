@@ -122,6 +122,18 @@ window.BuddyArcherySchoolViews = window.BuddyArcherySchoolViews || {};
     var selectedOwner=null,selectedEquipment=null,ownerEquipment=[];
 
     function userById(id){return users.find(function(u){return String(userId(u))===String(id);})||null;}
+    // Identifica en la lista de usuarios al que corresponde `attrsUser.value`.
+    // El selector de medidas usa el buddyUserId (único siempre) como valor, no el
+    // personaId (que es null para usuarios sin perfil de arquería).
+    function selectedUserById(v){v=String(v||'');if(!v)return null;return users.find(function(u){return String(u.buddyUserId)===v||String(userId(u))===v;})||null;}
+    // Devuelve un personaId válido (perfil de arquería) para el usuario; si no
+    // tiene perfil, lo crea vía API antes de guardar las medidas.
+    function resolvePersonaId(user){
+      if(!user)return Promise.resolve(null);
+      if(user.personaId)return Promise.resolve(user.personaId);
+      return api.createProfileForUser({buddyUserId:user.buddyUserId,nombreCompleto:user.nombreCompleto||user.name})
+        .then(function(profile){var id=profile&&(profile._id||profile.id);return id||null;});
+    }
     function ownerLabel(owner){return owner&&owner.label||'';}
     function buildOwnerOptions(){
       var owners=[schoolOwner],seen={};seen[ownerKey(schoolOwner)]=true;
@@ -190,28 +202,32 @@ window.BuddyArcherySchoolViews = window.BuddyArcherySchoolViews || {};
       attrFields.fuente.value=found||'registrado_por_administrador';
       aa.status.textContent='';
     }
-    attrsUser.addEventListener('change',function(){loadUserAttributes(attrsUser.value);});
+    attrsUser.addEventListener('change',function(){var u=selectedUserById(attrsUser.value);loadUserAttributes(u?(u.personaId||null):null);});
     attrsForm.addEventListener('submit',function(e){
       e.preventDefault();
-      var personaId=attrsUser.value;if(!personaId){aa.status.textContent='Selecciona un usuario.';return;}
+      var user=selectedUserById(attrsUser.value);
+      if(!user){aa.status.textContent='Selecciona un usuario.';return;}
       aa.button.disabled=true;aa.status.textContent='Guardando…';
-      var source=attrFields.fuente.value||'registrado_por_administrador',jobs=[];
-      function save(type,key,cast){
-        var field=attrFields[type],v=field.value;
-        if(v===null||v==='')return;
-        var existing=latestAttribute(personaId,type);
-        var d={personaId:personaId,tipo:type,fuente:source};
-        d[key]=cast?cast(v):v;if(existing)d.id=existing.id||existing._id;
-        jobs.push(api.setAttribute(d));
-      }
-      save('altura','valorCm',Number);save('peso','valorKg',Number);save('lateralidad','valor');save('genero','valor');
-      save('aperturaBrazos','valorCm',Number);save('aperturaArco','valorCm',Number);save('librajeActual','valorLbs',Number);
-      save('variacionBase','valor');save('posibilidadAdquisicion','valor');
-      Promise.all(jobs).then(function(results){
-        if(results.length){
-          results.forEach(function(r){var item=r&&r.data;if(!item)return;var idx=(state.attributes||[]).findIndex(function(a){return String(a.id||a._id)===String(item.id||item._id);});if(idx>=0)state.attributes[idx]=item;else state.attributes.push(item);});
+      resolvePersonaId(user).then(function(personaId){
+        if(!personaId){throw new Error('No se pudo obtener/crear el perfil de arquería del usuario.');}
+        var source=attrFields.fuente.value||'registrado_por_administrador',jobs=[];
+        function save(type,key,cast){
+          var field=attrFields[type],v=field.value;
+          if(v===null||v==='')return;
+          var existing=latestAttribute(personaId,type);
+          var d={personaId:personaId,tipo:type,fuente:source};
+          d[key]=cast?cast(v):v;if(existing)d.id=existing.id||existing._id;
+          jobs.push(api.setAttribute(d));
         }
-        aa.status.textContent='Medidas y características guardadas.';
+        save('altura','valorCm',Number);save('peso','valorKg',Number);save('lateralidad','valor');save('genero','valor');
+        save('aperturaBrazos','valorCm',Number);save('aperturaArco','valorCm',Number);save('librajeActual','valorLbs',Number);
+        save('variacionBase','valor');save('posibilidadAdquisicion','valor');
+        return Promise.all(jobs).then(function(results){
+          if(results.length){
+            results.forEach(function(r){var item=(r&&(r.attribute||r.data))||r;if(!item)return;var idx=(state.attributes||[]).findIndex(function(a){return String(a.id||a._id)===String(item.id||item._id);});if(idx>=0)state.attributes[idx]=item;else state.attributes.push(item);});
+          }
+          aa.status.textContent='Medidas y características guardadas.';
+        });
       }).catch(function(err){aa.status.textContent=err.message;}).finally(function(){aa.button.disabled=false;});
     });
     root.appendChild(attrsSection);
@@ -289,8 +305,9 @@ window.BuddyArcherySchoolViews = window.BuddyArcherySchoolViews || {};
 
     function userMapper(u){return {value:String(userId(u)),label:userName(u),keywords:userKeywords(u)};}
     function ownerMapper(o){if(o.type==='persona'){return {value:ownerKey(o),label:ownerLabel(o),keywords:(o.user&&userKeywords(o.user))||[ownerLabel(o)]};}return {value:ownerKey(o),label:ownerLabel(o),keywords:[ownerLabel(o),String(o.value||'')]};}
+    function attrsUserMapper(u){return {value:String(u.buddyUserId),label:userName(u),keywords:userKeywords(u)};}
     function fillUsers(){
-      attrsUser.setItems(users,userMapper);
+      attrsUser.setItems(users,attrsUserMapper);
       recS.setItems(users,userMapper);
       ownerS.setItems([schoolOwner].concat(users.map(function(u){return {type:'persona',value:userId(u),user:u,label:userName(u)};})),ownerMapper);
     }

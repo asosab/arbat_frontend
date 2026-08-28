@@ -115,6 +115,21 @@ window.Buddy = window.Buddy || {};
       return r;
     });
   }
+  // Admin: garantiza un perfil de arquería para un usuario objetivo (BuddyUser).
+  // Si no existe, lo crea con nombreCompleto/siteId; devuelve el perfil (con _id).
+  function createProfileForUser(data) {
+    assertSite();
+    var payload = {
+      buddyUserId: data.buddyUserId,
+      nombreCompleto: data.nombreCompleto || data.name || '',
+      siteId: data.siteId || siteId()
+    };
+    return request(CONFIG.endpoints.profile, 'POST', payload).then(function (r) {
+      var profile = r && (r.profile || r.data || r);
+      if (profile) state.profile = profile;
+      return profile || r;
+    });
+  }
 
   function getAttributes() {
     assertSite();
@@ -233,6 +248,7 @@ window.Buddy = window.Buddy || {};
     appName: appName,
     getUsers: getUsers,
     getProfile: getProfile, createProfile: createProfile, updateProfile: updateProfile,
+    createProfileForUser: createProfileForUser,
     getAttributes: getAttributes, setAttribute: setAttribute, getAttributeHistory: getAttributeHistory,
     getEquipment: getEquipment, createEquipment: createEquipment, updateEquipment: updateEquipment,
     getEquipmentRelations: getEquipmentRelations, createEquipmentRelation: createEquipmentRelation,
