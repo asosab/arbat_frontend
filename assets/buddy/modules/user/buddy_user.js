@@ -10,61 +10,13 @@ window.Buddy = window.Buddy || {};
   'use strict';
 
   var CONFIG = window.BuddyUserConfig || {};
-  var state = { user: null, loading: false, saving: false, profilePrompted: false, mock: false };
+  var state = { user: null, loading: false, saving: false, profilePrompted: false };
 
   function debugLog() {
     if (!window.BuddyConfig || (window.BuddyConfig.debug !== true && window.BuddyConfig.debugMode !== true)) return;
     var args = Array.prototype.slice.call(arguments);
     args.unshift('[Buddy User]');
     console.log.apply(console, args);
-  }
-
-  function mockEnabled() {
-    return !!(CONFIG.mock && CONFIG.mock.enabled === true);
-  }
-
-  function mockStorageKey() {
-    return (CONFIG.mock && CONFIG.mock.storageKey) || 'buddy.user.mock';
-  }
-
-  function clone(value) {
-    return value == null ? value : JSON.parse(JSON.stringify(value));
-  }
-
-  function mockLoadUser() {
-    var mock = CONFIG.mock || {};
-    var user = clone(mock.user || {});
-    if (mock.persist !== false) {
-      try {
-        var saved = window.localStorage.getItem(mockStorageKey());
-        if (saved) user = Object.assign(user, JSON.parse(saved));
-      } catch (e) {}
-    }
-    return normalizeUser(user);
-  }
-
-  function mockSaveUser(user) {
-    if (!user) return;
-    if (CONFIG.mock && CONFIG.mock.persist !== false) {
-      try { window.localStorage.setItem(mockStorageKey(), JSON.stringify(user)); } catch (e) {}
-    }
-  }
-
-  function mockResponse(user) {
-    return { ok: true, mock: true, user: clone(user) };
-  }
-
-  function resetMock() {
-    state.user = mockLoadUser();
-    state.profilePrompted = false;
-    state.mock = true;
-    mockSaveUser(state.user);
-    emitEvent('buddy:user-loaded', {
-      user: state.user,
-      missingFields: missingProfileFields(state.user),
-      mock: true
-    });
-    return state.user;
   }
 
   function telemetry() {
@@ -91,7 +43,6 @@ window.Buddy = window.Buddy || {};
 
   function request(path, options) {
     if (CONFIG.enabled === false) return Promise.reject(new Error('Servicio User deshabilitado.'));
-    if (mockEnabled()) return Promise.resolve(mockResponse(state.user || mockLoadUser()));
     var accessToken = token();
     if (!accessToken) return Promise.reject(new Error('No hay token de autenticación.'));
     configureApi();
@@ -152,11 +103,6 @@ window.Buddy = window.Buddy || {};
   }
 
   function getCurrent() {
-    if (mockEnabled()) {
-      if (state.loading) return Promise.resolve(state.user);
-      state.loading = true;
-      return Promise.resolve(resetMock()).finally(function () { state.loading = false; });
-    }
     if (state.loading) return Promise.resolve(state.user);
     state.loading = true;
     return request(CONFIG.endpoints.current, { method: 'GET' }).then(function (response) {
@@ -263,15 +209,6 @@ window.Buddy = window.Buddy || {};
 
   function updateProfile(data) {
     data = data || {};
-    if (mockEnabled()) {
-      var mockUser = Object.assign({}, state.user || mockLoadUser(), data);
-      if (mockUser.phone == null && mockUser.whatsapp != null) mockUser.phone = mockUser.whatsapp;
-      if (mockUser.firstName == null && mockUser.name != null) mockUser.firstName = mockUser.name;
-      state.user = normalizeUser(mockUser);
-      state.mock = true;
-      mockSaveUser(state.user);
-      return Promise.resolve(mockResponse(state.user));
-    }
     var params = new URLSearchParams();
     var normalizedData = Object.assign({}, data);
     if (normalizedData.phone == null && normalizedData.whatsapp != null) {
@@ -300,18 +237,6 @@ window.Buddy = window.Buddy || {};
 
   function uploadPhoto(file) {
     if (!file) return Promise.reject(new Error('Selecciona una imagen.'));
-    if (mockEnabled()) {
-      return new Promise(function (resolve, reject) {
-        var reader = new FileReader();
-        reader.onload = function () {
-          state.user = Object.assign({}, state.user || {}, { fotoUrl: reader.result });
-          mockSaveUser(state.user);
-          resolve(mockResponse(state.user));
-        };
-        reader.onerror = function () { reject(new Error('No se pudo leer la imagen en modo mock.')); };
-        reader.readAsDataURL(file);
-      });
-    }
     var form = new FormData();
     form.append('fotoPerfil', file);
     return request(CONFIG.endpoints.uploadPhoto, {
@@ -415,25 +340,14 @@ window.Buddy = window.Buddy || {};
     update: updateProfile,
     updateProfile: updateProfile,
     uploadPhoto: uploadPhoto,
-    mock: {
-      enabled: mockEnabled,
-      reset: function () { if (!mockEnabled()) throw new Error('Activa BuddyUserConfig.mock.enabled para usar User mock.'); return resetMock(); },
-      save: mockSaveUser
-    },
     avatar: avatar,
     render: render,
     renderProfile: function (container, options) { return render(Object.assign({}, options || {}, { target: container, view: 'profile' })); },
     renderAdmin: function (container, options) { return render(Object.assign({}, options || {}, { target: container, view: 'admin' })); },
-    getState: function () { return { user: state.user, loading: state.loading, saving: state.saving, profilePrompted: state.profilePrompted, mock: state.mock, missingFields: missingProfileFields(state.user) }; }
+    getState: function () { return { user: state.user, loading: state.loading, saving: state.saving, profilePrompted: state.profilePrompted, missingFields: missingProfileFields(state.user) }; }
   };
 
   function handleAuthenticatedState() {
-    if (mockEnabled()) {
-      getCurrent().then(function (user) {
-        if (user && missingProfileFields(user).length) requestProfileCompletion();
-      }).catch(function (error) { debugLog('Error en User mock.', error); });
-      return;
-    }
     if (!window.Buddy.auth ||
         typeof window.Buddy.auth.isAuthenticated !== 'function' ||
         !window.Buddy.auth.isAuthenticated()) {
@@ -458,10 +372,6 @@ window.Buddy = window.Buddy || {};
       }
       debugLog('No se pudo cargar el usuario actual.', error);
     });
-  }
-
-  if (mockEnabled() && (!CONFIG.mock || CONFIG.mock.autoInitialize !== false)) {
-    resetMock();
   }
 
   window.addEventListener('buddy:auth-state-changed', handleAuthenticatedState);

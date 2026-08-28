@@ -1,31 +1,10 @@
 /** Buddy User — configuración universal del perfil Buddy. */
 window.BuddyUserConfig = window.BuddyUserConfig || {};
-var BUDDY_MOCK_QUERY = typeof window !== 'undefined' && /(?:^|[?&])buddyMock=1(?:&|$)/.test(window.location.search || '');
 window.BuddyUserConfig = Object.assign({
   enabled: true,
   localization: { enabled: false },
   apiBaseUrl: 'https://api.statetty.com',
   apiService: 'user',
-  /*
-   * Mock local para diseñar/probar el formulario sin backend.
-   * Desactivado por defecto: mock.enabled=false mantiene el comportamiento real.
-   */
-  mock: {
-    enabled: BUDDY_MOCK_QUERY ? true : false,
-    autoInitialize: true,
-    persist: true,
-    storageKey: 'buddy.user.mock',
-    user: {
-      id: 'mock-user-001',
-      email: 'alejandro@example.com',
-      firstName: 'Alejandro',
-      lastName: 'Sosa',
-      name: 'Alejandro Sosa',
-      phone: '+591 70000000',
-      locale: 'es',
-      condicionesFisicasPermanentes: []
-    }
-  },
   endpoints: {
     current: '/api/buddy/user',
     update: '/api/buddy/user',

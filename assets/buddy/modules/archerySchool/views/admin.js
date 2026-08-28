@@ -31,7 +31,9 @@ window.BuddyArcherySchoolViews = window.BuddyArcherySchoolViews || {};
       '.buddy-as-admin .pill{display:inline-block;padding:3px 7px;border-radius:999px;background:#f0f0f0;font-size:.85em}',
       '.buddy-as-admin .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}',
       '.buddy-as-admin .toolbar input{min-width:240px}',
-      '.buddy-as-admin .danger{border-color:#c88}'
+      '.buddy-as-admin .danger{border-color:#c88}',
+      '.buddy-as-admin .buddy-as-search{grid-column:1/-1;min-width:0}',
+      '.buddy-as-admin .buddy-as-hint{opacity:.6;font-size:.85em}'
     ].join('');
     document.head.appendChild(s);
   }
@@ -47,6 +49,44 @@ window.BuddyArcherySchoolViews = window.BuddyArcherySchoolViews || {};
     (options||[]).forEach(function(o){var x=document.createElement('option');x.value=o.value||o;x.textContent=o.label||o;x.selected=x.value===String(value||'');s.appendChild(x);});
     if(required)s.required=true;l.appendChild(s);form.appendChild(l);return s;
   }
+  /* searchableSelect: dropdown nativo de usuario con filtro de búsqueda dinámico.
+   * Muestra un <input type=search> sobre el <select>. La lista de opciones se
+   * reconstruye en cada tecla; el filtro matchea las keywords normalizadas del
+   * mapper (nombre, apellido, nombre a mostrar, teléfono…). Devuelve el propio
+   * <select> (para que .value/.addEventListener sigan funcionando) con
+   * `setItems(lista, mapper)` y acceso al cuadro de búsqueda en `.search`. */
+  function searchableSelect(form,label,name,opts){
+    opts=opts||{};
+    var l=document.createElement('label');l.textContent=label;
+    var search=document.createElement('input');search.type='search';search.className='buddy-as-search';
+    search.placeholder=opts.searchPlaceholder||'Buscar por nombre, apellido, nombre a mostrar o teléfono…';
+    var s=document.createElement('select');s.name=name;if(opts.required)s.required=true;
+    var hint=document.createElement('span');hint.className='buddy-as-hint';
+    l.appendChild(search);l.appendChild(s);l.appendChild(hint);form.appendChild(l);
+    var items=[],mapper=opts.mapper||function(x){return x && typeof x==='object'?{value:x.value,label:x.label||String(x.value),keywords:[]}:{value:x,label:String(x),keywords:[]};},
+        maxShown=opts.maxShown||50;
+    function kw(m){return (Array.isArray(m.keywords)?m.keywords:[m.keywords]).map(function(k){return String(k==null?'':k).toLowerCase();}).join('\u0001');}
+    function build(it,current){var m=mapper(it),o=document.createElement('option');o.value=m.value;o.textContent=m.label;if(current!=null&&String(m.value)===String(current))o.selected=true;return o;}
+    function render(){
+      var current=s.value,query=search.value.trim().toLowerCase();
+      s.innerHTML='';
+      var p=document.createElement('option');p.value='';p.textContent=opts.placeholder||'Selecciona…';s.appendChild(p);
+      var shown=items;
+      if(query)shown=items.filter(function(it){return kw(mapper(it)).indexOf(query)!==-1;});
+      var limited=shown.slice(0,maxShown);
+      limited.forEach(function(it){s.appendChild(build(it,current));});
+      if(!shown.length){var none=document.createElement('option');none.value='';none.disabled=true;none.textContent='Sin resultados';s.appendChild(none);}
+      else if(shown.length>maxShown){hint.textContent='Mostrando '+maxShown+' de '+shown.length+' (afina la búsqueda).';}
+      else hint.textContent='';
+      s.value=current;
+    }
+    search.addEventListener('input',render);
+    s.setItems=function(list,m){items=Array.isArray(list)?list:[];if(m)mapper=m;render();};
+    s.setMapper=function(m){mapper=m;render();};
+    s.search=search;
+    render();
+    return s;
+  }
   function actions(form,text){
     var st=document.createElement('div');st.className='status';
     var a=document.createElement('div');a.className='actions';
@@ -56,6 +96,11 @@ window.BuddyArcherySchoolViews = window.BuddyArcherySchoolViews || {};
   function value(item,key){return item&&item[key]!=null?item[key]:'';}
   function userId(user){return user&&(user.personaId||user.id||user._id);}
   function userName(user){return user&&(user.nombreCompleto||[user.nombre,user.apellido].filter(Boolean).join(' ')||user.name||user.email||userId(user));}
+  function userKeywords(user){
+    if(!user)return [];
+    return [user.nombre,user.apellido,user.nombreCompleto,user.name,user.email,user.phone,user.telefono,user.mobile,user.celular,user.whatsapp,userName(user)]
+      .filter(Boolean).map(function(v){return String(v).toLowerCase();});
+  }
   function ownerKey(owner){return owner.type==='empresa'?'empresa:'+owner.value:'persona:'+owner.value;}
   function equipmentId(item){return item&&(item.id||item._id);}
   function equipmentLabel(item){return [item&&item.tipo,item&&item.marca,item&&item.modelo,item&&item.numeroSerie].filter(Boolean).join(' · ')||'Equipo sin descripción';}
@@ -105,7 +150,7 @@ window.BuddyArcherySchoolViews = window.BuddyArcherySchoolViews || {};
     attrsHint.textContent='Selecciona un usuario para consultar y editar sus medidas y características de arquería.';
     attrsSection.appendChild(attrsHint);
     var attrsForm=document.createElement('form');
-    var attrsUser=sel(attrsForm,'Usuario','personaId',[], '',true);
+    var attrsUser=searchableSelect(attrsForm,'Usuario','personaId',{required:true,placeholder:'Selecciona un usuario'});
     var attrFields={};
     attrFields.altura=add(attrsForm,'Altura (cm)','altura','','number',false);
     attrFields.peso=add(attrsForm,'Peso (kg)','peso','','number',false);
@@ -183,9 +228,10 @@ window.BuddyArcherySchoolViews = window.BuddyArcherySchoolViews || {};
     /* ASIGNACIÓN DE EQUIPOS */
     var eqSection=document.createElement('section'),eqh=document.createElement('h3');eqh.textContent='Asignación de equipos';eqSection.appendChild(eqh);
     var eqHint=document.createElement('p');eqHint.className='hint';eqHint.textContent='Selecciona al propietario. Se muestran sus equipos propios y los equipos de la escuela o de terceros que tiene asignados. La asignación permanece vigente hasta que se cambie.';eqSection.appendChild(eqHint);
-    var eqForm=document.createElement('form');var ownerL=document.createElement('label');ownerL.textContent='¿A quién pertenece el equipo?';var ownerS=document.createElement('select');ownerS.name='owner';ownerS.required=true;ownerL.appendChild(ownerS);eqForm.appendChild(ownerL);
+    var eqForm=document.createElement('form');
+    var ownerS=searchableSelect(eqForm,'¿A quién pertenece el equipo?','owner',{required:true,placeholder:'Selecciona el propietario'});
     var equipL=document.createElement('label');equipL.textContent='Equipo de esa persona o empresa';var equipS=document.createElement('select');equipS.name='equipment';equipS.required=true;equipS.disabled=true;equipL.appendChild(equipS);eqForm.appendChild(equipL);
-    var recL=document.createElement('label');recL.textContent='Usuario al que está asignado';var recS=document.createElement('select');recS.name='recipient';recS.required=true;recL.appendChild(recS);eqForm.appendChild(recL);
+    var recS=searchableSelect(eqForm,'Usuario al que está asignado','recipient',{required:true,placeholder:'Selecciona un usuario'});
     var relNotes=add(eqForm,'Notas de la asignación','notasRelacion','','text',false);var relActions=actions(eqForm,'Asignar equipo');eqSection.appendChild(eqForm);
     var eqSelection=document.createElement('div');eqSelection.className='selection';eqSelection.innerHTML='<strong>Selecciona primero el propietario.</strong><span>Después aparecerán sus equipos registrados.</span>';eqSection.appendChild(eqSelection);
     var eqButtons=document.createElement('div');eqButtons.className='actions';var createOwnerBtn=document.createElement('button');createOwnerBtn.type='button';createOwnerBtn.textContent='Crear equipo para este propietario';var editOwnerBtn=document.createElement('button');editOwnerBtn.type='button';editOwnerBtn.textContent='Modificar equipo seleccionado';createOwnerBtn.disabled=editOwnerBtn.disabled=true;eqButtons.appendChild(createOwnerBtn);eqButtons.appendChild(editOwnerBtn);eqSection.appendChild(eqButtons);root.appendChild(eqSection);
@@ -241,10 +287,12 @@ window.BuddyArcherySchoolViews = window.BuddyArcherySchoolViews || {};
       var w=window.open('','_blank','width=800,height=900');if(!w){alert('El navegador bloqueó la ventana de la ficha. Permite ventanas emergentes para Buddy.');return;}w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>Ficha - '+escapeHtml(row.name)+'</title><style>body{font-family:Arial,sans-serif;max-width:760px;margin:40px auto;padding:20px;line-height:1.5}h1{margin-bottom:4px}h2{margin-top:0}li{margin:5px 0}.print{margin:20px 0;padding:8px 12px}@media print{.print{display:none}}</style></head><body>'+lines.join('')+'<button class="print" onclick="window.print()">Imprimir / guardar como PDF</button></body></html>');w.document.close();
     }
 
+    function userMapper(u){return {value:String(userId(u)),label:userName(u),keywords:userKeywords(u)};}
+    function ownerMapper(o){if(o.type==='persona'){return {value:ownerKey(o),label:ownerLabel(o),keywords:(o.user&&userKeywords(o.user))||[ownerLabel(o)]};}return {value:ownerKey(o),label:ownerLabel(o),keywords:[ownerLabel(o),String(o.value||'')]};}
     function fillUsers(){
-      setOptions(attrsUser,users,'Selecciona un usuario',function(u){return {value:String(userId(u)),label:userName(u)};});
-      setOptions(recS,users,'Selecciona un usuario',function(u){return {value:String(userId(u)),label:userName(u)};});
-      setOptions(ownerS,[schoolOwner].concat(users.map(function(u){return {type:'persona',value:userId(u),label:userName(u)};})),'Selecciona el propietario',function(o){return {value:ownerKey(o),label:ownerLabel(o)};});
+      attrsUser.setItems(users,userMapper);
+      recS.setItems(users,userMapper);
+      ownerS.setItems([schoolOwner].concat(users.map(function(u){return {type:'persona',value:userId(u),user:u,label:userName(u)};})),ownerMapper);
     }
 
     api.getUsers().then(function(list){
