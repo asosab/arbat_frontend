@@ -165,9 +165,9 @@ window.BuddyUserViews = window.BuddyUserViews || {};
     var docSection=document.createElement('section');var dh=document.createElement('h3');dh.textContent='Documento de identidad';docSection.appendChild(dh);
     var docHint=document.createElement('p');docHint.className='hint';docHint.textContent='Tu documento de identidad para tu registro en la escuela.';docSection.appendChild(docHint);
     var df=document.createElement('form');
-    var docTipo=addField(df,'Tipo de documento','tipoDocumento','CI','text');docTipo.required=true;
+    var docTipo=addSelect(df,'Tipo de documento','tipoDocumento',asc.documentTypes||[],attrValue(attributes,'documentoIdentidad','tipoDocumento')||'CI');docTipo.required=true;
     var docNumero=addField(df,'Número','numero','','text');docNumero.required=true;
-    var docPais=addField(df,'País emisor','paisEmisor','','text');docPais.required=true;
+    var docPais=addSelect(df,'País emisor','paisEmisor',asc.countries||[],attrValue(attributes,'documentoIdentidad','paisEmisor'));docPais.required=true;
     var docPrincipalLabel=document.createElement('label');docPrincipalLabel.textContent='Es documento principal';
     var docPrincipal=document.createElement('input');docPrincipal.type='checkbox';docPrincipal.name='esPrincipal';docPrincipal.checked=true;
     docPrincipalLabel.appendChild(docPrincipal);df.appendChild(docPrincipalLabel);
@@ -296,6 +296,10 @@ window.BuddyUserViews = window.BuddyUserViews || {};
     });
     root.appendChild(eqSection);
 
+    function ensureOption(sel,value){
+      if(sel&&value){var found=false;for(var i=0;i<sel.children.length;i++){if(sel.children[i].value===String(value)){found=true;break;}}
+        if(!found){var o=document.createElement('option');o.value=value;o.textContent=value;sel.appendChild(o);}}
+    }
     function fillAttrs(){
       attrFields.altura.value=attrValue(attributes,'altura','valorCm');
       attrFields.peso.value=attrValue(attributes,'peso','valorKg');
@@ -307,9 +311,13 @@ window.BuddyUserViews = window.BuddyUserViews || {};
       attrFields.variacionBase.value=attrValue(attributes,'variacionBase','valor');
       attrFields.posibilidadAdquisicion.value=attrValue(attributes,'posibilidadAdquisicion','valor');
       var d=currentAttribute(attributes,'documentoIdentidad')||{};
-      docTipo.value=d.tipoDocumento||'CI';
+      var dTipo=d.tipoDocumento||'CI';
+      ensureOption(docTipo,dTipo);
+      docTipo.value=dTipo;
+      var dPais=d.paisEmisor||'Bolivia';
+      ensureOption(docPais,dPais);
+      docPais.value=dPais;
       docNumero.value=d.numero||'';
-      docPais.value=d.paisEmisor||'';
       docPrincipal.checked=d.esPrincipal!==false;
     }
 
