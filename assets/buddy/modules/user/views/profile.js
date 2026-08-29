@@ -5,7 +5,7 @@ window.BuddyUserViews = window.BuddyUserViews || {};
   function ensureStyles() {
     if (document.getElementById('buddy-user-view-styles')) return;
     var style=document.createElement('style');style.id='buddy-user-view-styles';
-    style.textContent='.buddy-user-view{font:inherit;display:grid;gap:16px;max-width:760px}.buddy-user-view section{border:1px solid #ddd;border-radius:12px;padding:16px}.buddy-user-view form{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}.buddy-user-view label{display:grid;gap:6px}.buddy-user-view input,.buddy-user-view select,.buddy-user-view textarea,.buddy-user-view button{font:inherit;padding:9px;border:1px solid #ccc;border-radius:8px}.buddy-user-view textarea{min-height:90px;resize:vertical}.buddy-user-view .wide{grid-column:1/-1}.buddy-user-view .actions{grid-column:1/-1;display:flex;gap:8px;align-items:center}.buddy-user-view .status{grid-column:1/-1;min-height:1.3em}.buddy-user-photo{display:flex;gap:12px;align-items:center}.buddy-user-view .hint{opacity:.75;font-size:.92em}';
+    style.textContent='.buddy-user-view{font:inherit;display:grid;gap:16px;max-width:760px}.buddy-user-view section{border:1px solid #ddd;border-radius:12px;padding:16px}.buddy-user-view form{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}.buddy-user-view label{display:grid;gap:6px}.buddy-user-view input,.buddy-user-view select,.buddy-user-view textarea,.buddy-user-view button{font:inherit;padding:9px;border:1px solid #ccc;border-radius:8px}.buddy-user-view textarea{min-height:90px;resize:vertical}.buddy-user-view .wide{grid-column:1/-1}.buddy-user-view .actions{grid-column:1/-1;display:flex;gap:8px;align-items:center}.buddy-user-view .status{grid-column:1/-1;min-height:1.3em}.buddy-user-photo{display:flex;gap:12px;align-items:center}.buddy-user-view .hint{opacity:.75;font-size:.92em}.buddy-user-view .cards{display:grid;gap:8px;margin-top:14px}.buddy-user-view article{border:1px solid #eee;border-radius:10px;padding:12px;display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.buddy-user-view article .meta{display:grid;gap:3px}.buddy-user-view article button{padding:6px 9px;cursor:pointer}';
     document.head.appendChild(style);
   }
   function archerySchoolApi(){
@@ -59,6 +59,7 @@ window.BuddyUserViews = window.BuddyUserViews || {};
 
     var asc=as.config||{};
     var attributes=[];
+    var equipment=[],relations=[],ownPersona=null,editingId=null;
 
     function ownName(){
       return user.name||[user.firstName,user.lastName].filter(Boolean).join(' ')||user.email||'Usuario';
@@ -180,6 +181,121 @@ window.BuddyUserViews = window.BuddyUserViews || {};
     });
     root.appendChild(docSection);
 
+    /* CONDICIONES FÍSICAS PERMANENTES */
+    var condSection=document.createElement('section');var ch=document.createElement('h3');ch.textContent='Condiciones físicas permanentes';condSection.appendChild(ch);
+    var condHint=document.createElement('p');condHint.className='hint';condHint.textContent='Registra tus condiciones físicas permanentes (una por línea).';condSection.appendChild(condHint);
+    var cf=document.createElement('form');
+    var condLabel=document.createElement('label');condLabel.className='wide';condLabel.textContent='Condiciones';
+    var condTa=document.createElement('textarea');condTa.name='condicionesFisicasPermanentes';
+    var currentUser=context.user||(window.Buddy.user&&window.Buddy.user.getState&&window.Buddy.user.getState().user)||{};
+    condTa.value=Array.isArray(currentUser.condicionesFisicasPermanentes)?currentUser.condicionesFisicasPermanentes.join('\n'):'';
+    condLabel.appendChild(condTa);cf.appendChild(condLabel);
+    var cSA=statusActions(cf,'Guardar condiciones');
+    condSection.appendChild(cf);
+    cf.addEventListener('submit',function(e){
+      e.preventDefault();
+      var conditions=condTa.value.split(/\r?\n/).map(function(x){return x.trim();}).filter(Boolean);
+      cSA.button.disabled=true;cSA.status.textContent='Guardando…';
+      api.updateProfile({condicionesFisicasPermanentes:conditions}).then(function(){
+        if(currentUser)currentUser.condicionesFisicasPermanentes=conditions;
+        cSA.status.textContent='Condiciones guardadas.';
+      }).catch(function(err){cSA.status.textContent=err.message;}).finally(function(){cSA.button.disabled=false;});
+    });
+    root.appendChild(condSection);
+
+    /* MIS EQUIPOS */
+    var eqSection=document.createElement('section');var qh=document.createElement('h3');qh.textContent='Mis equipos';eqSection.appendChild(qh);
+    var eqHint=document.createElement('p');eqHint.className='hint';eqHint.textContent='Crea y modifica los equipos de los que eres propietario. Los equipos que la escuela u otra persona te presta aparecen como préstamo y no puedes modificar sus datos.';eqSection.appendChild(eqHint);
+    var qf=document.createElement('form');
+    function addEqSelect(form2,labelText,name,options,value,required){
+      var l=document.createElement('label');l.textContent=labelText;var s=document.createElement('select');s.name=name;
+      var e=document.createElement('option');e.value='';e.textContent='Selecciona';s.appendChild(e);
+      (options||[]).forEach(function(o){var x=document.createElement('option');x.value=o.value||o;x.textContent=o.label||o;x.selected=(x.value===String(value==null?'':value));s.appendChild(x);});
+      if(required)s.required=true;l.appendChild(s);form2.appendChild(l);return s;
+    }
+    addEqSelect(qf,'Tipo de equipo','tipo',asc.equipmentTypes||[],'',true);
+    addField(qf,'Marca','marca','','text');
+    addField(qf,'Modelo','modelo','','text');
+    addField(qf,'Número de serie','numeroSerie','','text');
+    addField(qf,'Fecha de adquisición','fechaAdquisicion','','date');
+    addField(qf,'Fecha de baja','fechaBaja','','date');
+    addEqSelect(qf,'Estado','estado',asc.equipmentStates||[],'activo',true);
+    addField(qf,'Notas','notas','','text');
+    var qSA=statusActions(qf,'Registrar mi equipo');
+    eqSection.appendChild(qf);
+    var cards=document.createElement('div');cards.className='cards';eqSection.appendChild(cards);
+    function equipmentLabel(item){return [item.tipo,item.marca,item.modelo].filter(Boolean).join(' · ')||'Equipo';}
+    function equipmentStateLabel(item){
+      var list=asc.equipmentStates||[],i;for(i=0;i<list.length;i++){if((list[i].value||list[i])===item.estado)return list[i].label||list[i];}
+      return item.estado||'';
+    }
+    function resetEquipmentForm(){
+      qf.reset();qf.elements.estado.value='activo';editingId=null;qSA.button.textContent='Registrar mi equipo';
+    }
+    function fillEquipmentForm(item){
+      editingId=item&&(item.id||item._id)||null;
+      qf.elements.tipo.value=item&&item.tipo||'';qf.elements.marca.value=item&&item.marca||'';
+      qf.elements.modelo.value=item&&item.modelo||'';qf.elements.numeroSerie.value=item&&item.numeroSerie||'';
+      qf.elements.fechaAdquisicion.value=item&&item.fechaAdquisicion?String(item.fechaAdquisicion).slice(0,10):'';
+      qf.elements.fechaBaja.value=item&&item.fechaBaja?String(item.fechaBaja).slice(0,10):'';
+      qf.elements.estado.value=item&&item.estado||'activo';qf.elements.notas.value=item&&item.notas||'';
+      qSA.button.textContent='Guardar cambios';qSA.status.textContent='Editando tu equipo.';qf.scrollIntoView({behavior:'smooth',block:'nearest'});
+    }
+    function renderEquipment(){
+      cards.innerHTML='';
+      if(!ownPersona){cards.textContent='Aún no tienes perfil de arquería. Completa "Medidas y características" y vuelve a abrir esta sección.';return;}
+      var rows=[];
+      equipment.forEach(function(item){
+        var id=item.id||item._id;
+        var rels=relations.filter(function(r){return (r.equipoId==null||String(r.equipoId)===String(id))&&!r.vigenteHasta;});
+        var owned=rels.some(function(r){return r.tipo==='propietario'&&r.parteTipo==='persona'&&String(r.personaId)===String(ownPersona);});
+        var loaned=rels.some(function(r){return r.tipo==='prestamo'&&String(r.personaId)===String(ownPersona);});
+        if(owned||loaned)rows.push({item:item,owned:owned,loaned:loaned});
+      });
+      if(!rows.length){cards.textContent='No tienes equipos registrados ni equipos en préstamo.';return;}
+      rows.forEach(function(row){
+        var item=row.item,article=document.createElement('article'),meta=document.createElement('div');meta.className='meta';
+        var strong=document.createElement('strong');strong.textContent=equipmentLabel(item);meta.appendChild(strong);
+        var line=document.createElement('span');line.textContent=['Serie: '+(item.numeroSerie||'—'),'Estado: '+equipmentStateLabel(item),'Adquisición: '+(item.fechaAdquisicion||'—')].join(' · ');meta.appendChild(line);
+        var relText=document.createElement('span');relText.textContent=row.owned?'Propietario: tú':'En préstamo contigo';meta.appendChild(relText);article.appendChild(meta);
+        if(row.owned){var edit=document.createElement('button');edit.type='button';edit.textContent='Editar';edit.addEventListener('click',function(item){return function(){fillEquipmentForm(item);};}(item));article.appendChild(edit);}
+        else {var note=document.createElement('span');note.className='hint';note.textContent='Equipo prestado: solo puede modificarlo su propietario o un administrador.';article.appendChild(note);}
+        cards.appendChild(article);
+      });
+    }
+    function loadEquipmentData(){
+      return as.getProfile().then(function(p){return p;}).catch(function(err){
+        if(err&&err.status===404)return null;
+        throw err;
+      }).then(function(p){
+        ownPersona=p&&(p._id||p.id)||null;
+        if(!ownPersona){equipment=[];relations=[];renderEquipment();return;}
+        return Promise.all([as.getEquipment(),as.getEquipmentRelations()]).then(function(results){
+          equipment=Array.isArray(results[0])?results[0]:[];
+          relations=Array.isArray(results[1])?results[1]:[];
+          renderEquipment();
+        });
+      });
+    }
+    qf.addEventListener('submit',function(e){
+      e.preventDefault();qSA.button.disabled=true;qSA.status.textContent='Guardando…';
+      function personaGuard(){
+        if(ownPersona)return Promise.resolve(ownPersona);
+        return as.getProfile().then(function(p){var id=p&&(p._id||p.id)||null;if(!id)throw new Error('No existe un perfil de arquería para asociar el equipo.');ownPersona=id;return id;});
+      }
+      personaGuard().then(function(personaId){
+        var data={tipo:qf.elements.tipo.value,marca:qf.elements.marca.value.trim()||null,modelo:qf.elements.modelo.value.trim()||null,numeroSerie:qf.elements.numeroSerie.value.trim()||null,fechaAdquisicion:qf.elements.fechaAdquisicion.value||null,fechaBaja:qf.elements.fechaBaja.value||null,estado:qf.elements.estado.value,notas:qf.elements.notas.value.trim()||null};
+        if(editingId)data.id=editingId;
+        var op=editingId?as.updateEquipment(data):as.createEquipment(data);
+        return op.then(function(result){
+          var saved=(result&&result.data)||result||data,id=saved.id||saved._id||editingId;
+          if(!id)throw new Error('No se recibió el identificador del equipo.');
+          return editingId?saved:as.createEquipmentRelation({equipoId:id,tipo:'propietario',parteTipo:'persona',personaId:personaId,empresa:null,vigenteDesde:data.fechaAdquisicion||new Date().toISOString(),notas:'Equipo personal'});
+        });
+      }).then(function(){qSA.status.textContent=editingId?'Equipo actualizado.':'Equipo registrado.';resetEquipmentForm();return loadEquipmentData();}).catch(function(err){qSA.status.textContent=err.message;}).finally(function(){qSA.button.disabled=false;});
+    });
+    root.appendChild(eqSection);
+
     function fillAttrs(){
       attrFields.altura.value=attrValue(attributes,'altura','valorCm');
       attrFields.peso.value=attrValue(attributes,'peso','valorKg');
@@ -198,6 +314,7 @@ window.BuddyUserViews = window.BuddyUserViews || {};
     }
 
     obtainAttrs(aSA.status);
+    loadEquipmentData();
 
     return root;
   };

@@ -15,7 +15,6 @@
   var SALIR_ID = 'user-toolkit-salir';
   var TOP10_ID = 'user-toolkit-top10';
   var USER_PROFILE_ID = 'user-toolkit-user-profile';
-  var ARCHERY_STUDENT_ID = 'user-toolkit-archery-student';
   var ADMIN_ID = 'user-toolkit-admin';
   var DASHBOARD_ID = 'user-toolkit-dashboard';
   var ADMIN_ARCHERY_ID = 'user-toolkit-admin-archery';
@@ -52,7 +51,6 @@
       '<ul class="user-toolkit-menu__lista" role="none">' +
         '<li role="none"><button type="button" class="user-toolkit-menu__item" id="' + TOP10_ID + '" role="menuitem">🏹 Top 10</button></li>' +
         '<li role="none" hidden><button type="button" class="user-toolkit-menu__item" id="' + USER_PROFILE_ID + '" role="menuitem">👤 Mis datos de usuario</button></li>' +
-        '<li role="none" hidden><button type="button" class="user-toolkit-menu__item" id="' + ARCHERY_STUDENT_ID + '" role="menuitem">🏹 Mis datos de estudiante</button></li>' +
         '<li role="none" hidden><button type="button" class="user-toolkit-menu__item" id="' + ADMIN_ID + '" role="menuitem">admin</button></li>' +
         '<li role="none" hidden><button type="button" class="user-toolkit-menu__item" id="' + DASHBOARD_ID + '" role="menuitem">dashboard</button></li>' +
         '<li role="none" hidden><button type="button" class="user-toolkit-menu__item" id="' + ADMIN_ARCHERY_ID + '" role="menuitem">' + appId() + ' (admin)</button></li>' +
@@ -231,18 +229,10 @@
       setVisible(ADMIN_ARCHERY_ID, visible && archeryActive);
     }
 
-    function configurarEstudiante() {
-      var active = moduleActive('archerySchool', 'BuddyArcherySchoolConfig');
-      var archerySchool = window.Buddy && window.Buddy.archerySchool;
-      setVisible(ARCHERY_STUDENT_ID, active &&
-        !!(archerySchool && typeof archerySchool.render === 'function'));
-    }
-
     function configurarMenu() {
       configurarTop10();
       configurarUsuario();
       configurarAdmin();
-      configurarEstudiante();
     }
 
     icono.addEventListener('click', toggleMenu);
@@ -314,24 +304,6 @@
           })
           .then(function () {
             btnUserProfile.disabled = false;
-          });
-        return;
-      }
-
-      var btnArcheryStudent = evento.target.closest ? evento.target.closest('#' + ARCHERY_STUDENT_ID) : null;
-      if (btnArcheryStudent) {
-        evento.stopPropagation();
-        btnArcheryStudent.disabled = true;
-        cerrarMenu();
-
-        openEditForm('archerySchool', 'student', 'Mis datos de estudiante')
-          .catch(function (error) {
-            if (window.BuddyConfig && window.BuddyConfig.debugMode === true) {
-              console.error('[Buddy] No se pudo abrir ArcherySchool del estudiante.', error);
-            }
-          })
-          .then(function () {
-            btnArcheryStudent.disabled = false;
           });
         return;
       }
@@ -422,7 +394,6 @@
     window.addEventListener('buddy:ready', configurarMenu);
     window.addEventListener('buddy:admin-visibility-changed', function () {
       configurarAdmin();
-      configurarEstudiante();
     });
     window.addEventListener('buddy:user-loaded', configurarUsuario);
     window.addEventListener('buddy:user-updated', configurarUsuario);
@@ -430,7 +401,6 @@
       if (!(evento.detail || {}).authenticated) {
         cerrarMenu();
         setVisible(USER_PROFILE_ID, false);
-        setVisible(ARCHERY_STUDENT_ID, false);
         setVisible(ADMIN_ARCHERY_ID, false);
       } else {
         configurarMenu();
@@ -439,7 +409,6 @@
     window.addEventListener('buddy:auth-logout', function () {
       cerrarMenu();
       setVisible(USER_PROFILE_ID, false);
-      setVisible(ARCHERY_STUDENT_ID, false);
       setVisible(ADMIN_ARCHERY_ID, false);
     });
 
