@@ -233,19 +233,9 @@
 
     function configurarEstudiante() {
       var active = moduleActive('archerySchool', 'BuddyArcherySchoolConfig');
-      setVisible(ARCHERY_STUDENT_ID, false);
-
       var archerySchool = window.Buddy && window.Buddy.archerySchool;
-      if (!active || !archerySchool || typeof archerySchool.getEnrollment !== 'function') return;
-
-      Promise.resolve(archerySchool.getEnrollment()).then(function (enrollment) {
-        // La existencia de una inscripción determina que el usuario es
-        // estudiante de ArcherySchool. El estado se deja a la escuela:
-        // incluso un registro inactivo/egresado puede requerir consulta.
-        setVisible(ARCHERY_STUDENT_ID, !!enrollment);
-      }).catch(function () {
-        setVisible(ARCHERY_STUDENT_ID, false);
-      });
+      setVisible(ARCHERY_STUDENT_ID, active &&
+        !!(archerySchool && typeof archerySchool.render === 'function'));
     }
 
     function configurarMenu() {
