@@ -39,6 +39,15 @@ window.Buddy = window.Buddy || {};
       equipmentRelations: clone(state.equipmentRelations)
     };
   }
+  // El estado del módulo es un singleton por pestaña; SIEMPRE se descarta al
+  // cambiar la sesión para no exponer datos de un usuario en el siguiente.
+  function resetState() {
+    state.profile = null;
+    state.users = [];
+    state.attributes = [];
+    state.equipment = [];
+    state.equipmentRelations = [];
+  }
   function telemetry() {
     if (!window.Buddy.telemetry || typeof window.Buddy.telemetry.request !== 'function') {
       throw new Error('Buddy Telemetry no está disponible.');
@@ -136,10 +145,11 @@ window.Buddy = window.Buddy || {};
     options = options || {};
     var query = '?siteId=' + encodeURIComponent(siteId());
     if (options.personaId) query += '&personaId=' + encodeURIComponent(options.personaId);
+    if (options.scope) query += '&scope=' + encodeURIComponent(options.scope);
     return request(CONFIG.endpoints.attributes + query, 'GET')
       .then(function (r) {
         var list = Array.isArray(r) ? r : (r && (r.attributes || r.data)) || [];
-        if (!options.personaId) state.attributes = list;
+        if (!options.personaId && (!options.scope || options.scope !== 'site')) state.attributes = list;
         return list;
       });
   }
@@ -162,6 +172,7 @@ window.Buddy = window.Buddy || {};
     var query = '?siteId=' + encodeURIComponent(siteId());
     if (options.personaId) query += '&personaId=' + encodeURIComponent(options.personaId);
     if (options.empresa) query += '&empresa=' + encodeURIComponent(options.empresa);
+    if (options.scope) query += '&scope=' + encodeURIComponent(options.scope);
     return request(CONFIG.endpoints.equipment + query, 'GET').then(function (r) {
       state.equipment = Array.isArray(r) ? r : (r && (r.equipment || r.data)) || [];
       return state.equipment;
@@ -183,6 +194,7 @@ window.Buddy = window.Buddy || {};
     if (equipoId) query += '&equipoId=' + encodeURIComponent(equipoId);
     if (options.personaId) query += '&personaId=' + encodeURIComponent(options.personaId);
     if (options.empresa) query += '&empresa=' + encodeURIComponent(options.empresa);
+    if (options.scope) query += '&scope=' + encodeURIComponent(options.scope);
     return request(CONFIG.endpoints.equipmentRelations + query, 'GET').then(function (r) {
       return Array.isArray(r) ? r : (r && (r.relations || r.data)) || [];
     });
@@ -265,4 +277,8 @@ window.Buddy = window.Buddy || {};
     renderAdmin: function (container, options) { return render(Object.assign({}, options || {}, { target: container, view: 'admin' })); },
     getState: function () { return getStateSnapshot(); }
   };
+
+  window.addEventListener('buddy:auth-state-changed', resetState);
+  window.addEventListener('buddy:auth-logout', resetState);
+  window.addEventListener('buddy:auth-ready', resetState);
 })(window, document);

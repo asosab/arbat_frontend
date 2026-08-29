@@ -82,15 +82,13 @@ window.BuddyUserViews = window.BuddyUserViews || {};
       form2.appendChild(st);form2.appendChild(ac);return {status:st,button:b};
     }
     function resolveOwnPersona(){
-      var stateProfile=as.getState&&as.getState().profile;
-      if(stateProfile)return Promise.resolve(stateProfile);
       return as.getProfile().then(function(p){return p;}).catch(function(err){
-        if(err&&err.status===404)return as.createProfile({nombreCompleto:ownName()});
+        if(err&&err.status===404)return as.createProfile({nombreCompleto:ownName()}).then(function(r){return r&&(r.profile||r.data||r)||r;});
         throw err;
       });
     }
     function ownPersonaIdAfter(profile){
-      var id=personaIdOf(profile)||(as.getState&&as.getState().profile&&personaIdOf(as.getState().profile));
+      var id=personaIdOf(profile);
       if(!id)return Promise.reject(new Error('No se pudo determinar el perfil de arquería.'));
       return Promise.resolve(id);
     }
