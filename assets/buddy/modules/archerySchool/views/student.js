@@ -178,10 +178,10 @@ window.BuddyArcherySchoolViews = window.BuddyArcherySchoolViews || {};
       if(editingId)data.id=editingId;
       var op=editingId?api.updateEquipment(data):api.createEquipment(data);
       op.then(function(result){
-        var saved=(result&&result.data)||result||data,id=saved.id||saved._id||editingId;
+        var saved=(result&&result.data)||result||data,eq=saved&&saved.equipment;
+        var id=saved.id||saved._id||(eq&&(eq.id||eq._id))||editingId;
         if(!id)throw new Error('No se recibió el identificador del equipo.');
-        if(editingId)return saved;
-        return api.createEquipmentRelation({equipoId:id,tipo:'propietario',parteTipo:'persona',personaId:currentOwnerId,empresa:null,vigenteDesde:data.fechaAdquisicion||new Date().toISOString(),notas:'Equipo personal'});
+        return saved;
       }).then(function(){qs.status.textContent=editingId?'Equipo actualizado.':'Equipo registrado.';resetEquipmentForm();return api.getEquipment({personaId:currentOwnerId});}).then(function(){renderEquipment();}).catch(function(err){qs.status.textContent=err.message;}).finally(function(){qs.button.disabled=false;});
     });
     root.appendChild(eq);renderEquipment();
