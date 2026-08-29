@@ -91,7 +91,7 @@ window.BuddyArcherySchoolViews = window.BuddyArcherySchoolViews || {};
     input(af,'Altura (cm)','altura',value(state,'altura','valorCm'),'number',false);
     input(af,'Peso (kg)','peso',value(state,'peso','valorKg'),'number',false);
     select(af,'Lateralidad','lateralidad',config.lateralidad||[],value(state,'lateralidad','valor'),false);
-    input(af,'Género','genero',value(state,'genero','valor'),'text',false);
+    select(af,'Género','genero',config.genero||[],value(state,'genero','valor'),false);
     input(af,'Apertura de brazos (cm)','aperturaBrazos',value(state,'aperturaBrazos','valorCm'),'number',false);
     input(af,'Apertura de arco (cm)','aperturaArco',value(state,'aperturaArco','valorCm'),'number',false);
     input(af,'Libraje actual (lbs)','librajeActual',value(state,'librajeActual','valorLbs'),'number',false);

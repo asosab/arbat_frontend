@@ -32,6 +32,13 @@ window.BuddyArcherySchoolConfig = Object.assign({
     { value: 'Der-Izq', label: 'Der-Izq' }
   ],
 
+  genero: [
+    { value: 'Masculino', label: 'Masculino' },
+    { value: 'Femenino', label: 'Femenino' },
+    { value: 'Fluido', label: 'Fluido' },
+    { value: 'Prefiero no decirlo', label: 'Prefiero no decirlo' }
+  ],
+
   posibilidadAdquisicion: [
     { value: 'Remota', label: 'Remota' },
     { value: 'Baja', label: 'Baja' },
