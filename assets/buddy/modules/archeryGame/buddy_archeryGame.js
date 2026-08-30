@@ -96,8 +96,8 @@
       var puntosTexto = Number.isFinite(puntos) ? String(puntos) : '0';
       var tiempoTexto = Number.isFinite(tiempo) ? tiempo.toFixed(3) : '—';
 
-      return '<strong>' + (index + 1) + '. ' + escapeHtml(nombre) + '</strong> — ' +
-        puntosTexto + ' puntos — ' + tiempoTexto + ' segundos';
+      return '<strong>' + (index + 1) + '. ' + escapeHtml(nombre) + '</strong>: ' +
+        puntosTexto + ' pts, ' + tiempoTexto + ' seg';
     }).join('<br>');
   }
 
