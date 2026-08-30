@@ -55,6 +55,7 @@
 
       window.buddy_says(textoTop10(resultado), {
         html: true,
+        wide: true,
         emocion: 'sereno'
       });
 
@@ -99,7 +100,7 @@
       var tiempoTexto = Number.isFinite(tiempo) ? tiempo.toFixed(3) : '—';
 
       return '<div style="display:flex;justify-content:space-between;gap:10px;padding:3px 0;">' +
-        '<span style="flex:0 0 auto;"><strong>' + (index + 1) + '.</strong> ' + escapeHtml(nombre) + '</span>' +
+        '<span style="flex:1 1 auto;min-width:0;word-break:break-word;"><strong>' + (index + 1) + '.</strong> ' + escapeHtml(nombre) + '</span>' +
         '<span style="flex:0 0 auto;white-space:nowrap;">' + puntosTexto + ' pts · ' + tiempoTexto + ' s</span>' +
         '</div>';
     }).join('') + '</div>';

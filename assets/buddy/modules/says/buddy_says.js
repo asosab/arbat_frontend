@@ -136,6 +136,7 @@ window.Buddy = window.Buddy || {};
       '.buddy-says-bubble.is-interactive .buddy-says-choice{margin:8px 4px 0;padding:6px 12px;border:1px solid #888;' +
       'border-radius:8px;background:#f3f3f3;color:#1a1a1a;cursor:pointer;font:inherit;}' +
       '.buddy-says-bubble.is-interactive .buddy-says-choice:hover{background:#e8e8e8;}' +
+      '.buddy-says-bubble.is-wide{max-width:260px;}' +
       '.buddy-says-bubble.is-promo{max-width:300px;pointer-events:auto;user-select:text;}' +
       '.buddy-says-bubble.is-promo a{color:#0d6efd;text-decoration:underline;pointer-events:auto;}' +
       '.buddy-says-bubble.is-form{max-width:310px;pointer-events:auto;user-select:text;' +
@@ -365,6 +366,7 @@ window.Buddy = window.Buddy || {};
       bubbleEl.textContent = texto;
     }
     bubbleEl.classList.toggle('is-promo', !!opciones.promo);
+    bubbleEl.classList.toggle('is-wide', !!opciones.wide);
     renderInteractiveChoices(opciones);
     positionBubble(datosExpresion);
 
