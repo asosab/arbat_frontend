@@ -151,7 +151,9 @@ window.BuddyChars.raulito = {
         },
         mira: {
           archivo: 'mira.png',
-          escala: 1
+          escala: 1,
+          // centro de la mira (centro del peep / abertura circular)
+          centro: { x: 230, y: 220 }
         },
         // Se conserva la colección para la compatibilidad existente y se
         // declaran además las cuatro claves individuales con su escala.

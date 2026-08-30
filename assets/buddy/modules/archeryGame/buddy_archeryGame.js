@@ -3,7 +3,6 @@
  * ---------------------------------------------------------------------------
  * Fase 5 — mecánica del minijuego de puntería para la arquitectura "buddy".
  *
- * La mecánica y sus valores se extraen conservadoramente de raulito.js.
  * El personaje se resuelve/renderiza mediante Buddy y los globos mediante
  * buddy_says. Este módulo no implementa posicionamiento del personaje,
  * CSS/DOM del globo, fuentes de mensajes ni política común de ocupado.
@@ -135,7 +134,7 @@
     var currentCharPoseKey = 'idle';
   
     // v1.0: pedido de apuntado en cola — true si el jugador ya hizo
-    // click/touch-and-drag sobre Raulito mientras la flecha anterior
+    // click/touch-and-drag sobre Buddy mientras la flecha anterior
     // todavía estaba resolviéndose (pose02, esperando hitTimer/resolveTimer).
     // No cancela esa resolución: sólo queda anotado para, apenas termine,
     // pasar derecho a pose01 en vez de volver a pose03 (ver el resolveTimer
@@ -144,7 +143,7 @@
     var pendingAimStartX = 0;
     var pendingAimStartY = 0;
 
-    // Triple-click de prueba para invocar/ocultar a Raulito.
+    // Triple-click de prueba para invocar/ocultar a Buddy.
     // Mantener este estado privado dentro del módulo; no depende de variables
     // globales del script original.
     var testTriggerClickCount = 0;
@@ -196,7 +195,7 @@
     var fatigueLevel = 0;      // nivel de temblor "consumido" al momento del último disparo (0..maxLevel), sin decaer todavía por el descanso posterior — ver currentFatigueLevel()
     var lastShotAt = 0;        // performance.now() del último disparo (0 = todavía no se disparó ninguna flecha en la sesión)
     var lateShotStreak = 0;    // flechas seguidas disparadas sin respetar fatigue.expectedCooldownMs
-    var exhausted = false;     // true mientras Raúl está forzado a pose04 por agotamiento total
+    var exhausted = false;     // true mientras Buddy está forzado a pose04 por agotamiento total
     var exhaustionRecoveryTimer = null; // dispara la vuelta a pose03 tras fatigue.exhaustionRestMs de descanso
   
     // -------------------------------------------------------------------
@@ -216,12 +215,12 @@
     // autenticarse. Solo después de una autenticación válida se solicita el nombre.
     var pendingAuthForName = false;
     var pendingAndanadaNameGreeting = false;
-    // Pose a la que Raúl vuelve entre disparos cuando no hay nada más
+    // Pose a la que Buddy vuelve entre disparos cuando no hay nada más
     // puntual que mostrar (fuego/apuntado/fallo de ESE tiro/agotamiento).
     // Arranca en 'idle' (pose03) y narrateAndanadaTotal() la actualiza al
     // completar cada tanda de seis flechas según CONFIG.andanada
     // .lowScorePoseThreshold. A propósito NO se reinicia en resetArrows()
-    // ni en hideCharacter() — es "cómo quedó Raúl" tras la última tanda
+    // ni en hideCharacter() — es "cómo quedó Buddy" tras la última tanda
     // jugada, no algo que dependa de las flechas que estén dibujadas en
     // pantalla en este momento.
     var defaultIdlePoseKey = 'idle';
@@ -350,7 +349,11 @@ function getModuleImage(key) {
       ancho: meta.ancho,
       alto: meta.alto,
       escala: meta.escala,
-      anclas: meta.anclas
+      anclas: meta.anclas,
+      // v2.1: centro real del peep sight (px a escala 1:1). Si el módulo
+      // no lo define para esta imagen, queda undefined y
+      // miraCentroOffsetPx() cae al fallback (centro geométrico).
+      centro: meta.centro
     };
   }
 
@@ -859,6 +862,25 @@ function miraTargetPx(asset) {
     return CONFIG.miraLongSidePercent * viewportLongSide() * assetScale(asset, CONFIG.scales.mira);
   }
 
+  // v2.1: el punto rojo del peep sight no siempre cae en el centro
+  // geométrico del PNG de mira.png. Cuando el asset trae 'centro' (px en
+  // la imagen a escala 1:1, ver buddy_char_*.js), este desplazamiento
+  // convierte esa diferencia (centro real vs. centro geométrico) a
+  // píxeles de pantalla, según cuánto esté escalada la mira ahora mismo.
+  // Sin 'centro' o sin dimensiones naturales cargadas, no corrige nada.
+  function miraCentroOffsetPx(asset, renderedWidthPx) {
+    if (!asset || !asset.centro || !miraEl || !miraEl.naturalWidth || !miraEl.naturalHeight) {
+      return { dx: 0, dy: 0 };
+    }
+    var nw = miraEl.naturalWidth;
+    var nh = miraEl.naturalHeight;
+    var scale = (renderedWidthPx || miraEl.offsetWidth || nw) / nw;
+    return {
+      dx: (asset.centro.x - nw / 2) * scale,
+      dy: (asset.centro.y - nh / 2) * scale
+    };
+  }
+
 function arrowTargetPx(asset) {
     return CONFIG.arrowLongSidePercent * viewportLongSide() * assetScale(asset, CONFIG.scales.arrow);
   }
@@ -977,8 +999,8 @@ function resetArrows() {
     // Deliberadamente NO toca fatigueLevel/lateShotStreak/sessionArrowLog
     // (v0.5), calibOffsetX/Y (v0.8) ni defaultIdlePoseKey (v1.5): esto
     // sólo limpia las flechas clavadas en pantalla, no "descansa" el
-    // brazo de Raúl, no borra el historial de la sesión, no recalibra la
-    // mira, ni cambia cómo quedó Raúl tras la última tanda completa.
+    // brazo de Buddy, no borra el historial de la sesión, no recalibra la
+    // mira, ni cambia cómo quedó Buddy tras la última tanda completa.
   }
 
 function maxSingleArrowScore() {
@@ -1098,10 +1120,15 @@ function getAuthForNameCapture() {
             interactive: true,
             durationMs: displayMs,
             choices: [
-              { label: 'login', value: 'login' }
+              { label: 'login', value: 'login' },
+              { label: 'cancelar', value: 'cancel' }
             ],
             onChoice: function (value) {
               if (value === 'login') return startAuthenticationPrompt();
+              // 'cancel' (o cualquier otro valor): cierra la burbuja sin
+              // autenticar. pendingAndanadaNameGreeting queda activo igual,
+              // así que si el jugador se autentica más tarde por su cuenta,
+              // el saludo con nombre sigue funcionando.
               return false;
             }
           }
@@ -1900,17 +1927,17 @@ function onPointerDown(e) {
     // Un formulario bloqueante de Says tiene prioridad sobre el juego.
     if (window.Buddy && typeof window.Buddy.isBusy === 'function' && window.Buddy.isBusy()) return;
 
-    // Agotamiento total (v0.5): si Raúl está en pose04 pidiendo descanso
+    // Agotamiento total (v0.5): si Buddy está en pose04 pidiendo descanso
     // (ver enterExhaustedIdle), no entra en pose de apuntado — sólo
     // recuerda que necesita descansar. Se revisa ANTES que 'idle' porque
     // 'exhausted' es un estado propio, distinto de 'idle'.
     if (state === 'exhausted') {
       say(CONFIG.fatigue.exhaustionMessage || getDialogue('exhaustion'), 'negativo');
-      setDebug('estado: exhausted — Raúl necesita descansar el brazo…');
+      setDebug('estado: exhausted — Buddy necesita descansar el brazo…');
       return;
     }
 
-    // v1.0: si Raúl está en 'resolved' pero TODAVÍA se ve pose02 (la
+    // v1.0: si Buddy está en 'resolved' pero TODAVÍA se ve pose02 (la
     // flecha recién soltada no terminó de resolverse), un nuevo
     // click/touch-and-drag sobre él NO cancela ese disparo — sigue su
     // curso normal (impacto, puntaje, sonido, `arrowLimit`, todo intacto,
@@ -1927,7 +1954,7 @@ function onPointerDown(e) {
 
     // Cooldown del carcaj (v0.4): si todavía no pasó CONFIG.arrowLimit.cooldownMs
     // desde que se completó la última tanda de CONFIG.arrowLimit.countBeforeCooldown
-    // flechas, Raul no entra en pose de apuntado — solo avisa que está yendo
+    // flechas, Buddy no entra en pose de apuntado — solo avisa que está yendo
     // por las flechas. Se sigue respetando igual al querer poner un pedido
     // en cola: no tendría sentido que un click salteara el cooldown del
     // carcaj.
@@ -2350,7 +2377,7 @@ function onPointerMoveWhileAiming(e) {
 
     // Zona de "sabiduría" (CONFIG.wisdomZone): si la mira cae en el cuarto
     // inferior de la VENTANA VISIBLE (viewport) — equivalente a apuntar
-    // hacia abajo, al suelo, en vez de hacia el blanco — Raúl decide no
+    // hacia abajo, al suelo, en vez de hacia el blanco — Buddy decide no
     // disparar. Se calcula con window.innerHeight, igual que la regla de
     // arriba (mitad de pantalla), no con el alto del documento completo.
     // A diferencia de esa regla, esto NO es un fallo: resolve('wisdom', ...)
@@ -2445,8 +2472,12 @@ function resolve(outcome, reasonLabel, failBubbleText) {
       // del delay de impacto, para que el puntaje sea el del instante de
       // soltar.
       var rect = miraEl.getBoundingClientRect();
-      var centerX = rect.left + rect.width / 2;
-      var centerY = rect.top + rect.height / 2;
+      // v2.1: corrige el centro geométrico de la caja por el verdadero
+      // centro del peep sight (asset.centro), si el personaje lo definió.
+      var miraAssetForCentro = resolveArcheryImage('mira', 'mira');
+      var centroOffset = miraCentroOffsetPx(miraAssetForCentro, rect.width);
+      var centerX = rect.left + rect.width / 2 + centroOffset.dx;
+      var centerY = rect.top + rect.height / 2 + centroOffset.dy;
 
       miraEl.style.display = 'none';
 
@@ -2542,7 +2573,7 @@ function resolve(outcome, reasonLabel, failBubbleText) {
         }
       }, CONFIG.hitDelayMs);
     } else if (outcome === 'wisdom') {
-      // Zona de "sabiduría" (CONFIG.wisdomZone): NO es un fallo — Raúl
+      // Zona de "sabiduría" (CONFIG.wisdomZone): NO es un fallo — Buddy
       // elige conscientemente no disparar, así que vuelve derecho a su
       // pose de reposo (idle/pose03 salvo que la última andanada haya
       // sido floja — ver defaultIdlePoseKey), nunca a pose04 por MISS.
@@ -2571,7 +2602,7 @@ function resolve(outcome, reasonLabel, failBubbleText) {
         charEl.removeEventListener('pointercancel', onPointerCancelDuringPendingAimRequest);
       }
 
-      // v0.5: si el disparo que se acaba de resolver dejó a Raúl agotado
+      // v0.5: si el disparo que se acaba de resolver dejó a Buddy agotado
       // (ver recordArrowFired -> exhausted = true), en vez de volver a
       // pose03 se lo deja en pose04 pidiendo descanso — sólo descansando
       // CONFIG.fatigue.exhaustionRestMs vuelve solo a pose03 (ver
