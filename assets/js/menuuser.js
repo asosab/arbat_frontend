@@ -208,10 +208,8 @@
     }
 
     function configurarTop10() {
-      var archeryEnabled = !!(window.BuddyArcheryConfig && window.BuddyArcheryConfig.enabled !== false);
-      var archeryActivo = !!(window.Buddy && Array.isArray(window.Buddy.abilities) &&
-        window.Buddy.abilities.indexOf('archery') !== -1);
-      setVisible(TOP10_ID, archeryEnabled && archeryActivo);
+      var archeryGame = window.Buddy && window.Buddy.archeryGame;
+      setVisible(TOP10_ID, !!(archeryGame && typeof archeryGame.top10Mostrar === 'function'));
     }
 
     function configurarUsuario() {
@@ -261,13 +259,13 @@
         btnTop10.disabled = true;
         cerrarMenu();
 
-        if (!window.Buddy || !window.Buddy.archery) {
+        if (!window.Buddy || !window.Buddy.archeryGame) {
           btnTop10.disabled = false;
           return;
         }
 
-        var mostrar = typeof window.Buddy.archery.top10Mostrar === 'function'
-          ? window.Buddy.archery.top10Mostrar
+        var mostrar = typeof window.Buddy.archeryGame.top10Mostrar === 'function'
+          ? window.Buddy.archeryGame.top10Mostrar
           : null;
 
         if (!mostrar) {
