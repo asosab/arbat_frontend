@@ -27,6 +27,11 @@
 
 <link rel="preload" href="{{ '/assets/css/style.css' | relative_url }}" as="style" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" href="{{ '/assets/css/style.css' | relative_url }}"></noscript>
+{% if page.estilos %}
+{% for hoja in page.estilos %}
+<link rel="stylesheet" href="{{ hoja | relative_url }}">
+{% endfor %}
+{% endif %}
 <script src="{{ '/assets/js/nav.js' | relative_url }}" defer></script>
 {% seo title=false %}
 
