@@ -86,8 +86,10 @@
     if(!state.current.length)return;
     const lastArrow=state.current[state.current.length-1];
     state.completed.push({arrows:state.current.map(a=>({...a})),endedAt:lastArrow.recordedAt||new Date().toISOString()});
+    const ended=state.completed[state.completed.length-1];
     state.current=[]; save(); vibrate(100); render();
     $('status').textContent=`Andanada ${state.completed.length} guardada. El CSV está listo para descargar.`;
+    sendAndanadaTelemetry(ended,state.completed.length);
   });
 
   function localDateTime(iso){
@@ -153,6 +155,46 @@
     a.href=url;a.download=`arbat-puntajes-${localDateKey()}.csv`;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
     $('status').textContent='CSV descargado con todas las andanadas terminadas.';
   });
+
+  // Telemetría de andanadas terminadas (mismo patrón que archeryGame del proyecto
+  // Statetty). Envía a Buddy Telemetry los datos registrados por cada flecha.
+  function andanadaDatos(end,numero){
+    const flechas=end.arrows.map((a,i)=>{
+      const polar=polarPosition(a);
+      return {
+        numero:i+1,
+        valor:a.score,
+        label:a.label,
+        timestamp:a.recordedAt||'',
+        horaDeMarcado:localDateTime(a.recordedAt),
+        reloj:polar.clock,
+        angulo:polar.angle,
+        radio:polar.radius,
+        posicion:{x:a.x,y:a.y}
+      };
+    });
+    return {
+      fecha:state.date,
+      numero:numero,
+      iniciada:end.arrows[0]&&end.arrows[0].recordedAt||null,
+      completada:end.endedAt||new Date().toISOString(),
+      cantidad:end.arrows.length,
+      total:subtotal(end.arrows),
+      flechas:flechas
+    };
+  }
+  function sendAndanadaTelemetry(end,numero){
+    const data={event:'entrenamiento.andanada',module:'entrenamiento',data:{andanada:andanadaDatos(end,numero)}};
+    if(!window.Buddy||!window.Buddy.telemetry||typeof window.Buddy.telemetry.send!=='function'){
+      if(window.BuddyConfig&&window.BuddyConfig.debugMode===true) console.log('[Buddy] Telemetry no disponible para entrenamiento.andanada');
+      return false;
+    }
+    if(!window.Buddy.telemetry.config||window.Buddy.telemetry.config.enabled===false){
+      if(window.BuddyConfig&&window.BuddyConfig.debugMode===true) console.log('[Buddy] Telemetry deshabilitado para entrenamiento.andanada');
+      return false;
+    }
+    return window.Buddy.telemetry.send(data);
+  }
 
   function renderMarkers(){
     $('markers').replaceChildren(...state.current.flatMap((a,i)=>{
