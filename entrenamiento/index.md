@@ -9,8 +9,6 @@ scripts:
   - /entrenamiento/js/entrenamiento.js
 ---
 
-Anotá tus flechas tocando y deslizando sobre la diana. Los puntajes se guardan localmente en tu dispositivo y podés descargar el CSV al terminar.
-
 <div class="app-entrenamiento">
   <div class="heading"><h1>Registro de entrenamiento</h1><p id="date" class="date"></p></div>
   <div class="layout">
