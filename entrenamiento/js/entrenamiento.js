@@ -219,4 +219,21 @@
 
   $('date').textContent=new Intl.DateTimeFormat('es-BO',{weekday:'long',day:'numeric',month:'long',year:'numeric'}).format(new Date());
   render();
+
+  // Mensaje de bienvenida de Raulito (módulo says de Buddy) al entrar a la página.
+  const MENSAJE_BIENVENIDA='Anotá tus flechas tocando y deslizando sobre la diana. Los puntajes se guardan localmente en tu dispositivo y podés descargar el CSV al terminar.';
+  function decirBienvenida(){
+    if(window.Buddy&&window.Buddy.says&&typeof window.Buddy.says.decirSiLibre==='function'){
+      // Cortés: no pisa nada que ya esté mostrando. Si está ocupado, cae al respaldo.
+      if(window.Buddy.says.decirSiLibre(MENSAJE_BIENVENIDA,{emocion:'sereno'})) return;
+    }
+    if(typeof window.buddy_says==='function') window.buddy_says(MENSAJE_BIENVENIDA,{emocion:'sereno'});
+  }
+  if(window.Buddy&&window.Buddy.ready){
+    decirBienvenida();
+  }else if(window.Buddy&&window.Buddy.readyPromise){
+    window.Buddy.readyPromise.then(decirBienvenida).catch(function(){});
+  }else{
+    window.addEventListener('buddy:ready',decirBienvenida,{once:true});
+  }
 })();
