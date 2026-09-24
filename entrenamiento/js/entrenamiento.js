@@ -255,52 +255,132 @@
     const visible=arrows.filter(a=>a.label!=='M'&&Number.isFinite(a.x)&&Number.isFinite(a.y));
     const canvas=document.createElement('canvas'),ctx=canvas.getContext('2d');
     canvas.width=1080;canvas.height=1350;
-    const cx=540,cy=670,targetR=390;
-    ctx.fillStyle='#fffdf9';ctx.fillRect(0,0,canvas.width,canvas.height);
+    const W=canvas.width,H=canvas.height;
+    const cx=540,cy=650,targetR=466;
+
+    // Fondo y cabecera, siguiendo la composición de la lámina de referencia.
+    ctx.fillStyle='#fffdf9';ctx.fillRect(0,0,W,H);
     ctx.textAlign='center';ctx.textBaseline='alphabetic';
-    ctx.fillStyle='#17232f';ctx.font='700 39px Arial, sans-serif';ctx.fillText('CONSTELACIÓN DE FLECHAS',cx,72);
+    ctx.fillStyle='#11131a';ctx.font='500 51px Arial, sans-serif';
+    ctx.fillText('CONSTELACIÓN DE FLECHAS',cx,72);
     const date=new Date(`${state.date}T12:00:00`);
     const months=['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
     const dateText=`${String(date.getDate()).padStart(2,'0')} ${months[date.getMonth()]} ${date.getFullYear()}`;
-    ctx.fillStyle='#687781';ctx.font='500 22px Arial, sans-serif';ctx.fillText(`Sesión de entrenamiento · ${dateText}`,cx,108);
-    const pts=visible.map(a=>({x:cx+(a.x-50)/OUTER_R*targetR,y:cy+(a.y-50)/OUTER_R*targetR}));
-    const heat=document.createElement('canvas'),hw=216,hh=270,hctx=heat.getContext('2d'),img=hctx.createImageData(hw,hh),densities=new Float32Array(hw*hh),sigma=45;
-    const local=pts.map((p,i)=>pts.reduce((sum,q,j)=>i===j?sum:sum+Math.exp(-((p.x-q.x)**2+(p.y-q.y)**2)/(2*sigma*sigma)),0));
-    let maxDensity=0;
-    for(let py=0;py<hh;py++)for(let px=0;px<hw;px++){
-      const x=px/(hw-1)*canvas.width,y=py/(hh-1)*canvas.height;
-      let density=0;
-      pts.forEach((p,i)=>{const d2=(x-p.x)**2+(y-p.y)**2;density+=local[i]*Math.exp(-d2/(2*sigma*sigma));});
-      maxDensity=Math.max(maxDensity,density);
-      densities[py*hw+px]=density;
-    }
-    if(maxDensity>0){
-      for(let i=3;i<img.data.length;i+=4){
-        const t=Math.min(1,densities[(i-3)/4]/maxDensity);
-        let r,g,b;
-        if(t<.5){const q=t*2;r=30+190*q;g=110-75*q;b=210-170*q;}else{const q=(t-.5)*2;r=220+35*q;g=35+220*q;b=40-35*q;}
-        img.data[i-3]=r;img.data[i-2]=g;img.data[i-1]=b;img.data[i]=Math.round(120*Math.pow(t,.75));
+    ctx.fillStyle='#68727a';ctx.font='400 22px Arial, sans-serif';
+    ctx.fillText(`Sesión de entrenamiento · ${dateText}`,cx,108);
+
+    // Pequeños elementos dorados exteriores.
+    ctx.strokeStyle='rgba(201,157,68,.34)';ctx.lineWidth=1.2;
+    [260,330,400,470].forEach(r=>{
+      ctx.beginPath();ctx.arc(cx,cy,r+62,Math.PI*1.12,Math.PI*1.86);ctx.stroke();
+      ctx.beginPath();ctx.arc(cx,cy,r+62,Math.PI*1.88,Math.PI*2.48);ctx.stroke();
+    });
+    [[58,295],[965,328],[69,1010],[958,970]].forEach(([x,y])=>{
+      ctx.beginPath();ctx.arc(x,y,7,0,Math.PI*2);ctx.fillStyle='rgba(201,157,68,.42)';ctx.fill();
+    });
+
+    // Diana con sombra suave y anillos concéntricos.
+    ctx.save();
+    ctx.shadowColor='rgba(0,0,0,.24)';ctx.shadowBlur=30;ctx.shadowOffsetY=14;
+    ctx.beginPath();ctx.arc(cx,cy,targetR,0,Math.PI*2);ctx.fillStyle='#66686a';ctx.fill();
+    ctx.restore();
+
+    const rings=[1,.90,.80,.70,.60,.50,.40,.30,.20,.10];
+    const fills=['#67696b','#111214','#111214','#15577b','#15577b','#a51f32','#a51f32','#a99f42','#a99f42','#a99f42'];
+    rings.forEach((ratio,i)=>{
+      const r=targetR*ratio;
+      ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);
+      ctx.fillStyle=fills[i];ctx.fill();
+      ctx.strokeStyle='rgba(15,18,20,.72)';ctx.lineWidth=1.3;ctx.stroke();
+    });
+    ctx.beginPath();ctx.arc(cx,cy,targetR*.055,0,Math.PI*2);
+    ctx.strokeStyle='rgba(30,30,30,.9)';ctx.lineWidth=1.5;ctx.stroke();
+
+    // Transformación de las coordenadas de la diana a la lámina.
+    const pts=visible.map(a=>({
+      x:cx+(a.x-50)/OUTER_R*targetR,
+      y:cy+(a.y-50)/OUTER_R*targetR
+    }));
+
+    // Mapa de calor: siempre recortado al área de la diana. Las flechas aisladas
+    // generan azul; la acumulación progresiva pasa a rojo y amarillo.
+    if(pts.length){
+      const hw=500,hh=500,heat=document.createElement('canvas');
+      heat.width=hw;heat.height=hh;
+      const hctx=heat.getContext('2d'), image=hctx.createImageData(hw,hh);
+      const sigma=31, values=new Float32Array(hw*hh);let maxDensity=0;
+      for(let py=0;py<hh;py++){
+        const yy=cy-targetR+(py/(hh-1))*targetR*2;
+        for(let px=0;px<hw;px++){
+          const xx=cx-targetR+(px/(hw-1))*targetR*2;
+          let d=0;
+          for(const p of pts){
+            const dx=xx-p.x,dy=yy-p.y;
+            d+=Math.exp(-(dx*dx+dy*dy)/(2*sigma*sigma));
+          }
+          const idx=py*hw+px;values[idx]=d;maxDensity=Math.max(maxDensity,d);
+        }
       }
-      hctx.putImageData(img,0,0);
+      if(maxDensity>0){
+        for(let py=0;py<hh;py++)for(let px=0;px<hw;px++){
+          const idx=py*hw+px,t=values[idx]/maxDensity;
+          if(t<.035)continue;
+          const q=Math.min(1,Math.pow(t,.58));
+          let r,g,b,a;
+          if(q<.34){
+            const u=q/.34;r=18+25*u;g=75+80*u;b=245;
+          }else if(q<.70){
+            const u=(q-.34)/.36;r=43+210*u;g=155-125*u;b=245-185*u;
+          }else{
+            const u=(q-.70)/.30;r=253;g=30+205*u;b=60-35*u;
+          }
+          const alpha=Math.round(205*Math.pow(q,.72));
+          const k=idx*4;image.data[k]=r;image.data[k+1]=g;image.data[k+2]=b;image.data[k+3]=alpha;
+        }
+        hctx.putImageData(image,0,0);
+        ctx.save();ctx.beginPath();ctx.arc(cx,cy,targetR,0,Math.PI*2);ctx.clip();
+        ctx.globalCompositeOperation='screen';ctx.drawImage(heat,cx-targetR,cy-targetR,targetR*2,targetR*2);
+        ctx.restore();ctx.globalCompositeOperation='source-over';
+      }
     }
-    const rings=[targetR,targetR*.9,targetR*.8,targetR*.7,targetR*.6,targetR*.5,targetR*.4,targetR*.3,targetR*.2,targetR*.1];
-    const fills=['#e8e8e2','#e8e8e2','#343b3f','#343b3f','#467d8e','#467d8e','#8f4542','#8f4542','#b5a64d','#b5a64d'];
-    rings.forEach((r,i)=>{ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.fillStyle=fills[i];ctx.globalAlpha=.62;ctx.fill();ctx.globalAlpha=1;ctx.strokeStyle='#4c565b';ctx.lineWidth=2;ctx.stroke();});
-    ctx.beginPath();ctx.arc(cx,cy,targetR*.05,0,Math.PI*2);ctx.strokeStyle='#555';ctx.lineWidth=2;ctx.stroke();
-    if(maxDensity>0){ctx.save();ctx.globalAlpha=.82;ctx.drawImage(heat,0,0,canvas.width,canvas.height);ctx.restore();}
+
+    // Conexiones: solo entre flechas cercanas, como en la referencia.
     for(let i=0;i<pts.length;i++)for(let j=i+1;j<pts.length;j++){
       const d=Math.hypot(pts[i].x-pts[j].x,pts[i].y-pts[j].y);
-      if(d<=105){ctx.beginPath();ctx.moveTo(pts[i].x,pts[i].y);ctx.lineTo(pts[j].x,pts[j].y);ctx.strokeStyle='rgba(255,255,255,.48)';ctx.lineWidth=1.5;ctx.stroke();}
+      if(d<=112){
+        ctx.beginPath();ctx.moveTo(pts[i].x,pts[i].y);ctx.lineTo(pts[j].x,pts[j].y);
+        ctx.strokeStyle='rgba(205,220,235,.52)';ctx.lineWidth=1.2;ctx.stroke();
+      }
     }
-    pts.forEach((p,i)=>{ctx.beginPath();ctx.arc(p.x,p.y,8,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();ctx.strokeStyle='#17232f';ctx.lineWidth=2;ctx.stroke();ctx.fillStyle='#17232f';ctx.font='800 12px Arial, sans-serif';ctx.fillText(String(i+1),p.x,p.y+4);});
+
+    // Marcadores blancos con borde oscuro y número de orden.
+    pts.forEach((p,i)=>{
+      ctx.beginPath();ctx.arc(p.x,p.y,7,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();
+      ctx.strokeStyle='rgba(28,33,38,.75)';ctx.lineWidth=1.8;ctx.stroke();
+      ctx.fillStyle='#1d2730';ctx.font='800 11px Arial, sans-serif';ctx.fillText(String(i+1),p.x,p.y+3.5);
+    });
+
+    // Estadísticas inferiores.
     const total=arrows.reduce((sum,a)=>sum+valueOf(a),0),avg=total/arrows.length;
-    const stats=[[''+arrows.length,'FLECHAS'],[''+total,'PUNTAJE'],[avg.toFixed(2),'PROMEDIO']];
-    const cols=[300,540,780];
-    stats.forEach((v,i)=>{ctx.fillStyle='#17232f';ctx.font='800 34px Arial, sans-serif';ctx.fillText(v[0],cols[i],1135);ctx.fillStyle='#687781';ctx.font='700 16px Arial, sans-serif';ctx.fillText(v[1],cols[i],1162);});
-    ctx.fillStyle='#17232f';ctx.font='600 18px Arial, sans-serif';ctx.fillText('arbatarchery.com',cx,1212);
-    ctx.textAlign='right';ctx.fillStyle='#9aa4aa';ctx.font='500 13px Arial, sans-serif';ctx.fillText('V-1.1',1035,1308);
+    const stats=[[''+arrows.length,'FLECHAS'],[''+total,'PUNTAJE'],[avg.toFixed(2).replace('.',','),'PROMEDIO']];
+    const cols=[290,540,790];
+    ctx.strokeStyle='rgba(190,150,67,.72)';ctx.lineWidth=1.2;
+    [415,665].forEach(x=>{ctx.beginPath();ctx.moveTo(x,1138);ctx.lineTo(x,1230);ctx.stroke();});
+    stats.forEach((v,i)=>{
+      ctx.fillStyle='#11131a';ctx.font='800 42px Arial, sans-serif';ctx.fillText(v[0],cols[i],1174);
+      ctx.fillStyle='#4d5660';ctx.font='500 17px Arial, sans-serif';ctx.fillText(v[1],cols[i],1205);
+    });
+    ctx.fillStyle='#222831';ctx.font='500 18px Arial, sans-serif';ctx.fillText('arbatarchery.com',cx,1280);
+    ctx.textAlign='right';ctx.fillStyle='#697178';ctx.font='500 13px Arial, sans-serif';ctx.fillText('V-1.2',1035,1320);
+
     if(constellationUrl)URL.revokeObjectURL(constellationUrl);
-    canvas.toBlob(b=>{if(!b)return;const url=URL.createObjectURL(b);const previous=constellationUrl;constellationUrl=url;constellationImage.src=url;if(previous)URL.revokeObjectURL(previous);constellationOverlay.hidden=false;},'image/png');
+    canvas.toBlob(b=>{
+      if(!b)return;
+      const url=URL.createObjectURL(b),previous=constellationUrl;
+      constellationUrl=url;constellationImage.src=url;
+      if(previous)URL.revokeObjectURL(previous);
+      constellationOverlay.hidden=false;
+    },'image/png');
     return true;
   }
   $('constellationBtn').addEventListener('click',()=>{
