@@ -244,6 +244,75 @@
     window.arbatSessionData={date:state.date,headers:[...dataHeader],rows:sessionRows()};
   }
 
+  const constellationOverlay=$('constellationOverlay'), constellationImage=$('constellationImage');
+  let constellationUrl='';
+  function constellationArrows(){
+    return [...state.completed.flatMap(e=>e.arrows||[]),...state.current];
+  }
+  function drawConstellation(){
+    const arrows=constellationArrows();
+    if(!arrows.length)return false;
+    const visible=arrows.filter(a=>a.label!=='M'&&Number.isFinite(a.x)&&Number.isFinite(a.y));
+    const canvas=document.createElement('canvas'),ctx=canvas.getContext('2d');
+    canvas.width=1080;canvas.height=1350;
+    const cx=540,cy=670,targetR=390;
+    ctx.fillStyle='#fffdf9';ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.textAlign='center';ctx.textBaseline='alphabetic';
+    ctx.fillStyle='#17232f';ctx.font='700 39px Arial, sans-serif';ctx.fillText('CONSTELACIÓN DE FLECHAS',cx,72);
+    const date=new Date(`${state.date}T12:00:00`);
+    const months=['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
+    const dateText=`${String(date.getDate()).padStart(2,'0')} ${months[date.getMonth()]} ${date.getFullYear()}`;
+    ctx.fillStyle='#687781';ctx.font='500 22px Arial, sans-serif';ctx.fillText(`Sesión de entrenamiento · ${dateText}`,cx,108);
+    const pts=visible.map(a=>({x:cx+(a.x-50)/OUTER_R*targetR,y:cy+(a.y-50)/OUTER_R*targetR}));
+    const heat=document.createElement('canvas'),hw=216,hh=270,hctx=heat.getContext('2d'),img=hctx.createImageData(hw,hh),densities=new Float32Array(hw*hh),sigma=45;
+    const local=pts.map((p,i)=>pts.reduce((sum,q,j)=>i===j?sum:sum+Math.exp(-((p.x-q.x)**2+(p.y-q.y)**2)/(2*sigma*sigma)),0));
+    let maxDensity=0;
+    for(let py=0;py<hh;py++)for(let px=0;px<hw;px++){
+      const x=px/(hw-1)*canvas.width,y=py/(hh-1)*canvas.height;
+      let density=0;
+      pts.forEach((p,i)=>{const d2=(x-p.x)**2+(y-p.y)**2;density+=local[i]*Math.exp(-d2/(2*sigma*sigma));});
+      maxDensity=Math.max(maxDensity,density);
+      densities[py*hw+px]=density;
+    }
+    if(maxDensity>0){
+      for(let i=3;i<img.data.length;i+=4){
+        const t=Math.min(1,densities[(i-3)/4]/maxDensity);
+        let r,g,b;
+        if(t<.5){const q=t*2;r=30+190*q;g=110-75*q;b=210-170*q;}else{const q=(t-.5)*2;r=220+35*q;g=35+220*q;b=40-35*q;}
+        img.data[i-3]=r;img.data[i-2]=g;img.data[i-1]=b;img.data[i]=Math.round(120*Math.pow(t,.75));
+      }
+      hctx.putImageData(img,0,0);
+    }
+    const rings=[targetR,targetR*.9,targetR*.8,targetR*.7,targetR*.6,targetR*.5,targetR*.4,targetR*.3,targetR*.2,targetR*.1];
+    const fills=['#e8e8e2','#e8e8e2','#343b3f','#343b3f','#467d8e','#467d8e','#8f4542','#8f4542','#b5a64d','#b5a64d'];
+    rings.forEach((r,i)=>{ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.fillStyle=fills[i];ctx.globalAlpha=.62;ctx.fill();ctx.globalAlpha=1;ctx.strokeStyle='#4c565b';ctx.lineWidth=2;ctx.stroke();});
+    ctx.beginPath();ctx.arc(cx,cy,targetR*.05,0,Math.PI*2);ctx.strokeStyle='#555';ctx.lineWidth=2;ctx.stroke();
+    if(maxDensity>0){ctx.save();ctx.globalAlpha=.82;ctx.drawImage(heat,0,0,canvas.width,canvas.height);ctx.restore();}
+    for(let i=0;i<pts.length;i++)for(let j=i+1;j<pts.length;j++){
+      const d=Math.hypot(pts[i].x-pts[j].x,pts[i].y-pts[j].y);
+      if(d<=105){ctx.beginPath();ctx.moveTo(pts[i].x,pts[i].y);ctx.lineTo(pts[j].x,pts[j].y);ctx.strokeStyle='rgba(255,255,255,.48)';ctx.lineWidth=1.5;ctx.stroke();}
+    }
+    pts.forEach((p,i)=>{ctx.beginPath();ctx.arc(p.x,p.y,8,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();ctx.strokeStyle='#17232f';ctx.lineWidth=2;ctx.stroke();ctx.fillStyle='#17232f';ctx.font='800 12px Arial, sans-serif';ctx.fillText(String(i+1),p.x,p.y+4);});
+    const total=arrows.reduce((sum,a)=>sum+valueOf(a),0),avg=total/arrows.length;
+    const stats=[[''+arrows.length,'FLECHAS'],[''+total,'PUNTAJE'],[avg.toFixed(2),'PROMEDIO']];
+    const cols=[300,540,780];
+    stats.forEach((v,i)=>{ctx.fillStyle='#17232f';ctx.font='800 34px Arial, sans-serif';ctx.fillText(v[0],cols[i],1135);ctx.fillStyle='#687781';ctx.font='700 16px Arial, sans-serif';ctx.fillText(v[1],cols[i],1162);});
+    ctx.fillStyle='#17232f';ctx.font='600 18px Arial, sans-serif';ctx.fillText('arbatarchery.com',cx,1212);
+    ctx.textAlign='right';ctx.fillStyle='#9aa4aa';ctx.font='500 13px Arial, sans-serif';ctx.fillText('V-1.1',1035,1308);
+    if(constellationUrl)URL.revokeObjectURL(constellationUrl);
+    canvas.toBlob(b=>{if(!b)return;const url=URL.createObjectURL(b);const previous=constellationUrl;constellationUrl=url;constellationImage.src=url;if(previous)URL.revokeObjectURL(previous);constellationOverlay.hidden=false;},'image/png');
+    return true;
+  }
+  $('constellationBtn').addEventListener('click',()=>{
+    if(!drawConstellation()){$('status').textContent='Registra al menos una flecha para crear la constelación.';return;}
+    $('status').textContent='Constelación creada a partir de los datos de la sesión.';
+  });
+  $('constellationClose').addEventListener('click',()=>{constellationOverlay.hidden=true;});
+  $('constellationDownload').addEventListener('click',()=>{
+    if(!constellationUrl)return;
+    const a=document.createElement('a');a.href=constellationUrl;a.download=`arbat-constelacion-${state.date}.png`;document.body.append(a);a.click();a.remove();
+  });
+
   const tableHead=$('dataTable').tHead.rows[0];
   dataHeader.slice(originalHeader.length).forEach((label,i)=>{
     const th=document.createElement('th');th.textContent=label;

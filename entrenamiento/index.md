@@ -35,6 +35,15 @@ scripts:
         </svg>
       </div>
       <p class="target-note">Mantén presionado, desliza y suelta. Fuera del círculo se registra M con su posición.</p>
+      <div id="constellationOverlay" class="constellation-overlay" hidden aria-modal="true" role="dialog" aria-label="Constelación de flechas">
+        <div class="constellation-view">
+          <img id="constellationImage" alt="Constelación de flechas de la sesión" />
+          <div class="constellation-actions">
+            <button id="constellationDownload" class="btn btn-accent" type="button">descargar</button>
+            <button id="constellationClose" class="btn btn-secondary" type="button">cerrar</button>
+          </div>
+        </div>
+      </div>
     </section>
 
     <aside class="control-panel">
@@ -49,7 +58,7 @@ scripts:
         <button id="undoBtn" class="btn btn-secondary" type="button" disabled>Borrar última flecha</button>
         <button id="finishBtn" class="btn btn-accent" type="button" disabled>Terminar andanada</button>
         <button id="exportBtn" class="btn btn-export" type="button" disabled>Descargar CSV</button>
-        <a class="btn btn-home" href="{{ '/' | relative_url }}">Volver al inicio</a>
+        <button id="constellationBtn" class="btn btn-home" type="button">crear constelación</button>
       </div>
       <p id="status" role="status" aria-live="polite">Toca la diana para registrar la primera flecha.</p>
     </aside>
