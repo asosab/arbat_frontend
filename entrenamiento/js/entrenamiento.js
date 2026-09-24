@@ -285,10 +285,10 @@
     ctx.beginPath();ctx.arc(cx,cy,targetR,0,Math.PI*2);ctx.fillStyle='#66686a';ctx.fill();
     ctx.restore();
 
-    // Base más oscura que la V-1.2: la temperatura debe iluminar la diana,
+    // Base más oscura que la V-1.4: la temperatura debe iluminar la diana,
     // no blanquearla. Las zonas siguen la proporción visual de la maqueta.
     const zoneRings=[1,.90,.66,.40,.19,0];
-    const zoneFills=['#57595b','#111315','#06486d','#951629','#857b2d'];
+    const zoneFills=['#505256','#090b0e','#043f62','#861124','#746b22'];
     for(let i=0;i<zoneFills.length;i++){
       const r=targetR*zoneRings[i];
       ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);
@@ -314,7 +314,7 @@
       const hw=500,hh=500,heat=document.createElement('canvas');
       heat.width=hw;heat.height=hh;
       const hctx=heat.getContext('2d'), image=hctx.createImageData(hw,hh);
-      const sigma=22, values=new Float32Array(hw*hh);let maxDensity=0;
+      const sigma=28, values=new Float32Array(hw*hh);let maxDensity=0;
       for(let py=0;py<hh;py++){
         const yy=cy-targetR+(py/(hh-1))*targetR*2;
         for(let px=0;px<hw;px++){
@@ -330,22 +330,32 @@
       if(maxDensity>0){
         for(let py=0;py<hh;py++)for(let px=0;px<hw;px++){
           const idx=py*hw+px,t=values[idx]/maxDensity;
-          if(t<.055)continue;
-          const q=Math.min(1,Math.pow(t,.78));
+          if(t<.028)continue;
+          const q=Math.min(1,Math.pow(t,.68));
           let r,g,b,a;
-          if(q<.30){
-            const u=q/.30;r=10+25*u;g=55+70*u;b=245;
-          }else if(q<.64){
-            const u=(q-.30)/.34;r=35+215*u;g=125-100*u;b=245-175*u;
+          // Paleta eléctrica inspirada en la maqueta: azul ultrabrillante -> magenta -> rojo -> amarillo.
+          if(q<.24){
+            const u=q/.24; r=0+8*u; g=38+42*u; b=255;
+          }else if(q<.46){
+            const u=(q-.24)/.22; r=8+232*u; g=80-10*u; b=255-18*u;
+          }else if(q<.70){
+            const u=(q-.46)/.24; r=240+15*u; g=70-48*u; b=237-150*u;
           }else{
-            const u=(q-.64)/.36;r=255;g=25+205*u;b=55-40*u;
+            const u=(q-.70)/.30; r=255; g=22+225*u; b=87-75*u;
           }
-          const alpha=Math.round(225*Math.pow(q,.88));
+          const alpha=Math.round(245*Math.pow(q,.72));
           const k=idx*4;image.data[k]=r;image.data[k+1]=g;image.data[k+2]=b;image.data[k+3]=alpha;
         }
         hctx.putImageData(image,0,0);
         ctx.save();ctx.beginPath();ctx.arc(cx,cy,targetR,0,Math.PI*2);ctx.clip();
-        ctx.globalCompositeOperation='screen';ctx.drawImage(heat,cx-targetR,cy-targetR,targetR*2,targetR*2);
+        // Halo amplio: aumenta la luminosidad percibida sin borrar el detalle de los colores.
+        ctx.globalCompositeOperation='screen';
+        ctx.filter='blur(16px)';
+        ctx.globalAlpha=.72;
+        ctx.drawImage(heat,cx-targetR,cy-targetR,targetR*2,targetR*2);
+        ctx.filter='none';
+        ctx.globalAlpha=1;
+        ctx.drawImage(heat,cx-targetR,cy-targetR,targetR*2,targetR*2);
         ctx.restore();ctx.globalCompositeOperation='source-over';
       }
     }
@@ -377,7 +387,7 @@
       ctx.fillStyle='#4d5660';ctx.font='500 17px Arial, sans-serif';ctx.fillText(v[1],cols[i],1205);
     });
     ctx.fillStyle='#222831';ctx.font='500 18px Arial, sans-serif';ctx.fillText('arbatarchery.com',cx,1280);
-    ctx.textAlign='right';ctx.fillStyle='#697178';ctx.font='500 13px Arial, sans-serif';ctx.fillText('V-1.3',1035,1320);
+    ctx.textAlign='right';ctx.fillStyle='#697178';ctx.font='500 13px Arial, sans-serif';ctx.fillText('V-1.4',1035,1320);
 
     if(constellationUrl)URL.revokeObjectURL(constellationUrl);
     canvas.toBlob(b=>{
