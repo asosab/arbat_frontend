@@ -343,15 +343,15 @@
           }else{
             const u=(q-.70)/.30; r=255; g=22+225*u; b=87-75*u;
           }
-          const alpha=Math.round(245*Math.pow(q,.72));
+          const alpha=Math.round(255*Math.pow(q,.58));
           const k=idx*4;image.data[k]=r;image.data[k+1]=g;image.data[k+2]=b;image.data[k+3]=alpha;
         }
         hctx.putImageData(image,0,0);
         ctx.save();ctx.beginPath();ctx.arc(cx,cy,targetR,0,Math.PI*2);ctx.clip();
         // Halo amplio: aumenta la luminosidad percibida sin borrar el detalle de los colores.
         ctx.globalCompositeOperation='screen';
-        ctx.filter='blur(16px)';
-        ctx.globalAlpha=.72;
+        ctx.filter='blur(14px)';
+        ctx.globalAlpha=.92;
         ctx.drawImage(heat,cx-targetR,cy-targetR,targetR*2,targetR*2);
         ctx.filter='none';
         ctx.globalAlpha=1;
@@ -398,18 +398,27 @@
     pts.forEach((p,i)=>{
       const q=markerMax>0?Math.pow(markerDensity[i]/markerMax,.68):0;
       const [r,g,b]=heatColor(q);
-      const color=`rgb(${Math.round(r)} ${Math.round(g)} ${Math.round(b)})`;
+      // Los impactos de la maqueta tienen un borde casi blanco: conservamos
+      // la temperatura del color, pero elevamos mucho su luminosidad.
+      const whiteMix=.72;
+      const br=r+(255-r)*whiteMix;
+      const bg=g+(255-g)*whiteMix;
+      const bb=b+(255-b)*whiteMix;
+      const color=`rgb(${Math.round(br)} ${Math.round(bg)} ${Math.round(bb)})`;
 
-      // Halo breve alrededor del anillo, con la misma temperatura cromática.
+      // Halo más intenso y menos transparente, con un resplandor blanco
+      // en el núcleo para acercarse al aspecto luminoso de la maqueta.
       ctx.save();
-      ctx.shadowColor=color;ctx.shadowBlur=9;ctx.globalAlpha=.9;
-      ctx.beginPath();ctx.arc(p.x,p.y,6.2,0,Math.PI*2);
-      ctx.strokeStyle=color;ctx.lineWidth=2.2;ctx.stroke();
+      ctx.globalCompositeOperation='screen';
+      ctx.shadowColor=`rgba(${Math.round(r)},${Math.round(g)},${Math.round(b)},.95)`;
+      ctx.shadowBlur=14;ctx.globalAlpha=.98;
+      ctx.beginPath();ctx.arc(p.x,p.y,7.2,0,Math.PI*2);
+      ctx.strokeStyle=`rgba(${Math.round(br)},${Math.round(bg)},${Math.round(bb)},.96)`;ctx.lineWidth=3.0;ctx.stroke();
       ctx.restore();
 
-      // Centro limpio y transparente: sólo queda el anillo de color.
-      ctx.beginPath();ctx.arc(p.x,p.y,5.1,0,Math.PI*2);
-      ctx.strokeStyle='rgba(255,255,255,.92)';ctx.lineWidth=1.05;ctx.stroke();
+      // Anillo limpio, muy brillante y tendiendo al blanco.
+      ctx.beginPath();ctx.arc(p.x,p.y,5.2,0,Math.PI*2);
+      ctx.strokeStyle='rgba(255,255,255,.98)';ctx.lineWidth=1.55;ctx.stroke();
     });
 
     // Estadísticas inferiores.
@@ -423,7 +432,7 @@
       ctx.fillStyle='#4d5660';ctx.font='500 17px Arial, sans-serif';ctx.fillText(v[1],cols[i],1205);
     });
     ctx.fillStyle='#222831';ctx.font='500 18px Arial, sans-serif';ctx.fillText('arbatarchery.com',cx,1280);
-    ctx.textAlign='right';ctx.fillStyle='#697178';ctx.font='500 13px Arial, sans-serif';ctx.fillText('V-1.5',1035,1320);
+    ctx.textAlign='right';ctx.fillStyle='#697178';ctx.font='500 13px Arial, sans-serif';ctx.fillText('V-1.6',1035,1320);
 
     if(constellationUrl)URL.revokeObjectURL(constellationUrl);
     canvas.toBlob(b=>{
