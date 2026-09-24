@@ -262,12 +262,12 @@
     ctx.fillStyle='#fffdf9';ctx.fillRect(0,0,W,H);
     ctx.textAlign='center';ctx.textBaseline='alphabetic';
     ctx.fillStyle='#11131a';ctx.font='500 51px Arial, sans-serif';
-    ctx.fillText('CONSTELACIÓN DE FLECHAS',cx,72);
+    ctx.fillText('CONSTELACIÓN DE FLECHAS',cx,102);
     const date=new Date(`${state.date}T12:00:00`);
     const months=['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
     const dateText=`${String(date.getDate()).padStart(2,'0')} ${months[date.getMonth()]} ${date.getFullYear()}`;
     ctx.fillStyle='#68727a';ctx.font='400 22px Arial, sans-serif';
-    ctx.fillText(`Sesión de entrenamiento · ${dateText}`,cx,108);
+    ctx.fillText(`Sesión de entrenamiento · ${dateText}`,cx,140);
 
     // Pequeños elementos dorados exteriores.
     ctx.strokeStyle='rgba(201,157,68,.34)';ctx.lineWidth=1.2;
@@ -285,16 +285,22 @@
     ctx.beginPath();ctx.arc(cx,cy,targetR,0,Math.PI*2);ctx.fillStyle='#66686a';ctx.fill();
     ctx.restore();
 
-    const rings=[1,.90,.80,.70,.60,.50,.40,.30,.20,.10];
-    const fills=['#67696b','#111214','#111214','#15577b','#15577b','#a51f32','#a51f32','#a99f42','#a99f42','#a99f42'];
-    rings.forEach((ratio,i)=>{
-      const r=targetR*ratio;
+    // Base más oscura que la V-1.2: la temperatura debe iluminar la diana,
+    // no blanquearla. Las zonas siguen la proporción visual de la maqueta.
+    const zoneRings=[1,.90,.66,.40,.19,0];
+    const zoneFills=['#57595b','#111315','#06486d','#951629','#857b2d'];
+    for(let i=0;i<zoneFills.length;i++){
+      const r=targetR*zoneRings[i];
       ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);
-      ctx.fillStyle=fills[i];ctx.fill();
-      ctx.strokeStyle='rgba(15,18,20,.72)';ctx.lineWidth=1.3;ctx.stroke();
+      ctx.fillStyle=zoneFills[i];ctx.fill();
+    }
+    // Aros finos independientes de las zonas de color, como en la maqueta.
+    [.90,.70,.60,.50,.40,.30,.20,.10].forEach(ratio=>{
+      ctx.beginPath();ctx.arc(cx,cy,targetR*ratio,0,Math.PI*2);
+      ctx.strokeStyle='rgba(15,18,20,.72)';ctx.lineWidth=1.15;ctx.stroke();
     });
-    ctx.beginPath();ctx.arc(cx,cy,targetR*.055,0,Math.PI*2);
-    ctx.strokeStyle='rgba(30,30,30,.9)';ctx.lineWidth=1.5;ctx.stroke();
+    ctx.beginPath();ctx.arc(cx,cy,targetR,0,Math.PI*2);
+    ctx.strokeStyle='rgba(15,18,20,.72)';ctx.lineWidth=1.3;ctx.stroke();
 
     // Transformación de las coordenadas de la diana a la lámina.
     const pts=visible.map(a=>({
@@ -308,7 +314,7 @@
       const hw=500,hh=500,heat=document.createElement('canvas');
       heat.width=hw;heat.height=hh;
       const hctx=heat.getContext('2d'), image=hctx.createImageData(hw,hh);
-      const sigma=31, values=new Float32Array(hw*hh);let maxDensity=0;
+      const sigma=22, values=new Float32Array(hw*hh);let maxDensity=0;
       for(let py=0;py<hh;py++){
         const yy=cy-targetR+(py/(hh-1))*targetR*2;
         for(let px=0;px<hw;px++){
@@ -324,17 +330,17 @@
       if(maxDensity>0){
         for(let py=0;py<hh;py++)for(let px=0;px<hw;px++){
           const idx=py*hw+px,t=values[idx]/maxDensity;
-          if(t<.035)continue;
-          const q=Math.min(1,Math.pow(t,.58));
+          if(t<.055)continue;
+          const q=Math.min(1,Math.pow(t,.78));
           let r,g,b,a;
-          if(q<.34){
-            const u=q/.34;r=18+25*u;g=75+80*u;b=245;
-          }else if(q<.70){
-            const u=(q-.34)/.36;r=43+210*u;g=155-125*u;b=245-185*u;
+          if(q<.30){
+            const u=q/.30;r=10+25*u;g=55+70*u;b=245;
+          }else if(q<.64){
+            const u=(q-.30)/.34;r=35+215*u;g=125-100*u;b=245-175*u;
           }else{
-            const u=(q-.70)/.30;r=253;g=30+205*u;b=60-35*u;
+            const u=(q-.64)/.36;r=255;g=25+205*u;b=55-40*u;
           }
-          const alpha=Math.round(205*Math.pow(q,.72));
+          const alpha=Math.round(225*Math.pow(q,.88));
           const k=idx*4;image.data[k]=r;image.data[k+1]=g;image.data[k+2]=b;image.data[k+3]=alpha;
         }
         hctx.putImageData(image,0,0);
@@ -371,7 +377,7 @@
       ctx.fillStyle='#4d5660';ctx.font='500 17px Arial, sans-serif';ctx.fillText(v[1],cols[i],1205);
     });
     ctx.fillStyle='#222831';ctx.font='500 18px Arial, sans-serif';ctx.fillText('arbatarchery.com',cx,1280);
-    ctx.textAlign='right';ctx.fillStyle='#697178';ctx.font='500 13px Arial, sans-serif';ctx.fillText('V-1.2',1035,1320);
+    ctx.textAlign='right';ctx.fillStyle='#697178';ctx.font='500 13px Arial, sans-serif';ctx.fillText('V-1.3',1035,1320);
 
     if(constellationUrl)URL.revokeObjectURL(constellationUrl);
     canvas.toBlob(b=>{
