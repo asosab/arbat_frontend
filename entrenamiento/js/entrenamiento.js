@@ -369,11 +369,47 @@
       }
     }
 
-    // Marcadores blancos con borde oscuro y número de orden.
+    // Marcadores: cada flecha queda representada por un anillo cuyo color
+    // refleja su densidad relativa respecto de las demás flechas. No se
+    // muestra numeración para conservar la lectura visual de la constelación.
+    const markerSigma=28;
+    const markerDensity=pts.map((p,i)=>{
+      let d=0;
+      for(let j=0;j<pts.length;j++){
+        if(i===j)continue;
+        const dx=p.x-pts[j].x,dy=p.y-pts[j].y;
+        d+=Math.exp(-(dx*dx+dy*dy)/(2*markerSigma*markerSigma));
+      }
+      return d;
+    });
+    const markerMax=Math.max(...markerDensity,0);
+    const heatColor=q=>{
+      q=Math.max(0,Math.min(1,q));
+      if(q<.24){
+        const u=q/.24; return [0+8*u,38+42*u,255];
+      }else if(q<.46){
+        const u=(q-.24)/.22; return [8+232*u,80-10*u,255-18*u];
+      }else if(q<.70){
+        const u=(q-.46)/.24; return [240+15*u,70-48*u,237-150*u];
+      }else{
+        const u=(q-.70)/.30; return [255,22+225*u,87-75*u];
+      }
+    };
     pts.forEach((p,i)=>{
-      ctx.beginPath();ctx.arc(p.x,p.y,7,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();
-      ctx.strokeStyle='rgba(28,33,38,.75)';ctx.lineWidth=1.8;ctx.stroke();
-      ctx.fillStyle='#1d2730';ctx.font='800 11px Arial, sans-serif';ctx.fillText(String(i+1),p.x,p.y+3.5);
+      const q=markerMax>0?Math.pow(markerDensity[i]/markerMax,.68):0;
+      const [r,g,b]=heatColor(q);
+      const color=`rgb(${Math.round(r)} ${Math.round(g)} ${Math.round(b)})`;
+
+      // Halo breve alrededor del anillo, con la misma temperatura cromática.
+      ctx.save();
+      ctx.shadowColor=color;ctx.shadowBlur=9;ctx.globalAlpha=.9;
+      ctx.beginPath();ctx.arc(p.x,p.y,6.2,0,Math.PI*2);
+      ctx.strokeStyle=color;ctx.lineWidth=2.2;ctx.stroke();
+      ctx.restore();
+
+      // Centro limpio y transparente: sólo queda el anillo de color.
+      ctx.beginPath();ctx.arc(p.x,p.y,5.1,0,Math.PI*2);
+      ctx.strokeStyle='rgba(255,255,255,.92)';ctx.lineWidth=1.05;ctx.stroke();
     });
 
     // Estadísticas inferiores.
@@ -387,7 +423,7 @@
       ctx.fillStyle='#4d5660';ctx.font='500 17px Arial, sans-serif';ctx.fillText(v[1],cols[i],1205);
     });
     ctx.fillStyle='#222831';ctx.font='500 18px Arial, sans-serif';ctx.fillText('arbatarchery.com',cx,1280);
-    ctx.textAlign='right';ctx.fillStyle='#697178';ctx.font='500 13px Arial, sans-serif';ctx.fillText('V-1.4',1035,1320);
+    ctx.textAlign='right';ctx.fillStyle='#697178';ctx.font='500 13px Arial, sans-serif';ctx.fillText('V-1.5',1035,1320);
 
     if(constellationUrl)URL.revokeObjectURL(constellationUrl);
     canvas.toBlob(b=>{
