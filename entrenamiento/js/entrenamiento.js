@@ -1,13 +1,14 @@
 (() => {
   'use strict';
-  const MAX = 12, OUTER_R = 46, BAND = OUTER_R / 10;
+  const MAX = 12, DEFAULT_END_SIZE = 6, MIN_VIEW_SIZE = 25, OUTER_R = 46, BAND = OUTER_R / 10;
   const localDateKey = () => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   };
   const storageKey = `arbat-training-${localDateKey()}`;
-  const fresh = () => ({date:localDateKey(), completed:[], current:[]});
-  let state = fresh(), activePointer = null, provisional = null;
+  const csvStorageKey = `${storageKey}-csv`;
+  const fresh = () => ({date:localDateKey(), completed:[], current:[], twelveArrows:false});
+  let state = fresh(), activePointer = null, provisional = null, autoFinishTimer = 0;
 
   const $ = id => document.getElementById(id);
   const svg = $('target'), wrap = $('targetWrap'), highlight = $('highlight');
@@ -22,15 +23,24 @@
     if (saved && saved.date === localDateKey() && Array.isArray(saved.completed) && Array.isArray(saved.current)) state = saved;
   } catch (_) {}
 
+  // Compatibilidad con sesiones creadas antes de existir la opción 6/12.
+  if(typeof state.twelveArrows !== 'boolean'){
+    state.twelveArrows = state.current.length > DEFAULT_END_SIZE || state.completed.some(e=>(e.arrows||[]).length>DEFAULT_END_SIZE);
+  }
+
+  const endLimit = () => state.twelveArrows ? MAX : DEFAULT_END_SIZE;
+  const sessionStarted = () => state.current.length > 0 || state.completed.length > 0;
+
   function save(){
     try { localStorage.setItem(storageKey, JSON.stringify(state)); } catch (_) {}
   }
 
-  function pointFromEvent(e){
-    const p = svg.createSVGPoint(); p.x = e.clientX; p.y = e.clientY;
+  function pointFromClient(clientX,clientY){
+    const p = svg.createSVGPoint(); p.x = clientX; p.y = clientY;
     const q = p.matrixTransform(svg.getScreenCTM().inverse());
     return {x:q.x, y:q.y};
   }
+  const pointFromEvent = e => pointFromClient(e.clientX,e.clientY);
 
   function scorePoint(p){
     const d = Math.hypot(p.x-50,p.y-50);
@@ -51,46 +61,114 @@
 
   function resetProvisional(){ provisional=null; $('currentScore').textContent='—'; highlight.style.opacity='0'; }
 
-  function addArrow(arrow){
-    if (state.current.length >= MAX) return;
-    arrow.recordedAt = arrow.recordedAt || new Date().toISOString();
-    state.current.push(arrow); save(); vibrate(40); render();
-    $('status').textContent = state.current.length === MAX ? 'Máximo de 12 flechas. Termina la andanada para continuar.' : `Flecha ${state.current.length} registrada: ${arrow.label}.`;
-  }
-
-  wrap.addEventListener('pointerdown', e => {
-    if (state.current.length >= MAX || activePointer !== null || !e.isPrimary) return;
-    activePointer=e.pointerId; wrap.setPointerCapture(e.pointerId); showProvisional(pointFromEvent(e)); e.preventDefault();
-  });
-  wrap.addEventListener('pointermove', e => { if(e.pointerId===activePointer){showProvisional(pointFromEvent(e));e.preventDefault();} });
-  wrap.addEventListener('pointerup', e => {
-    if(e.pointerId!==activePointer) return;
-    const p=pointFromEvent(e);
-    // Pointer capture can deliver the release outside the interactive square.
-    // Cancel it instead of inventing a position outside the visible target.
-    if(p.x<0||p.x>100||p.y<0||p.y>100){activePointer=null;resetProvisional();$('status').textContent='Gesto cancelado fuera del área de la diana.';return;}
-    showProvisional(p);
-    const arrow={label:provisional.label,score:provisional.score,x:provisional.x,y:provisional.y};
-    activePointer=null; resetProvisional();
-    addArrow(arrow);
-    e.preventDefault();
-  });
-  wrap.addEventListener('pointercancel', e => { if(e.pointerId===activePointer){activePointer=null;resetProvisional();} });
-
-  $('undoBtn').addEventListener('click',()=>{
-    if(!state.current.length) return;
-    const removed=state.current.pop(); save(); vibrate(40); render();
-    $('status').textContent=`Última flecha eliminada (${removed.label}).`;
-  });
-  $('finishBtn').addEventListener('click',()=>{
+  function finishCurrentEnd(automatic=false){
+    clearTimeout(autoFinishTimer);autoFinishTimer=0;
     if(!state.current.length)return;
     const lastArrow=state.current[state.current.length-1];
     state.completed.push({arrows:state.current.map(a=>({...a})),endedAt:lastArrow.recordedAt||new Date().toISOString()});
     const ended=state.completed[state.completed.length-1];
-    state.current=[]; save(); vibrate(100); render();
-    $('status').textContent=`Andanada ${state.completed.length} guardada. El CSV está listo para descargar.`;
+    state.current=[];save();vibrate(100);render();
+    $('status').textContent=automatic
+      ? `Andanada ${state.completed.length} terminada automáticamente y guardada.`
+      : `Andanada ${state.completed.length} guardada.`;
     sendAndanadaTelemetry(ended,state.completed.length);
+  }
+
+  function addArrow(arrow){
+    const limit=endLimit();
+    if (state.current.length >= limit) return;
+    arrow.recordedAt = arrow.recordedAt || new Date().toISOString();
+    state.current.push(arrow); save(); vibrate(40); render();
+    const count=state.current.length;
+    $('status').textContent=`Flecha ${count} registrada: ${arrow.label}.`;
+    if(count===limit){
+      autoFinishTimer=setTimeout(()=>finishCurrentEnd(true),140);
+    }
+  }
+
+  // Un dedo marca. Dos dedos cancelan cualquier marca provisional y controlan
+  // el viewBox del SVG para ampliar, reducir y desplazar sin alterar coordenadas.
+  const pointers=new Map();
+  let gesture='idle', pinch=null, suppressMarking=false;
+  let zoomView={x:0,y:0,w:100,h:100};
+  const clamp=(value,min,max)=>Math.max(min,Math.min(max,value));
+  const pointerPair=()=>Array.from(pointers.entries()).slice(0,2);
+  function setZoomView(next){
+    const w=clamp(next.w,MIN_VIEW_SIZE,100),h=w;
+    zoomView={x:clamp(next.x,0,100-w),y:clamp(next.y,0,100-h),w,h};
+    svg.setAttribute('viewBox',`${zoomView.x} ${zoomView.y} ${zoomView.w} ${zoomView.h}`);
+    wrap.classList.toggle('is-zoomed',zoomView.w<99.99);
+  }
+  function beginPinch(){
+    const pair=pointerPair();
+    if(pair.length<2)return;
+    activePointer=null;resetProvisional();gesture='pinch';suppressMarking=true;
+    const [a,b]=pair.map(([id,p])=>({id,...p}));
+    const mid={x:(a.x+b.x)/2,y:(a.y+b.y)/2};
+    pinch={
+      ids:[a.id,b.id],
+      distance:Math.max(1,Math.hypot(a.x-b.x,a.y-b.y)),
+      view:{...zoomView},
+      anchor:pointFromClient(mid.x,mid.y)
+    };
+    $('status').textContent='Zoom activo: separa, junta o mueve los dos dedos.';
+  }
+  function updatePinch(){
+    if(!pinch)return;
+    const a=pointers.get(pinch.ids[0]),b=pointers.get(pinch.ids[1]);
+    if(!a||!b)return;
+    const distance=Math.max(1,Math.hypot(a.x-b.x,a.y-b.y));
+    const mid={x:(a.x+b.x)/2,y:(a.y+b.y)/2};
+    const rect=svg.getBoundingClientRect();
+    const w=clamp(pinch.view.w*pinch.distance/distance,MIN_VIEW_SIZE,100);
+    const ux=clamp((mid.x-rect.left)/rect.width,0,1);
+    const uy=clamp((mid.y-rect.top)/rect.height,0,1);
+    setZoomView({x:pinch.anchor.x-ux*w,y:pinch.anchor.y-uy*w,w});
+  }
+  function clearPointer(id){
+    pointers.delete(id);
+    if(!pointers.size){
+      gesture='idle';pinch=null;suppressMarking=false;activePointer=null;
+      const zoom=Math.round(10000/zoomView.w);
+      if(zoom>100)$('status').textContent=`Diana ampliada al ${zoom} %. Usa dos dedos para moverla o reducirla.`;
+    }else if(gesture==='pinch'){
+      gesture='blocked';pinch=null;
+    }
+  }
+  wrap.addEventListener('pointerdown', e => {
+    pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    try{wrap.setPointerCapture(e.pointerId);}catch(_){}
+    if(pointers.size>=2){beginPinch();e.preventDefault();return;}
+    if(suppressMarking||state.current.length>=endLimit()){gesture='blocked';e.preventDefault();return;}
+    activePointer=e.pointerId;gesture='mark';showProvisional(pointFromEvent(e));e.preventDefault();
   });
+  wrap.addEventListener('pointermove', e => {
+    if(!pointers.has(e.pointerId))return;
+    pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(gesture==='pinch'){updatePinch();e.preventDefault();return;}
+    if(gesture==='mark'&&e.pointerId===activePointer){showProvisional(pointFromEvent(e));e.preventDefault();}
+  });
+  wrap.addEventListener('pointerup', e => {
+    if(gesture!=='mark'||e.pointerId!==activePointer){clearPointer(e.pointerId);e.preventDefault();return;}
+    const p=pointFromEvent(e);
+    // Pointer capture can deliver the release outside the interactive square.
+    // Cancel it instead of inventing a position outside the visible target.
+    if(p.x<0||p.x>100||p.y<0||p.y>100){clearPointer(e.pointerId);resetProvisional();$('status').textContent='Gesto cancelado fuera del área de la diana.';return;}
+    showProvisional(p);
+    const arrow={label:provisional.label,score:provisional.score,x:provisional.x,y:provisional.y};
+    clearPointer(e.pointerId);resetProvisional();
+    addArrow(arrow);
+    e.preventDefault();
+  });
+  wrap.addEventListener('pointercancel', e => {clearPointer(e.pointerId);resetProvisional();});
+
+  $('undoBtn').addEventListener('click',()=>{
+    if(!state.current.length) return;
+    clearTimeout(autoFinishTimer);autoFinishTimer=0;
+    const removed=state.current.pop(); save(); vibrate(40); render();
+    $('status').textContent=`Última flecha eliminada (${removed.label}).`;
+  });
+  $('finishBtn').addEventListener('click',()=>finishCurrentEnd(false));
 
   function localDateTime(iso){
     if(!iso) return '';
@@ -146,15 +224,9 @@
   }
   function csvText(){
     const data=[dataHeader,...sessionRows()].map(row=>row.map(v=>`"${String(v).replaceAll('"','""')}"`).join(',')).join('\r\n');
-    // El CSV completo se reconstruye en cada descarga. Nunca se agregan comentarios a un archivo anterior.
+    // El CSV completo se reconstruye internamente. Nunca se duplican los comentarios iniciales.
     return '\uFEFF'+csvComments.join('\r\n')+'\r\n'+data;
   }
-  $('exportBtn').addEventListener('click',()=>{
-    if(!state.completed.length)return;
-    const blob=new Blob([csvText()],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');
-    a.href=url;a.download=`arbat-puntajes-${localDateKey()}.csv`;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
-    $('status').textContent='CSV descargado con todas las andanadas terminadas.';
-  });
 
   // Telemetría de andanadas terminadas (mismo patrón que archeryGame del proyecto
   // Statetty). Envía a Buddy Telemetry los datos registrados por cada flecha.
@@ -211,9 +283,11 @@
     const article=document.createElement('article'); article.className='end-card';
     const title=document.createElement('div'); title.className='end-title';
     title.innerHTML=`<span>Andanada ${index+1}</span><small>${isCurrent?'En curso':localDateTime(endedAt)||'Terminada'}</small>`;
-    const grid=document.createElement('div'); grid.className='arrow-grid';
+    const grid=document.createElement('div');
     const displayValues=sortedScores(arrows);
-    for(let i=0;i<MAX;i++){
+    const cellCount=Math.min(MAX,Math.max(DEFAULT_END_SIZE,displayValues.length));
+    grid.className='arrow-grid'+(cellCount>DEFAULT_END_SIZE?' extended':'');
+    for(let i=0;i<cellCount;i++){
       const cell=document.createElement('div'); cell.className='arrow-cell'+(displayValues[i]==='M'?' miss':'');
       const num=document.createElement('span');num.className='num';num.textContent=`F${i+1}`;
       const val=document.createElement('span');val.className='val';val.textContent=displayValues[i]||'·';cell.append(num,val);grid.append(cell);
@@ -230,18 +304,12 @@
     if(!state.completed.length&&!state.current.length){const p=document.createElement('p');p.className='empty';p.textContent='Los puntajes aparecerán aquí al registrar la primera flecha.';box.append(p);}
   }
 
-  function renderDataTable(){
-    const body=$('dataTableBody');body.replaceChildren();
-    sessionRows().forEach(row=>{
-      const tr=document.createElement('tr');
-      row.forEach((value,index)=>{
-        const td=document.createElement('td');td.textContent=value;
-        if(index===1||index===14||index===17||index===19)td.className='separator';
-        tr.append(td);
-      });
-      body.append(tr);
-    });
-    window.arbatSessionData={date:state.date,headers:[...dataHeader],rows:sessionRows()};
+  function publishSessionData(){
+    // API interna para que otra página pueda guardar o procesar los datos sin
+    // mostrar una tabla técnica ni pedir una descarga al usuario.
+    const csv=csvText();
+    window.arbatSessionData={date:state.date,headers:[...dataHeader],rows:sessionRows(),csv};
+    try{localStorage.setItem(csvStorageKey,csv);}catch(_){}
   }
 
   const constellationOverlay=$('constellationOverlay'), constellationImage=$('constellationImage');
@@ -454,26 +522,29 @@
     const a=document.createElement('a');a.href=constellationUrl;a.download=`arbat-constelacion-${state.date}.png`;document.body.append(a);a.click();a.remove();
   });
 
-  const tableHead=$('dataTable').tHead.rows[0];
-  dataHeader.slice(originalHeader.length).forEach((label,i)=>{
-    const th=document.createElement('th');th.textContent=label;
-    if(i===0)th.className='separator';
-    tableHead.append(th);
-  });
-
   function render(){
-    const count=state.current.length,locked=count>=MAX;
-    $('endNumber').textContent=state.completed.length+1;$('arrowCount').textContent=`${count} / ${MAX}`;
-    $('endTotal').textContent=subtotal(state.current);$('sessionTotal').textContent=sessionTotal();$('progressBar').style.width=`${count/MAX*100}%`;
-    $('undoBtn').disabled=!count;$('finishBtn').disabled=!count;$('exportBtn').disabled=!state.completed.length;
-    wrap.setAttribute('aria-disabled',String(locked));renderMarkers();renderScores();renderDataTable();
+    const count=state.current.length,limit=endLimit(),locked=count>=limit;
+    $('endNumber').textContent=state.completed.length+1;$('arrowCount').textContent=`${count} / ${limit}`;
+    $('endTotal').textContent=subtotal(state.current);$('sessionTotal').textContent=sessionTotal();
+    $('undoBtn').disabled=!count;$('finishBtn').disabled=!count;
+    $('twelveArrowMode').checked=state.twelveArrows;
+    $('twelveArrowMode').disabled=sessionStarted();
+    wrap.setAttribute('aria-disabled',String(locked));renderMarkers();renderScores();publishSessionData();
   }
+
+  $('twelveArrowMode').addEventListener('change',e=>{
+    if(sessionStarted()){e.target.checked=state.twelveArrows;return;}
+    state.twelveArrows=e.target.checked;save();render();
+    $('status').textContent=state.twelveArrows
+      ? 'Sesión configurada con 12 flechas por andanada.'
+      : 'Sesión configurada con 6 flechas por andanada.';
+  });
 
   $('date').textContent=new Intl.DateTimeFormat('es-BO',{weekday:'long',day:'numeric',month:'long',year:'numeric'}).format(new Date());
   render();
 
   // Mensaje de bienvenida de Raulito (módulo says de Buddy) al entrar a la página.
-  const MENSAJE_BIENVENIDA='Anotá tus flechas tocando y deslizando sobre la diana. Los puntajes se guardan localmente en tu dispositivo y podés descargar el CSV al terminar.';
+  const MENSAJE_BIENVENIDA='Anotá tus flechas tocando y deslizando sobre la diana. Usá dos dedos para ampliar o mover la diana. Los puntajes se guardan localmente en tu dispositivo.';
   function decirBienvenida(){
     if(window.Buddy&&window.Buddy.says&&typeof window.Buddy.says.decirSiLibre==='function'){
       // Cortés: no pisa nada que ya esté mostrando. Si está ocupado, cae al respaldo.
