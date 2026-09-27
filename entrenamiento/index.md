@@ -4,9 +4,9 @@ title: "Registro de entrenamiento"
 description: "Aplicación para registrar puntajes de entrenamiento de tiro con arco: anotá tus flechas en la diana, llevá el control de tus andanadas y generá la constelación de la sesión."
 breadcrumb_hidden: true
 estilos:
-  - "/entrenamiento/css/entrenamiento.css?v=2"
+  - "/entrenamiento/css/entrenamiento.css?v=3"
 scripts:
-  - "/entrenamiento/js/entrenamiento.js?v=2"
+  - "/entrenamiento/js/entrenamiento.js?v=3"
 ---
 
 <div class="app-entrenamiento">
@@ -60,6 +60,7 @@ scripts:
         <div class="stat"><span>Total sesión</span><strong id="sessionTotal">0</strong></div>
         <button id="finishBtn" class="btn btn-accent" type="button" disabled>Terminar andanada</button>
       </div>
+      <button id="finishSessionBtn" class="btn btn-session-end" type="button" disabled>Terminar sesión del día</button>
       <div class="actions">
         <button id="constellationBtn" class="btn btn-constellation" type="button">Crear constelación</button>
         <a class="btn btn-home" href="/">Volver al inicio</a>
@@ -95,7 +96,7 @@ scripts:
     <label class="notes-field" for="sessionNotes">
       <strong>Notas</strong>
       <textarea id="sessionNotes" rows="4" maxlength="1000" placeholder="Ej.: campo diferente, cómo me siento, mucho viento…"></textarea>
-      <small>Se guardarán con cada andanada al terminarla.</small>
+      <small>Se guardará en el CSV cuando aparezca por primera vez o cuando cambie.</small>
     </label>
   </section>
 </div>

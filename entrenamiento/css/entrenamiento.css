@@ -73,6 +73,7 @@
 .btn-secondary{background:#e8edf0;color:var(--navy)}
 .btn-accent{background:var(--orange);color:#1e2429}
 .btn-constellation{background:var(--navy2);color:#fff}
+.btn-session-end{display:block;width:100%;margin:0 0 9px;background:#4b2a2a;color:#fff;border:1px solid #8f4f4f}
 .btn-home{background:transparent;color:var(--ink);border:2px solid #596672;display:flex;align-items:center;justify-content:center;text-decoration:none}
 .constellation-overlay{position:absolute;inset:0;z-index:20;background:rgba(255,255,255,.98);display:flex;align-items:center;justify-content:center;padding:12px;overflow:auto}
 .constellation-overlay[hidden]{display:none}

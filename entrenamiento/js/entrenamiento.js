@@ -5,9 +5,16 @@
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   };
-  const storageKey = `arbat-training-${localDateKey()}`;
+  const dateKeyFrom = value => {
+    const d=new Date(value);
+    return Number.isNaN(d.getTime())?'':`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  };
+  const storageKey = 'arbat-training-current';
+  const legacyStorageKey = `arbat-training-${localDateKey()}`;
+  const historyStorageKey = 'arbat-training-history';
   const csvStorageKey = `${storageKey}-csv`;
-  const fresh = () => ({date:localDateKey(), completed:[], current:[], arrowsPerEnd:DEFAULT_END_SIZE, sessionType:'training', notes:''});
+  const sessionId = () => globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const fresh = () => ({id:sessionId(),date:localDateKey(),startedAt:new Date().toISOString(),completed:[],current:[],arrowsPerEnd:DEFAULT_END_SIZE,sessionType:'training',notes:''});
   let state = fresh(), activePointer = null, provisional = null, pendingEndTimer = 0;
 
   const $ = id => document.getElementById(id);
@@ -19,8 +26,8 @@
   const sessionTotal = () => totalBeforeCurrent() + subtotal(state.current);
 
   try {
-    const saved = JSON.parse(localStorage.getItem(storageKey));
-    if (saved && saved.date === localDateKey() && Array.isArray(saved.completed) && Array.isArray(saved.current)) state = saved;
+    const saved = JSON.parse(localStorage.getItem(storageKey) || localStorage.getItem(legacyStorageKey));
+    if (saved && Array.isArray(saved.completed) && Array.isArray(saved.current)) state = saved;
   } catch (_) {}
 
   // Compatibilidad con sesiones guardadas por versiones anteriores.
@@ -30,9 +37,19 @@
   state.arrowsPerEnd=Number(state.arrowsPerEnd);
   if(!['training','competition'].includes(state.sessionType))state.sessionType='training';
   if(typeof state.notes!=='string')state.notes='';
+  if(!state.id)state.id=sessionId();
+  if(!state.startedAt)state.startedAt=state.current[0]?.recordedAt||state.completed[0]?.arrows?.[0]?.recordedAt||new Date().toISOString();
 
   const endLimit = () => state.arrowsPerEnd;
   const sessionStarted = () => state.current.length > 0 || state.completed.length > 0;
+  const sessionHasDifferentDay = () => {
+    if(state.date!==localDateKey())return true;
+    const timestamps=[
+      ...state.completed.map(end=>end.endedAt||end.arrows?.[end.arrows.length-1]?.recordedAt),
+      ...state.current.map(arrow=>arrow.recordedAt)
+    ].filter(Boolean);
+    return timestamps.some(timestamp=>dateKeyFrom(timestamp)!==localDateKey());
+  };
 
   function save(){
     try { localStorage.setItem(storageKey, JSON.stringify(state)); } catch (_) {}
@@ -184,6 +201,12 @@
     $('status').textContent=`Última flecha eliminada (${removed.label}).`;
   });
   $('finishBtn').addEventListener('click',()=>finishCurrentEnd(false));
+  $('finishSessionBtn').addEventListener('click',()=>{
+    if(!sessionStarted())return;
+    if(!window.confirm('¿Terminar esta sesión? La próxima sesión comenzará nuevamente en la andanada 1.'))return;
+    const ended=archiveCurrentSession('manual');
+    if(ended){vibrate(140);$('status').textContent='Sesión terminada y guardada. Ya puedes configurar una nueva sesión.';}
+  });
 
   function localDateTime(iso){
     if(!iso) return '';
@@ -224,9 +247,9 @@
     '# Tipo de sesión queda vacío para Entrenamiento y contiene Tournament para Competencia. El valor corresponde a la opción elegida al terminar cada andanada.',
     '# Notas de la sesión contiene el texto libre cuando aparece por primera vez o cuando cambia respecto de la andanada anterior; si no cambia; la celda queda vacía. Puede describir el campo; el clima; el viento o cómo se sentía el arquero.'
   ];
-  function sessionRows(){
+  function sessionRows(session=state){
     let running=0,previousNotes='';
-    return state.completed.map((end,i)=>{
+    return session.completed.map((end,i)=>{
       const values=sortedScores(end.arrows); while(values.length<MAX)values.push('');
       running+=subtotal(end.arrows);
       const endedAt=end.endedAt||end.arrows[end.arrows.length-1]?.recordedAt||'';
@@ -242,10 +265,44 @@
       return [i+1,'',...values,'',subtotal(end.arrows),running,'',localDateTime(endedAt),'',...positions,end.sessionType==='competition'?'Tournament':'',notesForCsv];
     });
   }
-  function csvText(){
-    const data=[dataHeader,...sessionRows()].map(row=>row.map(v=>`"${String(v).replaceAll('"','""')}"`).join(',')).join('\r\n');
+  function csvText(session=state){
+    const data=[dataHeader,...sessionRows(session)].map(row=>row.map(v=>`"${String(v).replaceAll('"','""')}"`).join(',')).join('\r\n');
     // El CSV completo se reconstruye internamente. Nunca se duplican los comentarios iniciales.
     return '\uFEFF'+csvComments.join('\r\n')+'\r\n'+data;
+  }
+
+  function archiveCurrentSession(reason){
+    clearTimeout(pendingEndTimer);pendingEndTimer=0;
+    if(state.current.length){
+      const lastArrow=state.current[state.current.length-1];
+      const end={
+        arrows:state.current.map(a=>({...a})),
+        endedAt:lastArrow.recordedAt||new Date().toISOString(),
+        arrowLimit:endLimit(),
+        sessionType:state.sessionType,
+        notes:state.notes
+      };
+      state.completed.push(end);state.current=[];
+      sendAndanadaTelemetry(end,state.completed.length);
+    }
+    if(!state.completed.length){state=fresh();save();render();return false;}
+    const snapshot=JSON.parse(JSON.stringify(state));
+    const archived={
+      ...snapshot,
+      endedAt:new Date().toISOString(),
+      endReason:reason,
+      total:snapshot.completed.reduce((sum,end)=>sum+subtotal(end.arrows||[]),0),
+      csv:csvText(snapshot)
+    };
+    let history=[];
+    try{const saved=JSON.parse(localStorage.getItem(historyStorageKey));if(Array.isArray(saved))history=saved;}catch(_){}
+    history.push(archived);
+    try{localStorage.setItem(historyStorageKey,JSON.stringify(history));}catch(_){}
+    window.arbatTrainingHistory=history;
+    window.arbatLastCompletedSession=archived;
+    window.dispatchEvent(new CustomEvent('arbat:session-ended',{detail:archived}));
+    state=fresh();save();render();
+    return true;
   }
 
   // Telemetría de andanadas terminadas (mismo patrón que archeryGame del proyecto
@@ -331,7 +388,8 @@
     // API interna para que otra página pueda guardar o procesar los datos sin
     // mostrar una tabla técnica ni pedir una descarga al usuario.
     const csv=csvText();
-    window.arbatSessionData={date:state.date,headers:[...dataHeader],rows:sessionRows(),csv};
+    window.arbatSessionData={id:state.id,date:state.date,startedAt:state.startedAt,headers:[...dataHeader],rows:sessionRows(),csv};
+    try{const history=JSON.parse(localStorage.getItem(historyStorageKey));window.arbatTrainingHistory=Array.isArray(history)?history:[];}catch(_){window.arbatTrainingHistory=[];}
     try{localStorage.setItem(csvStorageKey,csv);}catch(_){}
   }
 
@@ -549,7 +607,7 @@
     const count=state.current.length,limit=endLimit(),locked=count>=limit;
     $('endNumber').textContent=state.completed.length+1;$('arrowCount').textContent=`${count} / ${limit}`;
     $('endTotal').textContent=subtotal(state.current);$('sessionTotal').textContent=sessionTotal();
-    $('undoBtn').disabled=!count;$('finishBtn').disabled=!count;
+    $('undoBtn').disabled=!count;$('finishBtn').disabled=!count;$('finishSessionBtn').disabled=!sessionStarted();
     document.querySelectorAll('input[name="arrowsPerEnd"]').forEach(input=>{
       input.checked=Number(input.value)===state.arrowsPerEnd;
       input.disabled=sessionStarted();
@@ -576,7 +634,14 @@
   });
 
   $('date').textContent=new Intl.DateTimeFormat('es-BO',{weekday:'long',day:'numeric',month:'long',year:'numeric'}).format(new Date());
-  render();
+  if(sessionHasDifferentDay()){
+    const archived=archiveCurrentSession('date-change');
+    $('status').textContent=archived
+      ? 'La sesión anterior fue cerrada porque pertenecía a otro día. Nueva sesión iniciada en la andanada 1.'
+      : 'Nueva sesión del día lista para comenzar.';
+  }else{
+    save();render();
+  }
 
   // Mensaje de bienvenida de Raulito (módulo says de Buddy) al entrar a la página.
   const MENSAJE_BIENVENIDA='Anotá tus flechas tocando y deslizando sobre la diana. Usá dos dedos para ampliar o mover la diana. Los puntajes se guardan localmente en tu dispositivo.';
