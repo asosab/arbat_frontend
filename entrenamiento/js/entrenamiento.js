@@ -7,8 +7,8 @@
   };
   const storageKey = `arbat-training-${localDateKey()}`;
   const csvStorageKey = `${storageKey}-csv`;
-  const fresh = () => ({date:localDateKey(), completed:[], current:[], twelveArrows:false});
-  let state = fresh(), activePointer = null, provisional = null, autoFinishTimer = 0;
+  const fresh = () => ({date:localDateKey(), completed:[], current:[], arrowsPerEnd:DEFAULT_END_SIZE, sessionType:'training', notes:''});
+  let state = fresh(), activePointer = null, provisional = null, pendingEndTimer = 0;
 
   const $ = id => document.getElementById(id);
   const svg = $('target'), wrap = $('targetWrap'), highlight = $('highlight');
@@ -23,12 +23,15 @@
     if (saved && saved.date === localDateKey() && Array.isArray(saved.completed) && Array.isArray(saved.current)) state = saved;
   } catch (_) {}
 
-  // Compatibilidad con sesiones creadas antes de existir la opción 6/12.
-  if(typeof state.twelveArrows !== 'boolean'){
-    state.twelveArrows = state.current.length > DEFAULT_END_SIZE || state.completed.some(e=>(e.arrows||[]).length>DEFAULT_END_SIZE);
+  // Compatibilidad con sesiones guardadas por versiones anteriores.
+  if(![3,6,12].includes(Number(state.arrowsPerEnd))){
+    state.arrowsPerEnd = state.twelveArrows === true || state.current.length > DEFAULT_END_SIZE || state.completed.some(e=>(e.arrows||[]).length>DEFAULT_END_SIZE) ? MAX : DEFAULT_END_SIZE;
   }
+  state.arrowsPerEnd=Number(state.arrowsPerEnd);
+  if(!['training','competition'].includes(state.sessionType))state.sessionType='training';
+  if(typeof state.notes!=='string')state.notes='';
 
-  const endLimit = () => state.twelveArrows ? MAX : DEFAULT_END_SIZE;
+  const endLimit = () => state.arrowsPerEnd;
   const sessionStarted = () => state.current.length > 0 || state.completed.length > 0;
 
   function save(){
@@ -62,10 +65,16 @@
   function resetProvisional(){ provisional=null; $('currentScore').textContent='—'; highlight.style.opacity='0'; }
 
   function finishCurrentEnd(automatic=false){
-    clearTimeout(autoFinishTimer);autoFinishTimer=0;
+    clearTimeout(pendingEndTimer);pendingEndTimer=0;
     if(!state.current.length)return;
     const lastArrow=state.current[state.current.length-1];
-    state.completed.push({arrows:state.current.map(a=>({...a})),endedAt:lastArrow.recordedAt||new Date().toISOString()});
+    state.completed.push({
+      arrows:state.current.map(a=>({...a})),
+      endedAt:lastArrow.recordedAt||new Date().toISOString(),
+      arrowLimit:endLimit(),
+      sessionType:state.sessionType,
+      notes:state.notes
+    });
     const ended=state.completed[state.completed.length-1];
     state.current=[];save();vibrate(100);render();
     $('status').textContent=automatic
@@ -81,9 +90,15 @@
     state.current.push(arrow); save(); vibrate(40); render();
     const count=state.current.length;
     $('status').textContent=`Flecha ${count} registrada: ${arrow.label}.`;
-    if(count===limit){
-      autoFinishTimer=setTimeout(()=>finishCurrentEnd(true),140);
-    }
+    if(count===limit)$('status').textContent='Andanada completa. Revisa el total, termina la andanada o borra la última flecha para corregirla.';
+  }
+
+  function schedulePendingEnd(){
+    clearTimeout(pendingEndTimer);pendingEndTimer=0;
+    if(state.current.length<endLimit())return;
+    const markedAt=new Date(state.current[state.current.length-1]?.recordedAt||Date.now()).getTime();
+    const remaining=Math.max(0,60000-(Date.now()-markedAt));
+    pendingEndTimer=setTimeout(()=>finishCurrentEnd(true),remaining);
   }
 
   // Un dedo marca. Dos dedos cancelan cualquier marca provisional y controlan
@@ -164,7 +179,7 @@
 
   $('undoBtn').addEventListener('click',()=>{
     if(!state.current.length) return;
-    clearTimeout(autoFinishTimer);autoFinishTimer=0;
+    clearTimeout(pendingEndTimer);pendingEndTimer=0;
     const removed=state.current.pop(); save(); vibrate(40); render();
     $('status').textContent=`Última flecha eliminada (${removed.label}).`;
   });
@@ -190,7 +205,7 @@
   }
   const originalHeader=['Andanada','Separador 1',...Array.from({length:MAX},(_,i)=>`Flecha ${i+1}`),'Separador 2','Total andanada','Total sesión','Separador 3','Fecha y hora de última flecha'];
   const positionHeader=Array.from({length:MAX},(_,i)=>[`Lanzamiento ${i+1} puntaje`,`Lanzamiento ${i+1} hora de marcado`,`Lanzamiento ${i+1} reloj`,`Lanzamiento ${i+1} ángulo (°)`,`Lanzamiento ${i+1} radio (borde=1)`]).flat();
-  const dataHeader=[...originalHeader,'Separador 4',...positionHeader];
+  const dataHeader=[...originalHeader,'Separador 4',...positionHeader,'Tipo de sesión','Notas de la sesión'];
   const csvComments=[
     '# Registro de entrenamiento de arbat. Este bloque explicativo aparece una sola vez al comienzo del archivo.',
     '# Una fila de datos corresponde a una andanada terminada. Andanada es un número consecutivo dentro de la sesión.',
@@ -205,10 +220,12 @@
     '# Radio es la distancia al centro dividida por el radio exterior de la diana: 0 en el centro y 1 en el borde.',
     '# Un radio mayor que 1 indica M fuera de la diana. Reloj y ángulo quedan vacíos cuando la flecha está exactamente en el centro.',
     '# Los valores de reloj; ángulo y radio permiten analizar agrupaciones. Posiciones de M antiguas sin ubicación registrada quedan vacías.',
-    '# Fecha y hora usan el formato AAAA-MM-DD HH:mm:ss en la zona horaria local del dispositivo.'
+    '# Fecha y hora usan el formato AAAA-MM-DD HH:mm:ss en la zona horaria local del dispositivo.',
+    '# Tipo de sesión queda vacío para Entrenamiento y contiene Tournament para Competencia. El valor corresponde a la opción elegida al terminar cada andanada.',
+    '# Notas de la sesión contiene el texto libre cuando aparece por primera vez o cuando cambia respecto de la andanada anterior; si no cambia; la celda queda vacía. Puede describir el campo; el clima; el viento o cómo se sentía el arquero.'
   ];
   function sessionRows(){
-    let running=0;
+    let running=0,previousNotes='';
     return state.completed.map((end,i)=>{
       const values=sortedScores(end.arrows); while(values.length<MAX)values.push('');
       running+=subtotal(end.arrows);
@@ -219,7 +236,10 @@
         const p=polarPosition(arrow);
         return [arrow.label,localDateTime(arrow.recordedAt),p.clock,p.angle,p.radius];
       }).flat();
-      return [i+1,'',...values,'',subtotal(end.arrows),running,'',localDateTime(endedAt),'',...positions];
+      const currentNotes=end.notes||'';
+      const notesForCsv=currentNotes!==previousNotes?currentNotes:'';
+      previousNotes=currentNotes;
+      return [i+1,'',...values,'',subtotal(end.arrows),running,'',localDateTime(endedAt),'',...positions,end.sessionType==='competition'?'Tournament':'',notesForCsv];
     });
   }
   function csvText(){
@@ -252,6 +272,8 @@
       completada:end.endedAt||new Date().toISOString(),
       cantidad:end.arrows.length,
       total:subtotal(end.arrows),
+      tipoSesion:end.sessionType==='competition'?'Tournament':'',
+      notas:end.notes||'',
       flechas:flechas
     };
   }
@@ -279,14 +301,15 @@
     }));
   }
 
-  function scoreCard(arrows,index,isCurrent,running,endedAt=''){
+  function scoreCard(arrows,index,isCurrent,running,endedAt='',arrowLimit=DEFAULT_END_SIZE){
     const article=document.createElement('article'); article.className='end-card';
     const title=document.createElement('div'); title.className='end-title';
     title.innerHTML=`<span>Andanada ${index+1}</span><small>${isCurrent?'En curso':localDateTime(endedAt)||'Terminada'}</small>`;
     const grid=document.createElement('div');
     const displayValues=sortedScores(arrows);
-    const cellCount=Math.min(MAX,Math.max(DEFAULT_END_SIZE,displayValues.length));
+    const cellCount=Math.min(MAX,Math.max(3,arrowLimit,displayValues.length));
     grid.className='arrow-grid'+(cellCount>DEFAULT_END_SIZE?' extended':'');
+    grid.style.setProperty('--arrow-columns',String(Math.min(cellCount,DEFAULT_END_SIZE)));
     for(let i=0;i<cellCount;i++){
       const cell=document.createElement('div'); cell.className='arrow-cell'+(displayValues[i]==='M'?' miss':'');
       const num=document.createElement('span');num.className='num';num.textContent=`F${i+1}`;
@@ -299,8 +322,8 @@
 
   function renderScores(){
     const box=$('scorecards');box.replaceChildren();let running=0;
-    state.completed.forEach((e,i)=>{running+=subtotal(e.arrows);box.append(scoreCard(e.arrows,i,false,running,e.endedAt||e.arrows[e.arrows.length-1]?.recordedAt||''));});
-    if(state.current.length){running+=subtotal(state.current);box.append(scoreCard(state.current,state.completed.length,true,running));}
+    state.completed.forEach((e,i)=>{running+=subtotal(e.arrows);box.append(scoreCard(e.arrows,i,false,running,e.endedAt||e.arrows[e.arrows.length-1]?.recordedAt||'',e.arrowLimit||Math.max(DEFAULT_END_SIZE,e.arrows.length)));});
+    if(state.current.length){running+=subtotal(state.current);box.append(scoreCard(state.current,state.completed.length,true,running,'',endLimit()));}
     if(!state.completed.length&&!state.current.length){const p=document.createElement('p');p.className='empty';p.textContent='Los puntajes aparecerán aquí al registrar la primera flecha.';box.append(p);}
   }
 
@@ -527,17 +550,29 @@
     $('endNumber').textContent=state.completed.length+1;$('arrowCount').textContent=`${count} / ${limit}`;
     $('endTotal').textContent=subtotal(state.current);$('sessionTotal').textContent=sessionTotal();
     $('undoBtn').disabled=!count;$('finishBtn').disabled=!count;
-    $('twelveArrowMode').checked=state.twelveArrows;
-    $('twelveArrowMode').disabled=sessionStarted();
+    document.querySelectorAll('input[name="arrowsPerEnd"]').forEach(input=>{
+      input.checked=Number(input.value)===state.arrowsPerEnd;
+      input.disabled=sessionStarted();
+    });
+    document.querySelectorAll('input[name="sessionType"]').forEach(input=>{input.checked=input.value===state.sessionType;});
+    if(document.activeElement!==$('sessionNotes'))$('sessionNotes').value=state.notes;
+    $('endSummaryTotal').textContent=subtotal(state.current);
+    $('endSummaryOverlay').hidden=!locked;
     wrap.setAttribute('aria-disabled',String(locked));renderMarkers();renderScores();publishSessionData();
+    schedulePendingEnd();
   }
 
-  $('twelveArrowMode').addEventListener('change',e=>{
-    if(sessionStarted()){e.target.checked=state.twelveArrows;return;}
-    state.twelveArrows=e.target.checked;save();render();
-    $('status').textContent=state.twelveArrows
-      ? 'Sesión configurada con 12 flechas por andanada.'
-      : 'Sesión configurada con 6 flechas por andanada.';
+  document.querySelectorAll('input[name="arrowsPerEnd"]').forEach(input=>input.addEventListener('change',e=>{
+    if(sessionStarted()){render();return;}
+    state.arrowsPerEnd=Number(e.target.value);save();render();
+    $('status').textContent=`Sesión configurada con ${state.arrowsPerEnd} flechas por andanada.`;
+  }));
+  document.querySelectorAll('input[name="sessionType"]').forEach(input=>input.addEventListener('change',e=>{
+    state.sessionType=e.target.value;save();render();
+    $('status').textContent=state.sessionType==='competition'?'Sesión marcada como Competencia.':'Sesión marcada como Entrenamiento.';
+  }));
+  $('sessionNotes').addEventListener('input',e=>{
+    state.notes=e.target.value;save();publishSessionData();
   });
 
   $('date').textContent=new Intl.DateTimeFormat('es-BO',{weekday:'long',day:'numeric',month:'long',year:'numeric'}).format(new Date());

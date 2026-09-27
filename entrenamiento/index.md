@@ -33,6 +33,11 @@ scripts:
           <circle id="highlight" class="aim-ring" cx="50" cy="50" r="0" fill="none" stroke="#fff" stroke-width="4.2"/>
           <g id="markers"></g>
         </svg>
+        <div id="endSummaryOverlay" class="end-summary-overlay" hidden aria-live="polite">
+          <span>Andanada completa</span>
+          <strong id="endSummaryTotal">0</strong>
+          <small>Termínala o borra la última flecha para corregirla.</small>
+        </div>
       </div>
       <p class="target-note">Un dedo marca la flecha. Usa dos dedos para ampliar, reducir o desplazar la diana.</p>
       <div id="constellationOverlay" class="constellation-overlay" hidden aria-modal="true" role="dialog" aria-label="Constelación de flechas">
@@ -70,9 +75,27 @@ scripts:
 
   <section class="session-options" aria-labelledby="sessionOptionsTitle">
     <h2 id="sessionOptionsTitle">Opciones de la sesión</h2>
-    <label class="check-option" for="twelveArrowMode">
-      <input id="twelveArrowMode" type="checkbox">
-      <span><strong>Andanadas de 12 flechas</strong><small>Actívalo antes de marcar la primera flecha. Por defecto, cada andanada termina automáticamente al llegar a 6.</small></span>
+    <fieldset class="option-group">
+      <legend>Flechas por andanada</legend>
+      <div class="radio-grid arrow-count-options">
+        <label class="radio-option"><input type="radio" name="arrowsPerEnd" value="3"><span><strong>3 flechas</strong><small>MICA bajo techo</small></span></label>
+        <label class="radio-option"><input type="radio" name="arrowsPerEnd" value="6" checked><span><strong>6 flechas</strong><small>Campo abierto</small></span></label>
+        <label class="radio-option"><input type="radio" name="arrowsPerEnd" value="12"><span><strong>12 flechas</strong><small>Entrenamiento</small></span></label>
+      </div>
+      <p class="option-help">Elige la cantidad antes de marcar la primera flecha de la sesión.</p>
+    </fieldset>
+    <fieldset class="option-group">
+      <legend>Tipo de sesión</legend>
+      <div class="radio-grid session-type-options">
+        <label class="radio-option"><input type="radio" name="sessionType" value="training" checked><span><strong>Entrenamiento</strong></span></label>
+        <label class="radio-option"><input type="radio" name="sessionType" value="competition"><span><strong>Competencia</strong></span></label>
+      </div>
+      <p class="option-help">Puedes cambiarlo durante la sesión; el cambio se aplicará a la andanada actual y a las siguientes.</p>
+    </fieldset>
+    <label class="notes-field" for="sessionNotes">
+      <strong>Notas</strong>
+      <textarea id="sessionNotes" rows="4" maxlength="1000" placeholder="Ej.: campo diferente, cómo me siento, mucho viento…"></textarea>
+      <small>Se guardarán con cada andanada al terminarla.</small>
     </label>
   </section>
 </div>
