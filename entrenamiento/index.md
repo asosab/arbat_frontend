@@ -6,7 +6,7 @@ breadcrumb_hidden: true
 estilos:
   - "/entrenamiento/css/entrenamiento.css?v=5"
 scripts:
-  - "/entrenamiento/js/entrenamiento.js?v=5"
+  - "/entrenamiento/js/entrenamiento.js?v=6"
 ---
 
 <div class="app-entrenamiento">
