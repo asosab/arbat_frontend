@@ -4,9 +4,9 @@ title: "Mi historial de entrenamiento"
 description: "Resumen de sesiones, volumen de flechas y evolución del puntaje de tiro con arco."
 breadcrumb_hidden: true
 estilos:
-  - "/entrenamiento/historial/css/historial.css?v=1"
+  - "/entrenamiento/historial/css/historial.css?v=2"
 scripts:
-  - "/entrenamiento/historial/js/historial.js?v=1"
+  - "/entrenamiento/historial/js/historial.js?v=2"
 ---
 
 <div class="training-history" id="trainingHistory">
@@ -21,6 +21,16 @@ scripts:
       <span><small>Arquero</small><strong id="athleteName">Cargando…</strong></span>
     </div>
   </header>
+
+  <section class="athlete-picker" id="athletePicker" aria-labelledby="athletePickerTitle" hidden>
+    <div><h2 id="athletePickerTitle">Usuario consultado</h2><p>Disponible para entrenadores y administradores.</p></div>
+    <div class="athlete-search">
+      <label for="athleteSearch">Buscar por nombre o identificador</label>
+      <input id="athleteSearch" type="search" role="combobox" autocomplete="off" aria-autocomplete="list" aria-controls="athleteResults" aria-expanded="false" placeholder="Escribe para buscar…">
+      <div class="athlete-results" id="athleteResults" role="listbox" hidden></div>
+      <p class="athlete-search-status" id="athleteSearchStatus" aria-live="polite"></p>
+    </div>
+  </section>
 
   <section class="period-bar" aria-labelledby="periodTitle">
     <div><h2 id="periodTitle">Período</h2><p id="periodDates">—</p></div>
@@ -51,4 +61,5 @@ scripts:
 
   <section class="history-card" aria-labelledby="sessionsTitle"><div class="card-heading"><div><h2 id="sessionsTitle">Sesiones del período</h2><p>Las más recientes aparecen primero.</p></div></div><div id="sessionList" class="session-list"></div></section>
   <div class="history-actions"><a class="history-button history-button--primary" href="/entrenamiento/">Registrar entrenamiento</a><a class="history-button" href="/">Volver al inicio</a></div>
+  <div class="history-popover" id="historyPopover" role="dialog" aria-live="polite" hidden></div>
 </div>
