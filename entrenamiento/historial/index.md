@@ -4,9 +4,9 @@ title: "Mi historial de entrenamiento"
 description: "Resumen de sesiones, volumen de flechas y evolución del puntaje de tiro con arco."
 breadcrumb_hidden: true
 estilos:
-  - "/entrenamiento/historial/css/historial.css?v=2"
+  - "/entrenamiento/historial/css/historial.css?v=3"
 scripts:
-  - "/entrenamiento/historial/js/historial.js?v=2"
+  - "/entrenamiento/historial/js/historial.js?v=3"
 ---
 
 <div class="training-history" id="trainingHistory">
@@ -55,8 +55,8 @@ scripts:
   </section>
 
   <div class="chart-grid">
-    <section class="history-card" aria-labelledby="volumeTitle"><div class="card-heading"><div><h2 id="volumeTitle">Volumen de flechas</h2><p>Cantidad registrada cada día.</p></div></div><div id="volumeChart" class="chart" role="img" aria-label="Gráfica de flechas por día"></div></section>
-    <section class="history-card" aria-labelledby="averageTitle"><div class="card-heading"><div><h2 id="averageTitle">Promedio diario</h2><p>Puntaje promedio por flecha.</p></div></div><div id="averageChart" class="chart" role="img" aria-label="Gráfica de promedio diario"></div></section>
+    <section class="history-card" aria-labelledby="volumeTitle"><div class="card-heading"><div><h2 id="volumeTitle">Volumen de flechas</h2><p>Cantidad registrada cada día. Usa dos dedos para ampliar y desplazar.</p></div></div><div id="volumeChart" class="chart" role="img" aria-label="Gráfica de flechas por día. Usa dos dedos para ampliar y desplazar."></div></section>
+    <section class="history-card" aria-labelledby="averageTitle"><div class="card-heading"><div><h2 id="averageTitle">Promedio diario</h2><p>Puntaje promedio por flecha. Usa dos dedos para ampliar y desplazar.</p></div></div><div id="averageChart" class="chart" role="img" aria-label="Gráfica de promedio diario. Usa dos dedos para ampliar y desplazar."></div></section>
   </div>
 
   <section class="history-card" aria-labelledby="sessionsTitle"><div class="card-heading"><div><h2 id="sessionsTitle">Sesiones del período</h2><p>Las más recientes aparecen primero.</p></div></div><div id="sessionList" class="session-list"></div></section>
