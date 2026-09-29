@@ -4,9 +4,9 @@ title: "Registro de entrenamiento"
 description: "Aplicación para registrar puntajes de entrenamiento de tiro con arco: anotá tus flechas en la diana, llevá el control de tus andanadas y generá la constelación de la sesión."
 breadcrumb_hidden: true
 estilos:
-  - "/entrenamiento/css/entrenamiento.css?v=3"
+  - "/entrenamiento/css/entrenamiento.css?v=5"
 scripts:
-  - "/entrenamiento/js/entrenamiento.js?v=3"
+  - "/entrenamiento/js/entrenamiento.js?v=5"
 ---
 
 <div class="app-entrenamiento">
@@ -57,12 +57,14 @@ scripts:
         <div class="stat"><span>Flechas</span><strong id="arrowCount">0 / 6</strong></div>
         <button id="undoBtn" class="btn btn-secondary" type="button" disabled>Borrar última flecha</button>
         <div class="stat"><span>Puntaje andanada</span><strong id="endTotal">0</strong></div>
-        <div class="stat"><span>Total sesión</span><strong id="sessionTotal">0</strong></div>
-        <button id="finishBtn" class="btn btn-accent" type="button" disabled>Terminar andanada</button>
+        <div class="stat"><span>Puntaje total sesión</span><strong id="sessionTotal">0</strong></div>
+        <div class="stat"><span>Total de flechas</span><strong id="totalArrowCount">0</strong></div>
+        <button id="finishBtn" class="btn btn-accent quick-finish" type="button" disabled>Terminar andanada</button>
       </div>
       <button id="finishSessionBtn" class="btn btn-session-end" type="button" disabled>Terminar sesión del día</button>
       <div class="actions">
         <button id="constellationBtn" class="btn btn-constellation" type="button">Crear constelación</button>
+        <a class="btn btn-history" href="/entrenamiento/historial/">Ver mi historial</a>
         <a class="btn btn-home" href="/">Volver al inicio</a>
       </div>
       <p id="status" role="status" aria-live="polite">Toca la diana para registrar la primera flecha.</p>
@@ -96,7 +98,6 @@ scripts:
     <label class="notes-field" for="sessionNotes">
       <strong>Notas</strong>
       <textarea id="sessionNotes" rows="4" maxlength="1000" placeholder="Ej.: campo diferente, cómo me siento, mucho viento…"></textarea>
-      <small>Se guardará en el CSV cuando aparezca por primera vez o cuando cambie.</small>
     </label>
   </section>
 </div>
