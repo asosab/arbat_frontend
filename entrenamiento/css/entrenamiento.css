@@ -97,6 +97,12 @@
 .arrow-cell .val{display:block;font-size:1.02rem;font-weight:900;color:#fff;min-height:1.25em}
 .arrow-cell.miss .val{color:var(--danger)}
 .totals-row{display:flex;justify-content:flex-end;gap:18px;padding:8px 11px;font-size:.86rem}
+
+
+/* Historial y tercer indicador de sesión. */
+.quick-finish{grid-column:1/-1}
+.btn-history{background:#e8edf0;color:var(--navy);display:flex;align-items:center;justify-content:center;text-decoration:none}
+.btn-home{grid-column:1/-1}
 .totals-row strong{color:#fff}
 .session-options h2{margin-bottom:14px}
 .option-group{border:0;padding:0;margin:0 0 18px;min-width:0}
