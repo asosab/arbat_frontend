@@ -22,8 +22,8 @@
   const vibrate = ms => { if ('vibrate' in navigator) navigator.vibrate(ms); };
   const valueOf = a => a.label === 'M' ? 0 : 10 === a.score ? 10 : a.score;
   const subtotal = arrows => arrows.reduce((s,a) => s + valueOf(a), 0);
-  const totalBeforeCurrent = () => state.completed.reduce((s,e) => s + subtotal(e.arrows), 0);
-  const sessionTotal = () => totalBeforeCurrent() + subtotal(state.current);
+  const totalBeforeCurrent = () => state.completed.reduce((s,e) => s + subtotal(e.arrows), 0);  const sessionTotal = () => totalBeforeCurrent() + subtotal(state.current);
+  const totalArrowCount = () => state.completed.reduce((sum,end)=>sum+(end.arrows||[]).length,0)+state.current.length;
 
   try {
     const saved = JSON.parse(localStorage.getItem(storageKey) || localStorage.getItem(legacyStorageKey));
@@ -605,8 +605,7 @@
 
   function render(){
     const count=state.current.length,limit=endLimit(),locked=count>=limit;
-    $('endNumber').textContent=state.completed.length+1;$('arrowCount').textContent=`${count} / ${limit}`;
-    $('endTotal').textContent=subtotal(state.current);$('sessionTotal').textContent=sessionTotal();
+    $('endNumber').textContent=state.completed.length+1;$('arrowCount').textContent=`${count} / ${limit}`;    $('endTotal').textContent=subtotal(state.current);$('sessionTotal').textContent=sessionTotal();$('totalArrowCount').textContent=totalArrowCount();
     $('undoBtn').disabled=!count;$('finishBtn').disabled=!count;$('finishSessionBtn').disabled=!sessionStarted();
     document.querySelectorAll('input[name="arrowsPerEnd"]').forEach(input=>{
       input.checked=Number(input.value)===state.arrowsPerEnd;
