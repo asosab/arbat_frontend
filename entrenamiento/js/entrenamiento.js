@@ -342,6 +342,7 @@
       };
     });
     return {
+      sesionId:state.id,
       usuario:state.owner||ownerSnapshot(),
       fecha:state.date,
       numero:numero,
