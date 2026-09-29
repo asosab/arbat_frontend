@@ -13,8 +13,26 @@
   const legacyStorageKey = `arbat-training-${localDateKey()}`;
   const historyStorageKey = 'arbat-training-history';
   const csvStorageKey = `${storageKey}-csv`;
+  const anonymousDeviceKey = 'arbat-anonymous-device-id';
   const sessionId = () => globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  const fresh = () => ({id:sessionId(),date:localDateKey(),startedAt:new Date().toISOString(),completed:[],current:[],arrowsPerEnd:DEFAULT_END_SIZE,sessionType:'training',notes:''});
+  const anonymousDeviceId = () => {
+    let id='';
+    try{id=localStorage.getItem(anonymousDeviceKey)||'';}catch(_){}
+    if(!id){id=sessionId();try{localStorage.setItem(anonymousDeviceKey,id);}catch(_){}}
+    return id;
+  };
+  const ownerSnapshot = () => {
+    const user=window.ArbatUser&&typeof window.ArbatUser.get==='function'
+      ? window.ArbatUser.get()
+      : window.Buddy&&window.Buddy.auth&&typeof window.Buddy.auth.getUser==='function'
+        ? window.Buddy.auth.getUser()
+        : null;
+    const id=user&&(user.id??user._id??user.email);
+    if(id!=null&&String(id))return{id:String(id),name:String(user.name||user.firstName||user.email||'Usuario'),anonymous:false};
+    const anonymousId=anonymousDeviceId();
+    return{id:`anon:${anonymousId}`,name:'',anonymous:true,anonymousId};
+  };
+  const fresh = () => ({id:sessionId(),date:localDateKey(),startedAt:new Date().toISOString(),completed:[],current:[],arrowsPerEnd:DEFAULT_END_SIZE,sessionType:'training',notes:'',owner:ownerSnapshot()});
   let state = fresh(), activePointer = null, provisional = null, pendingEndTimer = 0;
 
   const $ = id => document.getElementById(id);
@@ -39,6 +57,7 @@
   if(typeof state.notes!=='string')state.notes='';
   if(!state.id)state.id=sessionId();
   if(!state.startedAt)state.startedAt=state.current[0]?.recordedAt||state.completed[0]?.arrows?.[0]?.recordedAt||new Date().toISOString();
+  if(!state.owner)state.owner=ownerSnapshot();
 
   const endLimit = () => state.arrowsPerEnd;
   const sessionStarted = () => state.current.length > 0 || state.completed.length > 0;
@@ -323,6 +342,7 @@
       };
     });
     return {
+      usuario:state.owner||ownerSnapshot(),
       fecha:state.date,
       numero:numero,
       iniciada:end.arrows[0]&&end.arrows[0].recordedAt||null,
@@ -658,4 +678,9 @@
   }else{
     window.addEventListener('buddy:ready',decirBienvenida,{once:true});
   }
+  const syncOwner=()=>{
+    const owner=ownerSnapshot();
+    if(!owner.anonymous&&(state.owner?.anonymous!==false||state.owner?.id!==owner.id)){state.owner=owner;save();publishSessionData();}
+  };
+  ['buddy:auth-ready','buddy:auth-state-changed','buddy:user-loaded','buddy:user-updated'].forEach(eventName=>window.addEventListener(eventName,syncOwner));
 })();
