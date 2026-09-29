@@ -250,16 +250,70 @@
     Object.entries(attributes).forEach(([key, value]) => node.setAttribute(key, String(value))); return node;
   }
 
+  function enableChartGestures(root, svg) {
+    const pointers = new Map();
+    let gesture = null;
+    const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+    const pair = () => Array.from(pointers.entries()).slice(0, 2);
+    const localMidpoint = entries => {
+      const rect = root.getBoundingClientRect();
+      return ((entries[0][1].x + entries[1][1].x) / 2) - rect.left;
+    };
+    const distance = entries => Math.max(1, Math.hypot(entries[0][1].x - entries[1][1].x, entries[0][1].y - entries[1][1].y));
+    const setZoom = zoom => {
+      root.dataset.zoom = String(zoom);
+      svg.style.width = `${zoom * 100}%`;
+      root.classList.toggle('is-zoomed', zoom > 1.01);
+    };
+    const beginGesture = () => {
+      const entries = pair();
+      if (entries.length < 2) return;
+      const zoom = Number(root.dataset.zoom) || 1;
+      const mid = localMidpoint(entries);
+      gesture = {
+        distance: distance(entries),
+        zoom,
+        anchor: (root.scrollLeft + mid) / zoom
+      };
+      entries.forEach(([id]) => { try { svg.setPointerCapture(id); } catch (_) {} });
+      root.classList.add('is-gesturing');
+    };
+    const updateGesture = event => {
+      if (!gesture || pointers.size < 2) return;
+      const entries = pair(), mid = localMidpoint(entries);
+      const zoom = clamp(gesture.zoom * distance(entries) / gesture.distance, 1, 20);
+      setZoom(zoom);
+      root.scrollLeft = gesture.anchor * zoom - mid;
+      event.preventDefault();
+    };
+    const finishPointer = event => {
+      pointers.delete(event.pointerId);
+      if (pointers.size < 2) { gesture = null; root.classList.remove('is-gesturing'); }
+    };
+    setZoom(1);
+    svg.addEventListener('pointerdown', event => {
+      if (event.pointerType !== 'touch') return;
+      pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      if (pointers.size === 2) { beginGesture(); event.preventDefault(); }
+    });
+    svg.addEventListener('pointermove', event => {
+      if (!pointers.has(event.pointerId)) return;
+      pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      updateGesture(event);
+    });
+    ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(name => svg.addEventListener(name, finishPointer));
+  }
+
   function renderChart(rootId, days, type) {
     const root = $(rootId); root.replaceChildren();
     const active = type === 'average' ? days.filter(day => day.average != null) : days;
     if (!active.some(day => type === 'average' ? day.average != null : day.arrows > 0)) {
       const empty = document.createElement('div'); empty.className = 'chart-empty'; empty.textContent = 'Todavía no hay datos en este período.'; root.append(empty); return;
     }
-    const width = Math.max(680, Math.min(1800, days.length * 8)), height = 220, left = 42, right = 12, top = 14, bottom = 30;
+    const width = 1000, height = 220, left = 48, right = 16, top = 14, bottom = 30;
     const plotWidth = width - left - right, plotHeight = height - top - bottom;
     const values = active.map(day => type === 'average' ? day.average : day.arrows), max = type === 'average' ? 10 : Math.max(1, ...values);
-    const svg = svgElement('svg', { viewBox: `0 0 ${width} ${height}`, preserveAspectRatio: 'none' }); svg.style.width = `${width}px`;
+    const svg = svgElement('svg', { viewBox: `0 0 ${width} ${height}`, preserveAspectRatio: 'none' });
     [0, .5, 1].forEach(ratio => {
       const y = top + plotHeight * ratio; svg.append(svgElement('line', { x1: left, y1: y, x2: width - right, y2: y, class: 'grid-line' }));
       const label = svgElement('text', { x: left - 7, y: y + 4, 'text-anchor': 'end' }); label.textContent = String(Math.round(max * (1 - ratio) * 10) / 10).replace('.', ','); svg.append(label);
@@ -291,7 +345,7 @@
       const x = left + (days.length === 1 ? plotWidth / 2 : index / (days.length - 1) * plotWidth), label = svgElement('text', { x, y: height - 8, 'text-anchor': index === 0 ? 'start' : index === days.length - 1 ? 'end' : 'middle' });
       label.textContent = formatDate(parseLocalDate(day.date), { day: 'numeric', month: 'short' }); svg.append(label);
     });
-    root.append(svg);
+    root.append(svg); enableChartGestures(root, svg);
   }
 
   function renderSessions(sessions) {
