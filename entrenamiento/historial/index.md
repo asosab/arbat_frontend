@@ -7,7 +7,7 @@ estilos:
   - "/entrenamiento/historial/css/historial.css?v=4"
 scripts:
   - "/entrenamiento/js/constelacion.js?v=1"
-  - "/entrenamiento/historial/js/historial.js?v=4"
+  - "/entrenamiento/historial/js/historial.js?v=5"
 ---
 
 <div class="training-history" id="trainingHistory">
