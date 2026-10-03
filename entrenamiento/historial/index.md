@@ -4,9 +4,10 @@ title: "Mi historial de entrenamiento"
 description: "Resumen de sesiones, volumen de flechas y evolución del puntaje de tiro con arco."
 breadcrumb_hidden: true
 estilos:
-  - "/entrenamiento/historial/css/historial.css?v=3"
+  - "/entrenamiento/historial/css/historial.css?v=4"
 scripts:
-  - "/entrenamiento/historial/js/historial.js?v=3"
+  - "/entrenamiento/js/constelacion.js?v=1"
+  - "/entrenamiento/historial/js/historial.js?v=4"
 ---
 
 <div class="training-history" id="trainingHistory">
@@ -55,8 +56,8 @@ scripts:
   </section>
 
   <div class="chart-grid">
-    <section class="history-card" aria-labelledby="volumeTitle"><div class="card-heading"><div><h2 id="volumeTitle">Volumen de flechas</h2><p>Cantidad registrada cada día. Usa dos dedos para ampliar y desplazar.</p></div></div><div id="volumeChart" class="chart" role="img" aria-label="Gráfica de flechas por día. Usa dos dedos para ampliar y desplazar."></div></section>
-    <section class="history-card" aria-labelledby="averageTitle"><div class="card-heading"><div><h2 id="averageTitle">Promedio diario</h2><p>Puntaje promedio por flecha. Usa dos dedos para ampliar y desplazar.</p></div></div><div id="averageChart" class="chart" role="img" aria-label="Gráfica de promedio diario. Usa dos dedos para ampliar y desplazar."></div></section>
+    <section class="history-card" aria-labelledby="volumeTitle"><div class="card-heading"><div><h2 id="volumeTitle">Volumen de flechas</h2><p>Cantidad registrada cada día. Desliza con un dedo o la rueda del mouse. Usa dos dedos, o Control + rueda, para ampliar.</p></div></div><div id="volumeChart" class="chart" role="img" aria-label="Gráfica de flechas por día. Desliza para recorrerla y amplía con dos dedos o Control más la rueda del mouse."></div></section>
+    <section class="history-card" aria-labelledby="averageTitle"><div class="card-heading"><div><h2 id="averageTitle">Promedio diario</h2><p>Puntaje promedio por flecha. Desliza con un dedo o la rueda del mouse. Usa dos dedos, o Control + rueda, para ampliar.</p></div></div><div id="averageChart" class="chart" role="img" aria-label="Gráfica de promedio diario. Desliza para recorrerla y amplía con dos dedos o Control más la rueda del mouse."></div></section>
   </div>
 
   <section class="history-card" aria-labelledby="sessionsTitle"><div class="card-heading"><div><h2 id="sessionsTitle">Sesiones del período</h2><p>Las más recientes aparecen primero.</p></div></div><div id="sessionList" class="session-list"></div></section>
