@@ -4,10 +4,10 @@ title: "Mi historial de entrenamiento"
 description: "Resumen de sesiones, volumen de flechas y evolución del puntaje de tiro con arco."
 breadcrumb_hidden: true
 estilos:
-  - "/entrenamiento/historial/css/historial.css?v=4"
+  - "/entrenamiento/historial/css/historial.css?v=5"
 scripts:
   - "/entrenamiento/js/constelacion.js?v=1"
-  - "/entrenamiento/historial/js/historial.js?v=5"
+  - "/entrenamiento/historial/js/historial.js?v=6"
 ---
 
 <div class="training-history" id="trainingHistory">
@@ -51,13 +51,13 @@ scripts:
   </section>
 
   <section class="history-card activity-card" aria-labelledby="activityTitle">
-    <div class="card-heading"><div><h2 id="activityTitle">Calendario de actividad</h2><p>Más intensidad significa más flechas registradas.</p></div><div class="heat-legend" aria-label="Escala de actividad"><span>Menos</span><i></i><i></i><i></i><i></i><span>Más</span></div></div>
-    <div class="activity-scroll"><div id="activityCalendar" class="activity-calendar" role="img" aria-label="Días con entrenamiento"></div></div>
+    <div class="card-heading"><div><h2 id="activityTitle">Calendario de actividad</h2><p>Cada fila representa una semana, de lunes a domingo. Más intensidad significa más flechas registradas.</p></div><div class="heat-legend" aria-label="Escala de actividad"><span>Menos</span><i></i><i></i><i></i><i></i><span>Más</span></div></div>
+    <div class="activity-scroll"><div id="activityCalendar" class="activity-calendar" role="grid" aria-label="Calendario de días con entrenamiento"></div></div>
   </section>
 
   <div class="chart-grid">
-    <section class="history-card" aria-labelledby="volumeTitle"><div class="card-heading"><div><h2 id="volumeTitle">Volumen de flechas</h2><p>Cantidad registrada cada día. Desliza con un dedo o la rueda del mouse. Usa dos dedos, o Control + rueda, para ampliar.</p></div></div><div id="volumeChart" class="chart" role="img" aria-label="Gráfica de flechas por día. Desliza para recorrerla y amplía con dos dedos o Control más la rueda del mouse."></div></section>
-    <section class="history-card" aria-labelledby="averageTitle"><div class="card-heading"><div><h2 id="averageTitle">Promedio diario</h2><p>Puntaje promedio por flecha. Desliza con un dedo o la rueda del mouse. Usa dos dedos, o Control + rueda, para ampliar.</p></div></div><div id="averageChart" class="chart" role="img" aria-label="Gráfica de promedio diario. Desliza para recorrerla y amplía con dos dedos o Control más la rueda del mouse."></div></section>
+    <section class="history-card" aria-labelledby="volumeTitle"><div class="card-heading"><div><h2 id="volumeTitle">Volumen de flechas</h2><p>Cantidad registrada cada día. Zoom y desplazamiento sincronizados con Promedio diario.</p></div></div><div id="volumeChart" class="chart" role="img" aria-label="Gráfica de flechas por día. Su zoom y desplazamiento están sincronizados con la gráfica de promedio."></div></section>
+    <section class="history-card" aria-labelledby="averageTitle"><div class="card-heading"><div><h2 id="averageTitle">Promedio diario</h2><p>Puntaje promedio por flecha. Zoom y desplazamiento sincronizados con Volumen de flechas.</p></div></div><div id="averageChart" class="chart" role="img" aria-label="Gráfica de promedio diario. Su zoom y desplazamiento están sincronizados con la gráfica de volumen."></div></section>
   </div>
 
   <section class="history-card" aria-labelledby="sessionsTitle"><div class="card-heading"><div><h2 id="sessionsTitle">Sesiones del período</h2><p>Las más recientes aparecen primero.</p></div></div><div id="sessionList" class="session-list"></div></section>
