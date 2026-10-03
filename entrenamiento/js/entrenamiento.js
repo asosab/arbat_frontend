@@ -422,6 +422,17 @@
   function drawConstellation(){
     const arrows=constellationArrows();
     if(!arrows.length)return false;
+    const sharedCanvas=window.ArbatConstellation&&window.ArbatConstellation.createCanvas({arrows,date:state.date,sessionType:state.sessionType});
+    if(sharedCanvas){
+      sharedCanvas.toBlob(blob=>{
+        if(!blob)return;
+        const previous=constellationUrl;
+        constellationUrl=URL.createObjectURL(blob);constellationImage.src=constellationUrl;
+        if(previous)URL.revokeObjectURL(previous);
+        constellationOverlay.hidden=false;
+      },'image/png');
+      return true;
+    }
     const visible=arrows.filter(a=>a.label!=='M'&&Number.isFinite(a.x)&&Number.isFinite(a.y));
     const canvas=document.createElement('canvas'),ctx=canvas.getContext('2d');
     canvas.width=1080;canvas.height=1350;
