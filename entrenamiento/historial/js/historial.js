@@ -216,6 +216,28 @@
     const date = new Date(value); return Number.isNaN(date.getTime()) ? '—' : formatDate(date, { hour: '2-digit', minute: '2-digit' });
   }
 
+  function sessionConstellation(session, index, totalSessions) {
+    const section = document.createElement('section'); section.className = 'session-constellation';
+    const heading = document.createElement('h4'), meta = document.createElement('p');
+    const start = timeValue(session.startedAt), end = timeValue(session.endedAt);
+    heading.textContent = totalSessions > 1 ? `Sesión ${index + 1} · ${start}` : 'Constelación de la sesión';
+    meta.textContent = `${session.arrows.length} flechas · ${start}${end !== '—' ? `–${end}` : ''}`;
+    const canvas = window.ArbatConstellation && window.ArbatConstellation.createCanvas({
+      arrows: session.arrows,
+      date: session.date,
+      sessionType: session.sessionType
+    });
+    if (canvas) {
+      canvas.className = 'session-constellation-canvas';
+      canvas.setAttribute('role', 'img');
+      canvas.setAttribute('aria-label', `Constelación de ${session.arrows.length} flechas de la sesión ${index + 1}`);
+      section.append(heading, meta, canvas);
+    } else {
+      section.append(heading, meta, constellation(session.arrows));
+    }
+    return section;
+  }
+
   function dayDetails(day) {
     const content = document.createElement('div'); content.className = 'day-detail';
     const title = document.createElement('h3'); title.textContent = formatDate(parseLocalDate(day.date), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
@@ -224,8 +246,10 @@
     [['Hora de inicio', timeValue(starts[0])], ['Hora final', timeValue(ends[ends.length - 1])], ['Puntaje total', String(day.total)], ['Flechas lanzadas', String(day.arrows)], ['Promedio', day.average == null ? '—' : formatNumber(day.average)]].forEach(([label, value]) => {
       const dt = document.createElement('dt'), dd = document.createElement('dd'); dt.textContent = label; dd.textContent = value; summary.append(dt, dd);
     });
-    const subtitle = document.createElement('h4'); subtitle.textContent = 'Constelación del día';
-    content.append(title, summary, subtitle, constellation(day.sessions.flatMap(session => session.arrows))); return content;
+    const sessions = day.sessions.slice().sort((first, second) => String(first.startedAt || '').localeCompare(String(second.startedAt || '')));
+    content.append(title, summary);
+    sessions.forEach((session, index) => content.append(sessionConstellation(session, index, sessions.length)));
+    return content;
   }
 
   function renderCalendar(days) {
@@ -252,7 +276,7 @@
 
   function enableChartGestures(root, svg) {
     const pointers = new Map();
-    let gesture = null;
+    let gesture = null, touchPan = null, suppressClick = false;
     const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
     const pair = () => Array.from(pointers.entries()).slice(0, 2);
     const localMidpoint = entries => {
@@ -261,9 +285,11 @@
     };
     const distance = entries => Math.max(1, Math.hypot(entries[0][1].x - entries[1][1].x, entries[0][1].y - entries[1][1].y));
     const setZoom = zoom => {
-      root.dataset.zoom = String(zoom);
-      svg.style.width = `${zoom * 100}%`;
-      root.classList.toggle('is-zoomed', zoom > 1.01);
+      const bounded = clamp(zoom, 1, 20);
+      root.dataset.zoom = String(bounded);
+      svg.style.width = `${bounded * 100}%`;
+      root.classList.toggle('is-zoomed', bounded > 1.01);
+      return bounded;
     };
     const beginGesture = () => {
       const entries = pair();
@@ -275,33 +301,64 @@
         zoom,
         anchor: (root.scrollLeft + mid) / zoom
       };
+      touchPan = null; suppressClick = true;
       entries.forEach(([id]) => { try { svg.setPointerCapture(id); } catch (_) {} });
       root.classList.add('is-gesturing');
     };
     const updateGesture = event => {
       if (!gesture || pointers.size < 2) return;
       const entries = pair(), mid = localMidpoint(entries);
-      const zoom = clamp(gesture.zoom * distance(entries) / gesture.distance, 1, 20);
-      setZoom(zoom);
+      const zoom = setZoom(gesture.zoom * distance(entries) / gesture.distance);
       root.scrollLeft = gesture.anchor * zoom - mid;
       event.preventDefault();
     };
     const finishPointer = event => {
+      const wasDragging = Boolean(gesture || touchPan && touchPan.active);
       pointers.delete(event.pointerId);
-      if (pointers.size < 2) { gesture = null; root.classList.remove('is-gesturing'); }
+      if (touchPan && touchPan.id === event.pointerId) touchPan = null;
+      if (pointers.size < 2) gesture = null;
+      if (!gesture && !(touchPan && touchPan.active)) root.classList.remove('is-gesturing');
+      if (wasDragging) setTimeout(() => { suppressClick = false; }, 0);
     };
     setZoom(1);
     svg.addEventListener('pointerdown', event => {
       if (event.pointerType !== 'touch') return;
       pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      if (pointers.size === 1) touchPan = { id: event.pointerId, x: event.clientX, y: event.clientY, scrollLeft: root.scrollLeft, active: false };
       if (pointers.size === 2) { beginGesture(); event.preventDefault(); }
     });
     svg.addEventListener('pointermove', event => {
       if (!pointers.has(event.pointerId)) return;
       pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
-      updateGesture(event);
+      if (gesture && pointers.size >= 2) { updateGesture(event); return; }
+      if (!touchPan || touchPan.id !== event.pointerId || pointers.size !== 1) return;
+      const deltaX = event.clientX - touchPan.x, deltaY = event.clientY - touchPan.y;
+      if (!touchPan.active && Math.abs(deltaX) > 7 && Math.abs(deltaX) > Math.abs(deltaY)) {
+        touchPan.active = true; suppressClick = true; root.classList.add('is-gesturing');
+        try { svg.setPointerCapture(event.pointerId); } catch (_) {}
+      }
+      if (touchPan.active) { root.scrollLeft = touchPan.scrollLeft - deltaX; event.preventDefault(); }
     });
     ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(name => svg.addEventListener(name, finishPointer));
+    root.addEventListener('click', event => {
+      if (!suppressClick) return;
+      event.preventDefault(); event.stopImmediatePropagation();
+    }, true);
+    root.addEventListener('wheel', event => {
+      const zoom = Number(root.dataset.zoom) || 1;
+      if (event.ctrlKey) {
+        event.preventDefault();
+        const rect = root.getBoundingClientRect(), pointerX = event.clientX - rect.left;
+        const anchor = (root.scrollLeft + pointerX) / zoom;
+        const nextZoom = setZoom(zoom * Math.exp(-event.deltaY * .002));
+        root.scrollLeft = anchor * nextZoom - pointerX;
+        return;
+      }
+      if (root.scrollWidth > root.clientWidth + 1) {
+        event.preventDefault();
+        root.scrollLeft += Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
+      }
+    }, { passive: false });
   }
 
   function renderChart(rootId, days, type) {
