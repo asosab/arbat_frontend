@@ -5,7 +5,14 @@
   const CURRENT_KEY = 'arbat-training-current';
   const ANONYMOUS_DEVICE_KEY = 'arbat-anonymous-device-id';
   const $ = id => document.getElementById(id);
-  const state = { directoryLoaded: false, privileged: false, users: [], selectedUser: null, renderSequence: 0 };
+  const state = {
+    directoryLoaded: false,
+    privileged: false,
+    users: [],
+    selectedUser: null,
+    renderSequence: 0,
+    chartViewport: { zoom: 1, position: 0, controllers: [], syncing: false }
+  };
 
   const valueOf = arrow => arrow && arrow.label === 'M' ? 0 : Number(arrow && arrow.score) || 0;
   const arrowsOf = session => [...(session.completed || []).flatMap(end => end.arrows || []), ...(session.current || [])];
@@ -255,12 +262,25 @@
   function renderCalendar(days) {
     const root = $('activityCalendar'); root.replaceChildren();
     const max = Math.max(0, ...days.map(day => day.arrows)), firstDay = (parseLocalDate(days[0] && days[0].date).getDay() + 6) % 7;
+    ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'].forEach(name => {
+      const heading = document.createElement('span');
+      heading.className = 'activity-weekday';
+      const long = document.createElement('span'), short = document.createElement('span');
+      long.className = 'activity-weekday-long'; short.className = 'activity-weekday-short';
+      long.textContent = name; short.textContent = name.slice(0, 3);
+      heading.append(long, short); root.append(heading);
+    });
     for (let index = 0; index < firstDay; index += 1) { const blank = document.createElement('span'); blank.className = 'activity-day is-empty'; blank.setAttribute('aria-hidden', 'true'); root.append(blank); }
-    days.forEach(day => {
+    days.forEach((day, dayIndex) => {
+      const calendarDate = parseLocalDate(day.date);
       const cell = document.createElement(day.arrows ? 'button' : 'span');
       const level = !day.arrows ? 0 : Math.max(1, Math.ceil(day.arrows / Math.max(1, max) * 3));
-      const label = `${formatDate(parseLocalDate(day.date), { day: 'numeric', month: 'short', year: 'numeric' })}: ${day.arrows} flechas`;
+      const label = `${formatDate(calendarDate, { day: 'numeric', month: 'short', year: 'numeric' })}: ${day.arrows} flechas`;
       cell.className = 'activity-day'; cell.dataset.level = String(level); cell.title = label;
+      const number = document.createElement('span'); number.className = 'activity-day-number'; number.textContent = String(calendarDate.getDate()); cell.append(number);
+      if (dayIndex === 0 || calendarDate.getDate() === 1) {
+        const month = document.createElement('span'); month.className = 'activity-day-month'; month.textContent = formatDate(calendarDate, { month: 'short' }).replace('.', ''); cell.append(month);
+      }
       if (day.arrows) {
         cell.type = 'button'; cell.setAttribute('aria-label', `${label}. Mostrar resumen y constelación.`);
         cell.addEventListener('click', event => { event.stopPropagation(); showPopover(dayDetails(day), cell, true); });
@@ -274,32 +294,66 @@
     Object.entries(attributes).forEach(([key, value]) => node.setAttribute(key, String(value))); return node;
   }
 
+  function resetChartViewport() {
+    state.chartViewport = { zoom: 1, position: 0, controllers: [], syncing: false };
+  }
+
+  function chartScrollPosition(root) {
+    const maximum = Math.max(0, root.scrollWidth - root.clientWidth);
+    return maximum ? root.scrollLeft / maximum : 0;
+  }
+
+  function applyChartViewport(zoom, position) {
+    const viewport = state.chartViewport;
+    viewport.zoom = Math.max(1, Math.min(20, Number(zoom) || 1));
+    viewport.position = Math.max(0, Math.min(1, Number(position) || 0));
+    viewport.syncing = true;
+    viewport.controllers.forEach(({ root, svg }) => {
+      root.dataset.zoom = String(viewport.zoom);
+      svg.style.width = `${viewport.zoom * 100}%`;
+      root.classList.toggle('is-zoomed', viewport.zoom > 1.01);
+      const maximum = Math.max(0, root.scrollWidth - root.clientWidth);
+      root.scrollLeft = maximum * viewport.position;
+    });
+    viewport.syncing = false;
+    return viewport.zoom;
+  }
+
+  function synchronizeChartScroll(source) {
+    if (state.chartViewport.syncing) return;
+    applyChartViewport(state.chartViewport.zoom, chartScrollPosition(source));
+  }
+
+  function zoomChartsAt(source, requestedZoom, pointerX) {
+    const oldWidth = Math.max(1, source.scrollWidth);
+    const anchor = (source.scrollLeft + pointerX) / oldWidth;
+    const zoom = Math.max(1, Math.min(20, requestedZoom));
+    applyChartViewport(zoom, state.chartViewport.position);
+    const maximum = Math.max(0, source.scrollWidth - source.clientWidth);
+    const desired = anchor * source.scrollWidth - pointerX;
+    const position = maximum ? desired / maximum : 0;
+    applyChartViewport(zoom, position);
+    return zoom;
+  }
+
   function enableChartGestures(root, svg) {
     const pointers = new Map();
     let gesture = null, touchPan = null, suppressClick = false;
-    const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
     const pair = () => Array.from(pointers.entries()).slice(0, 2);
     const localMidpoint = entries => {
       const rect = root.getBoundingClientRect();
       return ((entries[0][1].x + entries[1][1].x) / 2) - rect.left;
     };
     const distance = entries => Math.max(1, Math.hypot(entries[0][1].x - entries[1][1].x, entries[0][1].y - entries[1][1].y));
-    const setZoom = zoom => {
-      const bounded = clamp(zoom, 1, 20);
-      root.dataset.zoom = String(bounded);
-      svg.style.width = `${bounded * 100}%`;
-      root.classList.toggle('is-zoomed', bounded > 1.01);
-      return bounded;
-    };
     const beginGesture = () => {
       const entries = pair();
       if (entries.length < 2) return;
-      const zoom = Number(root.dataset.zoom) || 1;
+      const zoom = state.chartViewport.zoom;
       const mid = localMidpoint(entries);
       gesture = {
         distance: distance(entries),
         zoom,
-        anchor: (root.scrollLeft + mid) / zoom
+        anchor: (root.scrollLeft + mid) / Math.max(1, root.scrollWidth)
       };
       touchPan = null; suppressClick = true;
       entries.forEach(([id]) => { try { svg.setPointerCapture(id); } catch (_) {} });
@@ -308,8 +362,11 @@
     const updateGesture = event => {
       if (!gesture || pointers.size < 2) return;
       const entries = pair(), mid = localMidpoint(entries);
-      const zoom = setZoom(gesture.zoom * distance(entries) / gesture.distance);
-      root.scrollLeft = gesture.anchor * zoom - mid;
+      const zoom = Math.max(1, Math.min(20, gesture.zoom * distance(entries) / gesture.distance));
+      applyChartViewport(zoom, state.chartViewport.position);
+      const maximum = Math.max(0, root.scrollWidth - root.clientWidth);
+      const desired = gesture.anchor * root.scrollWidth - mid;
+      applyChartViewport(zoom, maximum ? desired / maximum : 0);
       event.preventDefault();
     };
     const finishPointer = event => {
@@ -320,7 +377,8 @@
       if (!gesture && !(touchPan && touchPan.active)) root.classList.remove('is-gesturing');
       if (wasDragging) setTimeout(() => { suppressClick = false; }, 0);
     };
-    setZoom(1);
+    state.chartViewport.controllers.push({ root, svg });
+    applyChartViewport(state.chartViewport.zoom, state.chartViewport.position);
     svg.addEventListener('pointerdown', event => {
       if (event.pointerType !== 'touch') return;
       pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
@@ -337,7 +395,7 @@
         touchPan.active = true; suppressClick = true; root.classList.add('is-gesturing');
         try { svg.setPointerCapture(event.pointerId); } catch (_) {}
       }
-      if (touchPan.active) { root.scrollLeft = touchPan.scrollLeft - deltaX; event.preventDefault(); }
+      if (touchPan.active) { root.scrollLeft = touchPan.scrollLeft - deltaX; synchronizeChartScroll(root); event.preventDefault(); }
     });
     ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(name => svg.addEventListener(name, finishPointer));
     root.addEventListener('click', event => {
@@ -345,20 +403,20 @@
       event.preventDefault(); event.stopImmediatePropagation();
     }, true);
     root.addEventListener('wheel', event => {
-      const zoom = Number(root.dataset.zoom) || 1;
+      const zoom = state.chartViewport.zoom;
       if (event.ctrlKey) {
         event.preventDefault();
         const rect = root.getBoundingClientRect(), pointerX = event.clientX - rect.left;
-        const anchor = (root.scrollLeft + pointerX) / zoom;
-        const nextZoom = setZoom(zoom * Math.exp(-event.deltaY * .002));
-        root.scrollLeft = anchor * nextZoom - pointerX;
+        zoomChartsAt(root, zoom * Math.exp(-event.deltaY * .002), pointerX);
         return;
       }
       if (root.scrollWidth > root.clientWidth + 1) {
         event.preventDefault();
         root.scrollLeft += Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
+        synchronizeChartScroll(root);
       }
     }, { passive: false });
+    root.addEventListener('scroll', () => synchronizeChartScroll(root), { passive: true });
   }
 
   function renderChart(rootId, days, type) {
@@ -369,6 +427,7 @@
     }
     const width = 1000, height = 220, left = 48, right = 16, top = 14, bottom = 30;
     const plotWidth = width - left - right, plotHeight = height - top - bottom;
+    const xForIndex = index => left + (index + .5) / Math.max(1, days.length) * plotWidth;
     const values = active.map(day => type === 'average' ? day.average : day.arrows), max = type === 'average' ? 10 : Math.max(1, ...values);
     const svg = svgElement('svg', { viewBox: `0 0 ${width} ${height}`, preserveAspectRatio: 'none' });
     [0, .5, 1].forEach(ratio => {
@@ -379,14 +438,14 @@
       const step = plotWidth / days.length, barWidth = Math.max(1.5, step * .72);
       days.forEach((day, index) => {
         const barHeight = day.arrows / max * plotHeight;
-        const bar = svgElement('rect', { x: left + index * step + (step - barWidth) / 2, y: top + plotHeight - barHeight, width: barWidth, height: Math.max(0, barHeight), class: 'bar', rx: Math.min(2, barWidth / 2) });
+        const bar = svgElement('rect', { x: xForIndex(index) - barWidth / 2, y: top + plotHeight - barHeight, width: barWidth, height: Math.max(0, barHeight), class: 'bar', rx: Math.min(2, barWidth / 2) });
         if (day.arrows) interactive(bar, `${day.date}: ${day.arrows} flechas`, target => showPopover(metricContent('Cantidad de Flechas', day, day.arrows, day.arrows === 1 ? 'flecha' : 'flechas'), target));
         svg.append(bar);
       });
     } else {
       const points = active.map(day => {
         const index = days.findIndex(item => item.date === day.date);
-        const x = left + (days.length === 1 ? plotWidth / 2 : index / (days.length - 1) * plotWidth), y = top + plotHeight - day.average / max * plotHeight;
+        const x = xForIndex(index), y = top + plotHeight - day.average / max * plotHeight;
         return { x, y, day };
       });
       svg.append(svgElement('path', { d: points.map((point, index) => `${index ? 'L' : 'M'}${point.x.toFixed(1)} ${point.y.toFixed(1)}`).join(' '), class: 'trend' }));
@@ -399,7 +458,7 @@
     const every = Math.max(1, Math.ceil(days.length / 5));
     days.forEach((day, index) => {
       if (index % every && index !== days.length - 1) return;
-      const x = left + (days.length === 1 ? plotWidth / 2 : index / (days.length - 1) * plotWidth), label = svgElement('text', { x, y: height - 8, 'text-anchor': index === 0 ? 'start' : index === days.length - 1 ? 'end' : 'middle' });
+      const x = xForIndex(index), label = svgElement('text', { x, y: height - 8, 'text-anchor': 'middle' });
       label.textContent = formatDate(parseLocalDate(day.date), { day: 'numeric', month: 'short' }); svg.append(label);
     });
     root.append(svg); enableChartGestures(root, svg);
@@ -473,6 +532,7 @@
     renderIdentity(user);
     const sessions = await loadSessions(range, user).catch(() => []); if (sequence !== state.renderSequence) return;
     const days = dailyData(sessions, range), provider = window.Buddy && window.Buddy.trainingHistory;
+    resetChartViewport();
     renderIdentity(user, provider ? 'remote' : 'local'); renderKpis(sessions); renderCalendar(days); renderChart('volumeChart', days, 'volume'); renderChart('averageChart', days, 'average'); renderSessions(sessions);
   }
 
